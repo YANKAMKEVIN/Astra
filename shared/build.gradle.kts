@@ -12,6 +12,9 @@ kotlin {
         iosArm64(),
         iosSimulatorArm64()
     ).forEach { iosTarget ->
+        iosTarget.binaries.all {
+            freeCompilerArgs += "-Xbinary=bundleId=com.kevin.astra.shared"
+        }
         iosTarget.binaries.framework {
             baseName = "Shared"
             isStatic = true
@@ -47,6 +50,8 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.koin.core)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
