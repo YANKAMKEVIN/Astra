@@ -1,31 +1,276 @@
-This is a Kotlin Multiplatform project targeting Android, iOS.
+# ASTRA
 
-* [/iosApp](./iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
+> **Secure Local AI for Critical Operations**
 
-* [/shared](./shared/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./shared/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./shared/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./shared/src/jvmMain/kotlin)
-    folder is the appropriate location.
+```{=html}
+<p align="center">
+```
+A cross-platform Edge AI platform built with **Kotlin Multiplatform** to
+evaluate, benchmark and demonstrate **Small Language Models (SLMs)**
+running **entirely on-device**, without relying on the cloud.
+```{=html}
+</p>
+```
 
-### Running the apps
+------------------------------------------------------------------------
 
-Use the run configurations provided by the run widget in your IDE's toolbar. You can also use these commands and options:
+## ✨ Overview
 
-- Android app: `./gradlew :androidApp:assembleDebug`
-- iOS app: open the [/iosApp](./iosApp) directory in Xcode and run it from there.
+ASTRA is not a chatbot.
 
-### Running tests
+It is an **Edge AI experimentation platform** designed to help
+engineers, architects and innovation teams evaluate local AI inference
+on Android and iOS.
 
-Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
+The project demonstrates how Small Language Models can run directly on a
+mobile device while exposing measurable metrics such as latency, memory
+usage and inference speed.
 
-- Android tests: `./gradlew :shared:testAndroidHostTest`
-- iOS tests: `./gradlew :shared:iosSimulatorArm64Test`
+------------------------------------------------------------------------
 
----
+## 🎯 Vision
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
+Modern enterprises increasingly require AI systems that:
+
+-   work offline
+-   preserve data privacy
+-   reduce cloud costs
+-   provide low latency
+-   operate inside critical environments
+
+ASTRA demonstrates that these objectives are achievable through **Edge
+AI**.
+
+------------------------------------------------------------------------
+
+## 🚀 Key Features
+
+### 🤖 Local AI Assistant
+
+-   Local document assistant
+-   Offline-first
+-   Industrial personas
+-   Streaming responses
+-   Prompt pipeline
+
+### 📊 AI Benchmark Lab
+
+Compare multiple models using the same prompt.
+
+Metrics include:
+
+-   Latency
+-   Time To First Token
+-   Tokens / second
+-   Memory usage
+-   Backend
+-   Device capabilities
+
+### 📄 Document Assistant
+
+-   Local documents
+-   Question answering
+-   Context injection
+-   Offline workflow
+
+### 📱 Device Dashboard
+
+Display:
+
+-   CPU
+-   GPU
+-   NPU
+-   Memory
+-   Storage
+-   Platform information
+-   Current model
+-   Current backend
+
+------------------------------------------------------------------------
+
+## 🏗 Architecture
+
+ASTRA follows:
+
+-   Kotlin Multiplatform
+-   Compose Multiplatform
+-   MVI
+-   Clean Architecture
+-   Koin
+-   Offline First
+-   SOLID principles
+
+High-level architecture:
+
+``` text
+Presentation
+        │
+     Domain
+        │
+      Data
+        │
+ Platform Layer
+(Android / iOS)
+
+        │
+
+    AI Core
+
+ ├── InferenceEngine
+ ├── ModelCatalog
+ ├── BenchmarkRunner
+ ├── PromptPipeline
+ └── DeviceCapabilityProvider
+```
+
+------------------------------------------------------------------------
+
+## 📱 Supported Platforms
+
+  Platform   Status
+  ---------- -----------
+  Android    ✅
+  iOS        🚧
+  Desktop    🔮 Future
+
+------------------------------------------------------------------------
+
+## 🤖 Supported Models (Roadmap)
+
+-   Gemma
+-   Phi
+-   Llama
+-   Qwen
+-   Mock Model
+
+------------------------------------------------------------------------
+
+## ⚙ Supported Inference Engines
+
+-   LiteRT
+-   ONNX Runtime
+-   llama.cpp
+-   Core ML
+-   Mock Engine
+
+------------------------------------------------------------------------
+
+## 🧪 Technology Stack
+
+-   Kotlin Multiplatform
+-   Compose Multiplatform
+-   Koin
+-   Coroutines
+-   Kotlin Flow
+-   MVI
+-   Clean Architecture
+
+------------------------------------------------------------------------
+
+## 📂 Project Structure
+
+``` text
+astra/
+│
+├── README.md
+├── ROADMAP.md
+├── docs/
+│
+├── androidApp/
+├── iosApp/
+│
+└── shared/
+    ├── core/
+    │   ├── ai/
+    │   ├── design/
+    │   ├── device/
+    │   └── navigation/
+    │
+    ├── data/
+    ├── domain/
+    ├── presentation/
+    └── platform/
+```
+
+------------------------------------------------------------------------
+
+## 🛣 Roadmap
+
+### Sprint 0
+
+-   Bootstrap project
+-   Design System
+-   Navigation
+-   Platform architecture
+
+### Sprint 1
+
+-   Dashboard
+-   Assistant
+-   Settings
+
+### Sprint 2
+
+-   Documents
+-   Benchmark
+
+### Sprint 3
+
+-   LiteRT integration
+-   Mock inference engine
+
+### Sprint 4
+
+-   ONNX Runtime
+-   Core ML
+-   Real benchmarks
+
+### Sprint 5
+
+-   Polish
+-   Export reports
+-   Presentation
+
+------------------------------------------------------------------------
+
+## 🎯 Mission
+
+ASTRA was created to explore the transition from **Cloud AI** to **Edge
+AI** by providing a professional experimentation platform capable of
+evaluating on-device inference for critical industries such as:
+
+-   Aerospace
+-   Defense
+-   Energy
+-   Healthcare
+-   Industrial Maintenance
+
+------------------------------------------------------------------------
+
+## 📖 Documentation
+
+Project documentation is available in the `/docs` directory.
+
+-   Product Vision
+-   Functional Requirements
+-   Platform Architecture
+-   Development Roadmap
+-   Design Guidelines
+
+------------------------------------------------------------------------
+
+## 🤝 Philosophy
+
+> **Everything is replaceable.**
+
+Models, inference engines and platform implementations are abstracted
+behind clean interfaces to ensure long-term extensibility.
+
+------------------------------------------------------------------------
+
+## 👨‍💻 Author
+
+Developed by Kevin Hermann.
+
+Designed as a showcase project demonstrating modern Mobile Engineering,
+Kotlin Multiplatform and Edge AI.
