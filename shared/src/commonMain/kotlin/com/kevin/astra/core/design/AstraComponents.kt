@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kevin.astra.core.navigation.AstraDestination
 
@@ -185,6 +186,107 @@ fun AstraMetricCard(
             text = label,
             style = AstraTypography.Caption,
             color = AstraColors.TextSecondary,
+        )
+    }
+}
+
+@Composable
+fun AstraErrorView(
+    title: String,
+    message: String,
+    modifier: Modifier = Modifier,
+    onRetry: (() -> Unit)? = null,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(AstraColors.Error.copy(alpha = 0.08f), RoundedCornerShape(24.dp))
+            .border(1.dp, AstraColors.Error.copy(alpha = 0.24f), RoundedCornerShape(24.dp))
+            .padding(AstraSpacing.L),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = title,
+            style = AstraTypography.Title,
+            color = AstraColors.Error,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(AstraSpacing.S))
+        Text(
+            text = message,
+            style = AstraTypography.Body,
+            color = AstraColors.TextPrimary,
+            textAlign = TextAlign.Center,
+        )
+        if (onRetry != null) {
+            Spacer(Modifier.height(AstraSpacing.M))
+            AstraButton(
+                text = "Retry",
+                onClick = onRetry,
+                style = AstraButtonStyle.Danger,
+            )
+        }
+    }
+}
+
+@Composable
+fun AstraEmptyView(
+    title: String,
+    message: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(AstraColors.SurfaceElevated, RoundedCornerShape(24.dp))
+            .border(1.dp, AstraColors.Border, RoundedCornerShape(24.dp))
+            .padding(AstraSpacing.L),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .background(AstraColors.Secondary.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .background(AstraColors.Secondary, RoundedCornerShape(50)),
+            )
+        }
+        Spacer(Modifier.height(AstraSpacing.M))
+        Text(
+            text = title,
+            style = AstraTypography.Title,
+            color = AstraColors.TextPrimary,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(AstraSpacing.S))
+        Text(
+            text = message,
+            style = AstraTypography.Body,
+            color = AstraColors.TextSecondary,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+fun AstraDemoModeIndicator(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .background(AstraColors.Secondary.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+            .border(1.dp, AstraColors.Secondary.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+            .padding(horizontal = AstraSpacing.S, vertical = AstraSpacing.XS),
+    ) {
+        Text(
+            text = "Offline Demo Mode",
+            style = AstraTypography.Caption,
+            color = AstraColors.Secondary,
+            fontWeight = FontWeight.Bold,
         )
     }
 }

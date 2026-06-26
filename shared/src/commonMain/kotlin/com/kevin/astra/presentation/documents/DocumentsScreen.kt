@@ -29,6 +29,8 @@ import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraCard
 import com.kevin.astra.core.design.AstraChip
 import com.kevin.astra.core.design.AstraColors
+import com.kevin.astra.core.design.AstraEmptyView
+import com.kevin.astra.core.design.AstraErrorView
 import com.kevin.astra.core.design.AstraMetricCard
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
@@ -196,14 +198,17 @@ private fun QuestionCard(
                 }
             },
         )
-        if (error != null) {
-            Spacer(Modifier.height(AstraSpacing.S))
-            Text(
-                text = error,
-                style = AstraTypography.Caption,
-                color = AstraColors.Error,
-            )
+
+        AnimatedVisibility(visible = error != null) {
+            error?.let {
+                Spacer(Modifier.height(AstraSpacing.M))
+                AstraErrorView(
+                    title = "Document Error",
+                    message = it,
+                )
+            }
         }
+
         Spacer(Modifier.height(AstraSpacing.M))
         Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
             AstraButton(
@@ -231,10 +236,9 @@ private fun ContextCard(context: RetrievedDocumentContext?) {
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
         if (context == null || context.chunks.isEmpty()) {
-            Text(
-                text = "Context will appear here after asking a question.",
-                style = AstraTypography.Body,
-                color = AstraColors.TextSecondary,
+            AstraEmptyView(
+                title = "No context extracted",
+                message = "Context will be retrieved from the local index after you ask a question.",
             )
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {

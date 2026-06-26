@@ -9,6 +9,7 @@ import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.core.mvi.AstraViewModel
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
+import com.kevin.astra.domain.demo.DemoScenarioCatalog
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -19,18 +20,33 @@ class AssistantViewModel(
     private val modelCatalog: ModelCatalog,
     private val backendCatalog: BackendCatalog,
     private val promptPipeline: PromptPipeline,
+    private val demoScenarioCatalog: DemoScenarioCatalog,
     private val generationScope: CoroutineScope? = null,
 ) : AstraViewModel<AssistantState, AssistantIntent, AssistantEffect>(
-    initialState = AssistantState(),
+    initialState = AssistantState(
+        availableScenarios = demoScenarioCatalog.scenarios()
+    ),
 ) {
     override fun handleIntent(intent: AssistantIntent) {
         when (intent) {
             is AssistantIntent.UpdateQuestion -> updateState {
-                copy(question = intent.question)
+                copy(question = intent.question, error = null)
             }
 
             is AssistantIntent.SelectIndustry -> updateState {
-                copy(selectedIndustry = intent.industry)
+                copy(
+                    selectedIndustry = intent.industry,
+                    availableScenarios = demoScenarioCatalog.scenariosForIndustry(intent.industry.toPromptIndustry()),
+                    error = null,
+                )
+            }
+
+            is AssistantIntent.SelectScenario -> updateState {
+                copy(
+                    question = intent.scenario.prompt,
+                    selectedIndustry = intent.scenario.industry.toAssistantIndustry(),
+                    error = null,
+                )
             }
 
             AssistantIntent.AskQuestion -> askQuestion()
@@ -50,14 +66,22 @@ class AssistantViewModel(
         if (snapshot.isGenerating) return
 
         if (snapshot.question.isBlank()) {
-            emitEffect(AssistantEffect.ShowError("Enter a critical operation question before asking ASTRA."))
+            updateState { copy(error = "Enter a critical operation question before asking ASTRA.") }
             return
         }
 
         (generationScope ?: viewModelScope).launch {
             val configuration = aiConfigurationRepository.getConfiguration()
-            val selectedModel = modelCatalog.modelById(configuration.selectedModelId) ?: modelCatalog.currentModel()
-            val selectedBackend = backendCatalog.backendById(configuration.selectedBackendId) ?: backendCatalog.currentBackend()
+            val selectedModelId = configuration.selectedModelId
+            val selectedBackendId = configuration.selectedBackendId
+
+            val selectedModel = modelCatalog.modelById(selectedModelId)
+            val selectedBackend = backendCatalog.backendById(selectedBackendId)
+
+            if (selectedModel == null || selectedBackend == null) {
+                updateState { copy(error = "Invalid AI configuration. Please check Settings.") }
+                return@launch
+            }
             val industry = snapshot.selectedIndustry.toPromptIndustry()
             val preparedPrompt = promptPipeline.preparePrompt(
                 PromptBuildRequest(

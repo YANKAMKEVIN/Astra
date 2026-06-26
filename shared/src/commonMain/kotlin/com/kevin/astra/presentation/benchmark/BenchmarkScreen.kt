@@ -35,11 +35,14 @@ import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraCard
 import com.kevin.astra.core.design.AstraChip
 import com.kevin.astra.core.design.AstraColors
+import com.kevin.astra.core.design.AstraEmptyView
+import com.kevin.astra.core.design.AstraErrorView
 import com.kevin.astra.core.design.AstraMetricCard
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
 import com.kevin.astra.domain.benchmark.BenchmarkResult
+import com.kevin.astra.domain.demo.DemoScenario
 
 @Composable
 fun BenchmarkScreen(
@@ -66,6 +69,11 @@ private fun BenchmarkContent(
         description = "Compare simulated on-device AI models with measurable Edge AI telemetry.",
         contentPadding = contentPadding,
     ) {
+        ScenarioSelector(
+            scenarios = state.availableScenarios,
+            onScenarioSelected = { onIntent(BenchmarkIntent.SelectScenario(it)) },
+        )
+
         BenchmarkPromptCard(
             prompt = state.prompt,
             isRunning = state.isRunning,
@@ -83,6 +91,17 @@ private fun BenchmarkContent(
             isRunning = state.isRunning,
             onSelectBackend = { onIntent(BenchmarkIntent.SelectBackend(it)) },
         )
+
+        AnimatedVisibility(visible = state.error != null) {
+            state.error?.let {
+                Spacer(Modifier.height(AstraSpacing.M))
+                AstraErrorView(
+                    title = "Benchmark Error",
+                    message = it,
+                )
+            }
+        }
+
         RunBenchmarkCard(state = state, onRun = { onIntent(BenchmarkIntent.RunBenchmark) })
 
         AnimatedVisibility(visible = state.isRunning) {
@@ -111,6 +130,62 @@ private fun BenchmarkContent(
             results = state.results,
             recommendedModelId = state.recommendedModel?.model?.id,
         )
+    }
+}
+
+@Composable
+private fun ScenarioSelector(
+    scenarios: List<DemoScenario>,
+    onScenarioSelected: (DemoScenario) -> Unit,
+) {
+    AstraCard(
+        title = "Benchmark Scenarios",
+        subtitle = "Pre-defined prompts for standardized model evaluation.",
+    ) {
+        Spacer(Modifier.height(AstraSpacing.M))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+        ) {
+            scenarios.forEach { scenario ->
+                ScenarioChip(
+                    scenario = scenario,
+                    onClick = { onScenarioSelected(scenario) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScenarioChip(
+    scenario: DemoScenario,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .heightIn(min = 64.dp)
+            .background(AstraColors.SurfaceElevated, RoundedCornerShape(16.dp))
+            .border(1.dp, AstraColors.Border, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column {
+            Text(
+                text = scenario.title,
+                style = AstraTypography.Caption,
+                color = AstraColors.TextPrimary,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = scenario.industry.label,
+                style = AstraTypography.Caption,
+                color = AstraColors.TextSecondary,
+            )
+        }
     }
 }
 
@@ -241,14 +316,6 @@ private fun RunBenchmarkCard(
                 modifier = Modifier.weight(1f),
             )
         }
-        if (state.error != null) {
-            Spacer(Modifier.height(AstraSpacing.S))
-            Text(
-                text = state.error,
-                style = AstraTypography.Caption,
-                color = AstraColors.Error,
-            )
-        }
         Spacer(Modifier.height(AstraSpacing.M))
         AstraButton(
             text = "Run Benchmark",
@@ -274,10 +341,9 @@ private fun ResultsCard(
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
         if (results.isEmpty()) {
-            Text(
-                text = "No benchmark results yet.",
-                style = AstraTypography.Body,
-                color = AstraColors.TextSecondary,
+            AstraEmptyView(
+                title = "No results",
+                message = "Select models and tap 'Run Benchmark' to generate local performance telemetry.",
             )
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.M)) {

@@ -88,6 +88,16 @@ Display:
 
 ------------------------------------------------------------------------
 
+## Screenshots
+
+> Screenshots will be added after the first stable demo build.
+
+| Dashboard | Assistant | Benchmark |
+|:---:|:---:|:---:|
+| TBD | TBD | TBD |
+
+------------------------------------------------------------------------
+
 ## 🏗 Architecture
 
 ASTRA follows:
