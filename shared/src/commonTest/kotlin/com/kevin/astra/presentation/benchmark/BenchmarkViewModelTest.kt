@@ -5,6 +5,7 @@ import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.ai.DefaultPromptBuilder
 import com.kevin.astra.core.ai.DefaultPromptPipeline
 import com.kevin.astra.core.ai.PromptPipeline
+import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.settings.InMemoryAiConfigurationRepository
 import com.kevin.astra.domain.benchmark.BenchmarkRecommendation
@@ -32,7 +33,8 @@ class BenchmarkViewModelTest {
         assertEquals(DefaultBenchmarkPrompt, state.prompt)
         assertEquals(setOf("mock-model", "gemma-3-1b", "phi-3-mini"), state.selectedModelIds)
         assertEquals(5, state.availableModels.size)
-        assertEquals(InferenceBackend.Mock, state.selectedBackend)
+        assertEquals(5, state.availableBackends.size)
+        assertEquals("mock-engine", state.selectedBackend?.id)
         assertFalse(state.isRunning)
     }
 
@@ -56,6 +58,7 @@ class BenchmarkViewModelTest {
         val viewModel = BenchmarkViewModel(
             benchmarkRunner = testRunner(onRequest = { capturedPrompt = it.prompt }),
             modelCatalog = DefaultModelCatalog(),
+            backendCatalog = DefaultBackendCatalog(),
             aiConfigurationRepository = InMemoryAiConfigurationRepository(),
             promptPipeline = testPromptPipeline(),
             benchmarkScope = CoroutineScope(coroutineContext),
@@ -94,6 +97,7 @@ class BenchmarkViewModelTest {
         BenchmarkViewModel(
             benchmarkRunner = testRunner(),
             modelCatalog = DefaultModelCatalog(),
+            backendCatalog = DefaultBackendCatalog(),
             aiConfigurationRepository = InMemoryAiConfigurationRepository(),
             promptPipeline = testPromptPipeline(),
         )

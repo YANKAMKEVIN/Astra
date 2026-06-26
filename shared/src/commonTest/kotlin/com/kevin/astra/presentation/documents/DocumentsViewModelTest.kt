@@ -9,6 +9,7 @@ import com.kevin.astra.core.ai.DefaultPromptBuilder
 import com.kevin.astra.core.ai.DefaultPromptPipeline
 import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.PromptRequest
+import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.documents.KeywordDocumentContextRetriever
 import com.kevin.astra.data.documents.SimpleDocumentIndexer
@@ -129,6 +130,7 @@ class DocumentsViewModelTest {
             askLocalAssistant = AskLocalAssistantUseCase(inferenceEngine),
             aiConfigurationRepository = InMemoryAiConfigurationRepository(),
             modelCatalog = DefaultModelCatalog(),
+            backendCatalog = DefaultBackendCatalog(),
             promptPipeline = testPromptPipeline(),
             documentsScope = scope,
         )

@@ -1,5 +1,6 @@
 package com.kevin.astra.app.di
 
+import com.kevin.astra.core.ai.BackendCatalog
 import com.kevin.astra.core.ai.InferenceEngine
 import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.ai.MockInferenceEngine
@@ -10,6 +11,7 @@ import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.device.DeviceCapabilityProvider
 import com.kevin.astra.core.device.createDeviceCapabilityProvider
 import com.kevin.astra.core.navigation.AstraNavigator
+import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.benchmark.MockBenchmarkRunner
 import com.kevin.astra.data.documents.KeywordDocumentContextRetriever
@@ -32,6 +34,7 @@ import org.koin.dsl.module
 val astraRootModule = module {
     single { AstraNavigator() }
     single<ModelCatalog> { DefaultModelCatalog() }
+    single<BackendCatalog> { DefaultBackendCatalog() }
     single<DeviceCapabilityProvider> { createDeviceCapabilityProvider() }
     single<PromptBuilder> { DefaultPromptBuilder() }
     single<PromptPipeline> { DefaultPromptPipeline(promptBuilder = get()) }
@@ -47,6 +50,7 @@ val astraRootModule = module {
             askLocalAssistant = get(),
             aiConfigurationRepository = get(),
             modelCatalog = get(),
+            backendCatalog = get(),
             promptPipeline = get(),
         )
     }
@@ -54,6 +58,7 @@ val astraRootModule = module {
         BenchmarkViewModel(
             benchmarkRunner = get(),
             modelCatalog = get(),
+            backendCatalog = get(),
             aiConfigurationRepository = get(),
             promptPipeline = get(),
         )
@@ -65,6 +70,7 @@ val astraRootModule = module {
             askLocalAssistant = get(),
             aiConfigurationRepository = get(),
             modelCatalog = get(),
+            backendCatalog = get(),
             promptPipeline = get(),
         )
     }
@@ -72,6 +78,7 @@ val astraRootModule = module {
         SettingsViewModel(
             aiConfigurationRepository = get(),
             modelCatalog = get(),
+            backendCatalog = get(),
         )
     }
 }

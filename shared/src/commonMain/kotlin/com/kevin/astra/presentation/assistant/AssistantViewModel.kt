@@ -1,6 +1,7 @@
 package com.kevin.astra.presentation.assistant
 
 import androidx.lifecycle.viewModelScope
+import com.kevin.astra.core.ai.BackendCatalog
 import com.kevin.astra.core.ai.GenerationResult
 import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.ai.PromptBuildRequest
@@ -16,6 +17,7 @@ class AssistantViewModel(
     private val askLocalAssistant: AskLocalAssistantUseCase,
     private val aiConfigurationRepository: AiConfigurationRepository,
     private val modelCatalog: ModelCatalog,
+    private val backendCatalog: BackendCatalog,
     private val promptPipeline: PromptPipeline,
     private val generationScope: CoroutineScope? = null,
 ) : AstraViewModel<AssistantState, AssistantIntent, AssistantEffect>(
@@ -55,6 +57,7 @@ class AssistantViewModel(
         (generationScope ?: viewModelScope).launch {
             val configuration = aiConfigurationRepository.currentConfiguration.value
             val selectedModel = modelCatalog.currentModel()
+            val selectedBackend = backendCatalog.currentBackend()
             val industry = snapshot.selectedIndustry.toPromptIndustry()
             val preparedPrompt = promptPipeline.preparePrompt(
                 PromptBuildRequest(
@@ -77,7 +80,7 @@ class AssistantViewModel(
                     prompt = preparedPrompt,
                     industry = industry,
                     model = selectedModel.runtimeModel,
-                    backend = configuration.selectedBackend,
+                    backend = selectedBackend.runtimeBackend,
                     maxTokens = configuration.maxTokens,
                     temperature = configuration.temperature,
                 ),

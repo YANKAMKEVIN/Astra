@@ -28,7 +28,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.kevin.astra.core.ai.InferenceBackend
+import com.kevin.astra.core.ai.BackendStatus
+import com.kevin.astra.core.ai.InferenceBackendInfo
 import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraCard
@@ -77,6 +78,7 @@ private fun BenchmarkContent(
             onToggleModel = { onIntent(BenchmarkIntent.ToggleModel(it)) },
         )
         BackendSelectionCard(
+            backends = state.availableBackends,
             selectedBackend = state.selectedBackend,
             isRunning = state.isRunning,
             onSelectBackend = { onIntent(BenchmarkIntent.SelectBackend(it)) },
@@ -187,24 +189,27 @@ private fun ModelSelectionCard(
 
 @Composable
 private fun BackendSelectionCard(
-    selectedBackend: InferenceBackend,
+    backends: List<InferenceBackendInfo>,
+    selectedBackend: InferenceBackendInfo?,
     isRunning: Boolean,
-    onSelectBackend: (InferenceBackend) -> Unit,
+    onSelectBackend: (String) -> Unit,
 ) {
     AstraCard(
         title = "Backend Selection",
-        subtitle = "Mock Engine executes this benchmark. Future backends are visible but unavailable.",
-        status = selectedBackend.label,
+        subtitle = "Benchmark backends are provided by the catalog. Only installed runtimes can execute.",
+        status = selectedBackend?.displayName ?: "No backend",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
         HorizontalOptions {
-            InferenceBackend.entries.forEach { backend ->
+            backends.forEach { backend ->
+                val selected = backend.id == selectedBackend?.id
+                val installed = backend.status == BackendStatus.Installed
                 SelectablePill(
-                    label = backend.label,
-                    status = if (backend == InferenceBackend.Mock) "ACTIVE" else "COMING SOON",
-                    selected = backend == selectedBackend,
-                    enabled = backend == InferenceBackend.Mock && !isRunning,
-                    onClick = { onSelectBackend(backend) },
+                    label = backend.displayName,
+                    status = if (selected) "ACTIVE" else backend.status.label.uppercase(),
+                    selected = selected,
+                    enabled = installed && !isRunning,
+                    onClick = { onSelectBackend(backend.id) },
                 )
             }
         }

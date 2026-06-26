@@ -9,6 +9,7 @@ import com.kevin.astra.core.ai.DefaultPromptBuilder
 import com.kevin.astra.core.ai.DefaultPromptPipeline
 import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.PromptRequest
+import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.settings.InMemoryAiConfigurationRepository
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
@@ -31,6 +32,7 @@ class AssistantViewModelTest {
             askLocalAssistant = testUseCase(),
             aiConfigurationRepository = testConfigurationRepository(),
             modelCatalog = DefaultModelCatalog(),
+            backendCatalog = DefaultBackendCatalog(),
             promptPipeline = testPromptPipeline(),
         )
 
@@ -50,6 +52,7 @@ class AssistantViewModelTest {
             askLocalAssistant = testUseCase(),
             aiConfigurationRepository = testConfigurationRepository(),
             modelCatalog = DefaultModelCatalog(),
+            backendCatalog = DefaultBackendCatalog(),
             promptPipeline = testPromptPipeline(),
         )
 
@@ -68,6 +71,7 @@ class AssistantViewModelTest {
             askLocalAssistant = testUseCase(),
             aiConfigurationRepository = testConfigurationRepository(),
             modelCatalog = DefaultModelCatalog(),
+            backendCatalog = DefaultBackendCatalog(),
             promptPipeline = testPromptPipeline(),
             generationScope = CoroutineScope(coroutineContext),
         )
@@ -98,6 +102,7 @@ class AssistantViewModelTest {
             askLocalAssistant = testUseCase(),
             aiConfigurationRepository = testConfigurationRepository(),
             modelCatalog = DefaultModelCatalog(),
+            backendCatalog = DefaultBackendCatalog(),
             promptPipeline = testPromptPipeline(),
             generationScope = CoroutineScope(coroutineContext),
         )
@@ -138,6 +143,7 @@ class AssistantViewModelTest {
             askLocalAssistant = useCase,
             aiConfigurationRepository = repository,
             modelCatalog = DefaultModelCatalog(),
+            backendCatalog = DefaultBackendCatalog(),
             promptPipeline = testPromptPipeline(),
             generationScope = CoroutineScope(coroutineContext),
         )

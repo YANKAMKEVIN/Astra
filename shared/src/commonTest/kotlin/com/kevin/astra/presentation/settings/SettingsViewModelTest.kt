@@ -1,7 +1,7 @@
 package com.kevin.astra.presentation.settings
 
-import com.kevin.astra.core.ai.InferenceBackend
 import com.kevin.astra.core.ai.PromptIndustry
+import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.settings.InMemoryAiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
@@ -23,7 +23,11 @@ class SettingsViewModelTest {
             listOf("Mock Model", "Gemma 3 1B", "Phi-3 Mini", "Llama 3.2 3B", "Qwen 2.5 1.5B"),
             state.availableModels.map { it.displayName },
         )
-        assertEquals(InferenceBackend.Mock, state.selectedBackend)
+        assertEquals("mock-engine", state.selectedBackend?.id)
+        assertEquals(
+            listOf("Mock Engine", "LiteRT", "ONNX Runtime", "Core ML", "llama.cpp"),
+            state.availableBackends.map { it.displayName },
+        )
         assertEquals(PromptIndustry.IndustrialMaintenance, state.selectedIndustry)
         assertEquals(0.3, state.temperature)
         assertEquals(512, state.maxTokens)
@@ -37,11 +41,11 @@ class SettingsViewModelTest {
         val viewModel = testViewModel()
 
         viewModel.dispatch(SettingsIntent.SelectModel("gemma-3-1b"))
-        viewModel.dispatch(SettingsIntent.SelectBackend(InferenceBackend.OnnxRuntime))
+        viewModel.dispatch(SettingsIntent.SelectBackend("onnx-runtime"))
 
         val state = viewModel.state.value
         assertEquals("mock-model", state.selectedModel?.id)
-        assertEquals(InferenceBackend.Mock, state.selectedBackend)
+        assertEquals("mock-engine", state.selectedBackend?.id)
     }
 
     @Test
@@ -68,6 +72,7 @@ class SettingsViewModelTest {
         SettingsViewModel(
             aiConfigurationRepository = InMemoryAiConfigurationRepository(),
             modelCatalog = DefaultModelCatalog(),
+            backendCatalog = DefaultBackendCatalog(),
             observationScope = CoroutineScope(EmptyCoroutineContext),
         )
 }

@@ -1,6 +1,6 @@
 package com.kevin.astra.presentation.benchmark
 
-import com.kevin.astra.core.ai.InferenceBackend
+import com.kevin.astra.core.ai.InferenceBackendInfo
 import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.mvi.AstraEffect
 import com.kevin.astra.core.mvi.AstraIntent
@@ -12,7 +12,8 @@ data class BenchmarkState(
     val prompt: String = DefaultBenchmarkPrompt,
     val availableModels: List<LocalModel> = emptyList(),
     val selectedModelIds: Set<String> = emptySet(),
-    val selectedBackend: InferenceBackend = InferenceBackend.Mock,
+    val availableBackends: List<InferenceBackendInfo> = emptyList(),
+    val selectedBackend: InferenceBackendInfo? = null,
     val isRunning: Boolean = false,
     val results: List<BenchmarkResult> = emptyList(),
     val recommendedModel: BenchmarkRecommendation? = null,
@@ -25,7 +26,7 @@ data class BenchmarkState(
 sealed interface BenchmarkIntent : AstraIntent {
     data class UpdatePrompt(val prompt: String) : BenchmarkIntent
     data class ToggleModel(val modelId: String) : BenchmarkIntent
-    data class SelectBackend(val backend: InferenceBackend) : BenchmarkIntent
+    data class SelectBackend(val backendId: String) : BenchmarkIntent
     data object RunBenchmark : BenchmarkIntent
 }
 

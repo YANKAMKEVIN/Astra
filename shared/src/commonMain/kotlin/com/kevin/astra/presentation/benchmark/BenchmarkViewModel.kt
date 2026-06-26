@@ -1,7 +1,7 @@
 package com.kevin.astra.presentation.benchmark
 
 import androidx.lifecycle.viewModelScope
-import com.kevin.astra.core.ai.InferenceBackend
+import com.kevin.astra.core.ai.BackendCatalog
 import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.ai.PromptBuildRequest
 import com.kevin.astra.core.ai.PromptPipeline
@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 class BenchmarkViewModel(
     private val benchmarkRunner: BenchmarkRunner,
     private val modelCatalog: ModelCatalog,
+    private val backendCatalog: BackendCatalog,
     private val aiConfigurationRepository: AiConfigurationRepository,
     private val promptPipeline: PromptPipeline,
     private val benchmarkScope: CoroutineScope? = null,
@@ -22,6 +23,8 @@ class BenchmarkViewModel(
     initialState = BenchmarkState(
         availableModels = modelCatalog.availableModels(),
         selectedModelIds = modelCatalog.availableModels().take(3).map { it.id }.toSet(),
+        availableBackends = backendCatalog.availableBackends(),
+        selectedBackend = backendCatalog.currentBackend(),
     ),
 ) {
     override fun handleIntent(intent: BenchmarkIntent) {
@@ -40,8 +43,13 @@ class BenchmarkViewModel(
             }
 
             is BenchmarkIntent.SelectBackend -> {
-                if (intent.backend == InferenceBackend.Mock) {
-                    updateState { copy(selectedBackend = intent.backend, error = null) }
+                if (backendCatalog.selectBackend(intent.backendId)) {
+                    updateState {
+                        copy(
+                            selectedBackend = backendCatalog.currentBackend(),
+                            error = null,
+                        )
+                    }
                 }
             }
 
@@ -78,7 +86,7 @@ class BenchmarkViewModel(
                         ),
                     ),
                     models = snapshot.selectedModels(),
-                    backend = snapshot.selectedBackend,
+                    backend = snapshot.selectedBackend?.runtimeBackend ?: backendCatalog.currentBackend().runtimeBackend,
                 ),
             )
 

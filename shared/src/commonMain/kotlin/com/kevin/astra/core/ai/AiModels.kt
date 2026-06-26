@@ -45,6 +45,52 @@ interface ModelCatalog {
     fun modelById(modelId: String): LocalModel?
 }
 
+enum class BackendStatus(val label: String) {
+    Installed("Installed"),
+    Available("Available"),
+    ComingSoon("Coming Soon"),
+    Unsupported("Unsupported"),
+}
+
+enum class BackendProvider(val label: String) {
+    Astra("ASTRA"),
+    Google("Google"),
+    Microsoft("Microsoft"),
+    Apple("Apple"),
+    Ggml("GGML"),
+    Qualcomm("Qualcomm"),
+    Mock("Mock"),
+}
+
+enum class AccelerationTarget(val label: String) {
+    Cpu("CPU"),
+    Gpu("GPU"),
+    Npu("NPU"),
+    Ane("ANE"),
+    Metal("Metal"),
+    Nnapi("NNAPI"),
+}
+
+data class InferenceBackendInfo(
+    val id: String,
+    val displayName: String,
+    val provider: BackendProvider,
+    val supportedPlatforms: List<String>,
+    val supportedModelFormats: List<String>,
+    val accelerationTargets: List<AccelerationTarget>,
+    val status: BackendStatus,
+    val description: String,
+    val runtimeBackend: InferenceBackend,
+)
+
+interface BackendCatalog {
+    fun availableBackends(): List<InferenceBackendInfo>
+    fun installedBackends(): List<InferenceBackendInfo>
+    fun currentBackend(): InferenceBackendInfo
+    fun selectBackend(backendId: String): Boolean
+    fun backendById(backendId: String): InferenceBackendInfo?
+}
+
 enum class InferenceBackend(val label: String) {
     Mock("Mock Engine"),
     LiteRt("LiteRT"),
