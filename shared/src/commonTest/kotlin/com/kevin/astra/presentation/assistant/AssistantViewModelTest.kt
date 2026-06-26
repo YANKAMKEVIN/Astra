@@ -1,5 +1,12 @@
 package com.kevin.astra.presentation.assistant
 
+import com.kevin.astra.core.ai.AiModel
+import com.kevin.astra.core.ai.GenerationMetrics
+import com.kevin.astra.core.ai.GenerationResult
+import com.kevin.astra.core.ai.InferenceBackend
+import com.kevin.astra.core.ai.InferenceEngine
+import com.kevin.astra.core.ai.PromptRequest
+import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -14,7 +21,7 @@ import kotlin.test.assertTrue
 class AssistantViewModelTest {
     @Test
     fun startsWithIndustrialMaintenanceAndMockMetrics() {
-        val viewModel = AssistantViewModel(timestampProvider = { "timestamp" })
+        val viewModel = AssistantViewModel(askLocalAssistant = testUseCase())
 
         val state = viewModel.state.value
 
@@ -28,7 +35,7 @@ class AssistantViewModelTest {
 
     @Test
     fun updatesQuestionAndIndustry() {
-        val viewModel = AssistantViewModel(timestampProvider = { "timestamp" })
+        val viewModel = AssistantViewModel(askLocalAssistant = testUseCase())
 
         viewModel.dispatch(AssistantIntent.SelectIndustry(AssistantIndustry.Energy))
         viewModel.dispatch(AssistantIntent.UpdateQuestion("Restart Pump A"))
@@ -40,9 +47,9 @@ class AssistantViewModelTest {
     }
 
     @Test
-    fun askQuestionShowsLoadingThenMockResponse() = runBlocking {
+    fun askQuestionShowsLoadingThenUseCaseResponse() = runBlocking {
         val viewModel = AssistantViewModel(
-            timestampProvider = { "2026-06-26T10:15:30Z" },
+            askLocalAssistant = testUseCase(),
             generationScope = CoroutineScope(coroutineContext),
         )
 
@@ -54,25 +61,28 @@ class AssistantViewModelTest {
 
         assertTrue(viewModel.state.value.isGenerating)
 
-        delay(1_100)
+        delay(20)
 
         val state = viewModel.state.value
         assertFalse(state.isGenerating)
-        assertEquals("Emergency restart procedure", state.response?.title)
-        assertTrue(state.response?.body.orEmpty().contains("aerospace ground operations engineer"))
+        assertEquals("Aerospace checklist assistance", state.response?.title)
+        assertTrue(state.response?.body.orEmpty().contains("Aerospace"))
         assertEquals("2026-06-26T10:15:30Z", state.generationTimestamp)
+        assertEquals("1.2 s", state.metrics.latency)
+        assertEquals("18", state.metrics.tokensPerSecond)
+        assertEquals("128", state.metrics.tokensGenerated)
     }
 
     @Test
     fun clearConversationResetsPromptResponseAndTimestamp() = runBlocking {
         val viewModel = AssistantViewModel(
-            timestampProvider = { "timestamp" },
+            askLocalAssistant = testUseCase(),
             generationScope = CoroutineScope(coroutineContext),
         )
 
         viewModel.dispatch(AssistantIntent.UpdateQuestion("Restart Pump A"))
         viewModel.dispatch(AssistantIntent.AskQuestion)
-        delay(1_100)
+        delay(20)
 
         assertNotNull(viewModel.state.value.response)
 
@@ -84,4 +94,26 @@ class AssistantViewModelTest {
         assertNull(state.generationTimestamp)
         assertFalse(state.isGenerating)
     }
+
+    private fun testUseCase(): AskLocalAssistantUseCase =
+        AskLocalAssistantUseCase(
+            inferenceEngine = object : InferenceEngine {
+                override suspend fun generate(request: PromptRequest): GenerationResult {
+                    delay(10)
+                    return GenerationResult(
+                        text = "${request.industry.label} checklist assistance\n\nGenerated response",
+                        metrics = GenerationMetrics(
+                            latencyMillis = 1_200,
+                            timeToFirstTokenMillis = 320,
+                            tokensGenerated = 128,
+                            tokensPerSecond = 18,
+                            memoryUsageMb = 384,
+                        ),
+                        model = AiModel.Mock,
+                        backend = InferenceBackend.Mock,
+                        generatedAt = "2026-06-26T10:15:30Z",
+                    )
+                }
+            },
+        )
 }

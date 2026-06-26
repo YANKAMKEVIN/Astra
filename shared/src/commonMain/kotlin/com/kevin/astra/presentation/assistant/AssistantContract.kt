@@ -1,5 +1,6 @@
 package com.kevin.astra.presentation.assistant
 
+import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.core.mvi.AstraEffect
 import com.kevin.astra.core.mvi.AstraIntent
 import com.kevin.astra.core.mvi.AstraState
@@ -12,11 +13,22 @@ enum class AssistantIndustry(val label: String) {
     Healthcare("Healthcare"),
 }
 
+fun AssistantIndustry.toPromptIndustry(): PromptIndustry = when (this) {
+    AssistantIndustry.IndustrialMaintenance -> PromptIndustry.IndustrialMaintenance
+    AssistantIndustry.Aerospace -> PromptIndustry.Aerospace
+    AssistantIndustry.Defense -> PromptIndustry.Defense
+    AssistantIndustry.Energy -> PromptIndustry.Energy
+    AssistantIndustry.Healthcare -> PromptIndustry.Healthcare
+}
+
 data class AssistantMetrics(
     val model: String = "Mock Model",
     val backend: String = "Mock Engine",
     val latency: String = "1.2 s",
     val tokensPerSecond: String = "18",
+    val timeToFirstToken: String = "320 ms",
+    val tokensGenerated: String = "0",
+    val memoryUsage: String = "384 MB",
 )
 
 data class AssistantResponse(

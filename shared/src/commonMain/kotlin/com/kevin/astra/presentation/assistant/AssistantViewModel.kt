@@ -1,15 +1,17 @@
 package com.kevin.astra.presentation.assistant
 
 import androidx.lifecycle.viewModelScope
+import com.kevin.astra.core.ai.AiModel
+import com.kevin.astra.core.ai.GenerationResult
+import com.kevin.astra.core.ai.InferenceBackend
+import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.core.mvi.AstraViewModel
+import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
 
 class AssistantViewModel(
-    private val timestampProvider: () -> String = ::currentGenerationTimestamp,
+    private val askLocalAssistant: AskLocalAssistantUseCase,
     private val generationScope: CoroutineScope? = null,
 ) : AstraViewModel<AssistantState, AssistantIntent, AssistantEffect>(
     initialState = AssistantState(),
@@ -54,48 +56,42 @@ class AssistantViewModel(
                 )
             }
 
-            delay(1_000)
+            val result = askLocalAssistant(
+                PromptRequest(
+                    prompt = snapshot.question,
+                    industry = snapshot.selectedIndustry.toPromptIndustry(),
+                    model = AiModel.Mock,
+                    backend = InferenceBackend.Mock,
+                    maxTokens = 512,
+                    temperature = 0.2,
+                ),
+            )
 
             updateState {
                 copy(
                     isGenerating = false,
-                    response = AssistantResponse(
-                        title = "Emergency restart procedure",
-                        body = buildMockResponse(snapshot.selectedIndustry),
-                    ),
-                    generationTimestamp = timestampProvider(),
+                    response = result.toAssistantResponse(),
+                    generationTimestamp = result.generatedAt,
+                    metrics = result.toAssistantMetrics(),
                 )
             }
         }
     }
 }
 
-private fun buildMockResponse(industry: AssistantIndustry): String {
-    val industryContext = when (industry) {
-        AssistantIndustry.IndustrialMaintenance -> "industrial maintenance shift lead"
-        AssistantIndustry.Aerospace -> "aerospace ground operations engineer"
-        AssistantIndustry.Defense -> "defense systems operator"
-        AssistantIndustry.Energy -> "energy infrastructure supervisor"
-        AssistantIndustry.Healthcare -> "healthcare facility operations engineer"
-    }
+private fun GenerationResult.toAssistantResponse(): AssistantResponse =
+    AssistantResponse(
+        title = text.lineSequence().firstOrNull().orEmpty().ifBlank { "ASTRA response" },
+        body = text,
+    )
 
-    return """
-        Mock local response for the $industryContext.
-
-        1. Verify that the emergency stop has been released.
-
-        2. Check the pressure level and confirm it is within the approved operating range.
-
-        3. Reset the protection relay from the local control panel.
-
-        4. Restart Pump A using Local Mode and keep remote commands disabled until stabilization.
-
-        5. Monitor operating pressure, vibration and thermal readings for five minutes.
-
-        Status:
-        Pump restarted successfully. Continue local supervision and record the intervention in the shift log.
-    """.trimIndent()
-}
-
-@OptIn(ExperimentalTime::class)
-private fun currentGenerationTimestamp(): String = Clock.System.now().toString()
+private fun GenerationResult.toAssistantMetrics(): AssistantMetrics =
+    AssistantMetrics(
+        model = model.label,
+        backend = backend.label,
+        latency = "${metrics.latencyMillis / 1_000.0} s",
+        tokensPerSecond = metrics.tokensPerSecond.toString(),
+        timeToFirstToken = "${metrics.timeToFirstTokenMillis} ms",
+        tokensGenerated = metrics.tokensGenerated.toString(),
+        memoryUsage = "${metrics.memoryUsageMb} MB",
+    )
