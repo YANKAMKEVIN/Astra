@@ -36,37 +36,53 @@ class SettingsViewModel(
         when (intent) {
             is SettingsIntent.SelectModel -> {
                 if (modelCatalog.selectModel(intent.modelId)) {
+                    val selectedModel = modelCatalog.currentModel()
+                    updateState { copy(selectedModel = selectedModel) }
                     settingsScope.launch {
-                        aiConfigurationRepository.updateSelectedModel(modelCatalog.currentModel().id)
+                        aiConfigurationRepository.updateSelectedModel(selectedModel.id)
                     }
                 }
             }
 
             is SettingsIntent.SelectBackend -> {
                 if (backendCatalog.selectBackend(intent.backendId)) {
+                    val selectedBackend = backendCatalog.currentBackend()
+                    updateState { copy(selectedBackend = selectedBackend) }
                     settingsScope.launch {
-                        aiConfigurationRepository.updateSelectedBackend(backendCatalog.currentBackend().id)
+                        aiConfigurationRepository.updateSelectedBackend(selectedBackend.id)
                     }
                 }
             }
 
-            is SettingsIntent.SelectIndustry ->
+            is SettingsIntent.SelectIndustry -> {
+                updateState { copy(selectedIndustry = intent.industry) }
                 settingsScope.launch { aiConfigurationRepository.updateIndustry(intent.industry) }
+            }
 
-            is SettingsIntent.UpdateTemperature ->
+            is SettingsIntent.UpdateTemperature -> {
+                updateState { copy(temperature = intent.temperature.coerceIn(0.0, 1.0)) }
                 settingsScope.launch { aiConfigurationRepository.updateTemperature(intent.temperature) }
+            }
 
-            is SettingsIntent.UpdateMaxTokens ->
+            is SettingsIntent.UpdateMaxTokens -> {
+                updateState { copy(maxTokens = intent.maxTokens.coerceIn(128, 2_048)) }
                 settingsScope.launch { aiConfigurationRepository.updateMaxTokens(intent.maxTokens) }
+            }
 
-            is SettingsIntent.UpdateContextWindow ->
+            is SettingsIntent.UpdateContextWindow -> {
+                updateState { copy(contextWindow = intent.contextWindow.coerceIn(1_024, 32_768)) }
                 settingsScope.launch { aiConfigurationRepository.updateContextWindow(intent.contextWindow) }
+            }
 
-            is SettingsIntent.UpdateQuantization ->
+            is SettingsIntent.UpdateQuantization -> {
+                updateState { copy(quantization = intent.quantization) }
                 settingsScope.launch { aiConfigurationRepository.updateQuantization(intent.quantization) }
+            }
 
-            is SettingsIntent.ToggleExperimentalFeatures ->
+            is SettingsIntent.ToggleExperimentalFeatures -> {
+                updateState { copy(experimentalFeaturesEnabled = intent.enabled) }
                 settingsScope.launch { aiConfigurationRepository.updateExperimentalFeaturesEnabled(intent.enabled) }
+            }
         }
     }
 }

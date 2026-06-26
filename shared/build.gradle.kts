@@ -40,6 +40,7 @@ kotlin {
     sourceSets {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
+            implementation(libs.litert)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)

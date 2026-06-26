@@ -4,15 +4,15 @@ import com.kevin.astra.core.ai.BackendCatalog
 import com.kevin.astra.core.ai.DefaultPromptBuilder
 import com.kevin.astra.core.ai.DefaultPromptPipeline
 import com.kevin.astra.core.ai.InferenceEngine
-import com.kevin.astra.core.ai.MockInferenceEngine
 import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.ai.PromptBuilder
 import com.kevin.astra.core.ai.PromptPipeline
+import com.kevin.astra.core.ai.createInferenceEngine
 import com.kevin.astra.core.device.DeviceCapabilityProvider
 import com.kevin.astra.core.device.createDeviceCapabilityProvider
 import com.kevin.astra.core.navigation.AstraNavigator
-import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
+import com.kevin.astra.data.ai.createBackendCatalog
 import com.kevin.astra.data.benchmark.MockBenchmarkRunner
 import com.kevin.astra.data.demo.StaticDemoScenarioCatalog
 import com.kevin.astra.data.documents.KeywordDocumentContextRetriever
@@ -38,13 +38,13 @@ import org.koin.dsl.module
 val astraRootModule = module {
     single { AstraNavigator() }
     single<ModelCatalog> { DefaultModelCatalog() }
-    single<BackendCatalog> { DefaultBackendCatalog() }
+    single<BackendCatalog> { createBackendCatalog() }
     single<DeviceCapabilityProvider> { createDeviceCapabilityProvider() }
     single { AiConfigurationLocalDataSource(keyValueStore = createAiConfigurationKeyValueStore()) }
     single<PromptBuilder> { DefaultPromptBuilder() }
     single<PromptPipeline> { DefaultPromptPipeline(promptBuilder = get()) }
     single<AiConfigurationRepository> { PersistentAiConfigurationRepository(localDataSource = get()) }
-    single<InferenceEngine> { MockInferenceEngine() }
+    single<InferenceEngine> { createInferenceEngine() }
     single<BenchmarkRunner> { MockBenchmarkRunner() }
     single<DemoScenarioCatalog> { StaticDemoScenarioCatalog() }
     single<DocumentIndexer> { SimpleDocumentIndexer() }

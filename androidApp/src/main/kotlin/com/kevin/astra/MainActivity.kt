@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import com.kevin.astra.core.ai.initializeAndroidEdgeAiRuntime
 import com.kevin.astra.data.settings.initializeAndroidAiConfigurationStorage
 
 class MainActivity : ComponentActivity() {
@@ -13,6 +14,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         initializeAndroidAiConfigurationStorage(this)
+        initializeAndroidEdgeAiRuntime(this)
 
         setContent {
             App()

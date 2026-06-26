@@ -5,6 +5,8 @@ import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.settings.testAiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlin.coroutines.EmptyCoroutineContext
@@ -54,31 +56,38 @@ class SettingsViewModelTest {
 
     @Test
     fun updatesParametersAndExperimentalToggle() = runBlocking {
-        val viewModel = testViewModel()
-        delay(50)
+        val observationScope = CoroutineScope(coroutineContext + Job())
+        val viewModel = testViewModel(observationScope)
+        try {
+            delay(50)
 
-        viewModel.dispatch(SettingsIntent.SelectIndustry(PromptIndustry.Healthcare))
-        viewModel.dispatch(SettingsIntent.UpdateTemperature(0.6))
-        viewModel.dispatch(SettingsIntent.UpdateMaxTokens(1_024))
-        viewModel.dispatch(SettingsIntent.UpdateContextWindow(8_192))
-        viewModel.dispatch(SettingsIntent.UpdateQuantization("8-bit"))
-        viewModel.dispatch(SettingsIntent.ToggleExperimentalFeatures(true))
-        delay(150)
+            viewModel.dispatch(SettingsIntent.SelectIndustry(PromptIndustry.Healthcare))
+            viewModel.dispatch(SettingsIntent.UpdateTemperature(0.6))
+            viewModel.dispatch(SettingsIntent.UpdateMaxTokens(1_024))
+            viewModel.dispatch(SettingsIntent.UpdateContextWindow(8_192))
+            viewModel.dispatch(SettingsIntent.UpdateQuantization("8-bit"))
+            viewModel.dispatch(SettingsIntent.ToggleExperimentalFeatures(true))
+            delay(150)
 
-        val state = viewModel.state.value
-        assertEquals(PromptIndustry.Healthcare, state.selectedIndustry)
-        assertEquals(0.6, state.temperature)
-        assertEquals(1_024, state.maxTokens)
-        assertEquals(8_192, state.contextWindow)
-        assertEquals("8-bit", state.quantization)
-        assertTrue(state.experimentalFeaturesEnabled)
+            val state = viewModel.state.value
+            assertEquals(PromptIndustry.Healthcare, state.selectedIndustry)
+            assertEquals(0.6, state.temperature)
+            assertEquals(1_024, state.maxTokens)
+            assertEquals(8_192, state.contextWindow)
+            assertEquals("8-bit", state.quantization)
+            assertTrue(state.experimentalFeaturesEnabled)
+        } finally {
+            observationScope.cancel()
+        }
     }
 
-    private fun testViewModel(): SettingsViewModel =
+    private fun testViewModel(
+        observationScope: CoroutineScope = CoroutineScope(EmptyCoroutineContext),
+    ): SettingsViewModel =
         SettingsViewModel(
             aiConfigurationRepository = testAiConfigurationRepository(),
             modelCatalog = DefaultModelCatalog(),
             backendCatalog = DefaultBackendCatalog(),
-            observationScope = CoroutineScope(EmptyCoroutineContext),
+            observationScope = observationScope,
         )
 }

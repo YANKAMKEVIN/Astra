@@ -7,7 +7,9 @@ import com.kevin.astra.core.ai.BackendStatus
 import com.kevin.astra.core.ai.InferenceBackend
 import com.kevin.astra.core.ai.InferenceBackendInfo
 
-class DefaultBackendCatalog : BackendCatalog {
+class DefaultBackendCatalog(
+    private val statusOverrides: Map<String, BackendStatus> = emptyMap(),
+) : BackendCatalog {
     private val backends = listOf(
         InferenceBackendInfo(
             id = "mock-engine",
@@ -16,7 +18,7 @@ class DefaultBackendCatalog : BackendCatalog {
             supportedPlatforms = listOf("Android", "iOS"),
             supportedModelFormats = listOf("Simulated"),
             accelerationTargets = listOf(AccelerationTarget.Cpu),
-            status = BackendStatus.Installed,
+            status = statusFor("mock-engine", BackendStatus.Installed),
             description = "Deterministic local mock backend used for offline development and demos.",
             runtimeBackend = InferenceBackend.Mock,
         ),
@@ -27,8 +29,8 @@ class DefaultBackendCatalog : BackendCatalog {
             supportedPlatforms = listOf("Android"),
             supportedModelFormats = listOf("TFLite", "LiteRT"),
             accelerationTargets = listOf(AccelerationTarget.Cpu, AccelerationTarget.Gpu, AccelerationTarget.Nnapi, AccelerationTarget.Npu),
-            status = BackendStatus.Available,
-            description = "Google on-device inference runtime planned for Android local AI execution.",
+            status = statusFor("litert", BackendStatus.Available),
+            description = "Google on-device inference runtime for Android local AI execution with Mock fallback when no local model is available.",
             runtimeBackend = InferenceBackend.LiteRt,
         ),
         InferenceBackendInfo(
@@ -38,7 +40,7 @@ class DefaultBackendCatalog : BackendCatalog {
             supportedPlatforms = listOf("Android"),
             supportedModelFormats = listOf("ONNX"),
             accelerationTargets = listOf(AccelerationTarget.Cpu, AccelerationTarget.Gpu, AccelerationTarget.Nnapi),
-            status = BackendStatus.Available,
+            status = statusFor("onnx-runtime", BackendStatus.Available),
             description = "ONNX execution backend planned for portable local model support.",
             runtimeBackend = InferenceBackend.OnnxRuntime,
         ),
@@ -49,7 +51,7 @@ class DefaultBackendCatalog : BackendCatalog {
             supportedPlatforms = listOf("iOS"),
             supportedModelFormats = listOf("MLPackage", "MLModel"),
             accelerationTargets = listOf(AccelerationTarget.Cpu, AccelerationTarget.Gpu, AccelerationTarget.Ane, AccelerationTarget.Metal),
-            status = BackendStatus.Available,
+            status = statusFor("core-ml", BackendStatus.Available),
             description = "Apple inference backend planned for iOS local model execution.",
             runtimeBackend = InferenceBackend.CoreMl,
         ),
@@ -60,7 +62,7 @@ class DefaultBackendCatalog : BackendCatalog {
             supportedPlatforms = listOf("Android", "iOS"),
             supportedModelFormats = listOf("GGUF"),
             accelerationTargets = listOf(AccelerationTarget.Cpu, AccelerationTarget.Gpu, AccelerationTarget.Metal),
-            status = BackendStatus.ComingSoon,
+            status = statusFor("llama-cpp", BackendStatus.ComingSoon),
             description = "GGUF-focused backend planned for future quantized model experiments.",
             runtimeBackend = InferenceBackend.LlamaCpp,
         ),
@@ -85,4 +87,7 @@ class DefaultBackendCatalog : BackendCatalog {
 
     override fun backendById(backendId: String): InferenceBackendInfo? =
         backends.firstOrNull { it.id == backendId }
+
+    private fun statusFor(id: String, defaultStatus: BackendStatus): BackendStatus =
+        statusOverrides[id] ?: defaultStatus
 }
