@@ -19,6 +19,7 @@ import com.kevin.astra.core.design.AstraTheme
 import com.kevin.astra.core.navigation.AstraDestination
 import com.kevin.astra.core.navigation.AstraNavigator
 import com.kevin.astra.presentation.assistant.AssistantScreen
+import com.kevin.astra.presentation.assistant.AssistantViewModel
 import com.kevin.astra.presentation.benchmark.BenchmarkScreen
 import com.kevin.astra.presentation.dashboard.DashboardScreen
 import com.kevin.astra.presentation.documents.DocumentsScreen
@@ -26,7 +27,10 @@ import com.kevin.astra.presentation.settings.SettingsScreen
 import com.kevin.astra.presentation.splash.SplashScreen
 
 @Composable
-fun AstraApp(navigator: AstraNavigator) {
+fun AstraApp(
+    navigator: AstraNavigator,
+    assistantViewModel: AssistantViewModel,
+) {
     val currentDestination by navigator.currentDestination.collectAsStateWithLifecycle()
 
     AstraTheme {
@@ -59,7 +63,10 @@ fun AstraApp(navigator: AstraNavigator) {
                         )
 
                         AstraDestination.Dashboard -> DashboardScreen(contentPadding)
-                        AstraDestination.Assistant -> AssistantScreen(contentPadding)
+                        AstraDestination.Assistant -> AssistantScreen(
+                            contentPadding = contentPadding,
+                            viewModel = assistantViewModel,
+                        )
                         AstraDestination.Documents -> DocumentsScreen(contentPadding)
                         AstraDestination.Benchmark -> BenchmarkScreen(contentPadding)
                         AstraDestination.Settings -> SettingsScreen(contentPadding)

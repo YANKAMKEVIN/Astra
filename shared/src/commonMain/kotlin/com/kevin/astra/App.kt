@@ -9,5 +9,8 @@ import com.kevin.astra.app.di.initializeKoin
 @Preview
 fun App() {
     val koin = initializeKoin().koin
-    AstraApp(navigator = koin.get())
+    AstraApp(
+        navigator = koin.get(),
+        assistantViewModel = koin.get(),
+    )
 }

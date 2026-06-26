@@ -1,38 +1,346 @@
 package com.kevin.astra.presentation.assistant
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraCard
+import com.kevin.astra.core.design.AstraChip
+import com.kevin.astra.core.design.AstraColors
+import com.kevin.astra.core.design.AstraMetricCard
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
+import com.kevin.astra.core.design.AstraTypography
 
 @Composable
-fun AssistantScreen(contentPadding: PaddingValues) {
+fun AssistantScreen(
+    contentPadding: PaddingValues,
+    viewModel: AssistantViewModel,
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    AssistantContent(
+        state = state,
+        contentPadding = contentPadding,
+        onIntent = viewModel::dispatch,
+    )
+}
+
+@Composable
+private fun AssistantContent(
+    state: AssistantState,
+    contentPadding: PaddingValues,
+    onIntent: (AssistantIntent) -> Unit,
+) {
     AstraScreen(
-        title = "Assistant",
-        description = "A private workspace for future on-device AI conversations.",
+        title = "ASTRA Assistant",
+        description = "Secure Local AI for Critical Operations",
         contentPadding = contentPadding,
     ) {
-        AstraCard(
-            title = "Ask ASTRA",
-            subtitle = "Prompt composition and local inference are not enabled yet.",
-            status = "OFFLINE",
-        ) {
-            Spacer(Modifier.height(AstraSpacing.M))
-            AstraButton(
-                text = "Local inference coming soon",
-                onClick = {},
-                style = AstraButtonStyle.Ghost,
+        IndustrySelector(
+            selectedIndustry = state.selectedIndustry,
+            enabled = !state.isGenerating,
+            onIndustrySelected = { onIntent(AssistantIntent.SelectIndustry(it)) },
+        )
+
+        PromptCard(
+            question = state.question,
+            isGenerating = state.isGenerating,
+            canAsk = state.canAsk,
+            onQuestionChanged = { onIntent(AssistantIntent.UpdateQuestion(it)) },
+            onAsk = { onIntent(AssistantIntent.AskQuestion) },
+            onClear = { onIntent(AssistantIntent.ClearConversation) },
+        )
+
+        AnimatedVisibility(visible = state.isGenerating) {
+            LoadingCard()
+        }
+
+        state.response?.let { response ->
+            AssistantResponseCard(
+                response = response,
+                timestamp = state.generationTimestamp.orEmpty(),
             )
         }
-        AstraCard(
-            title = "Response metrics",
-            subtitle = "Latency, throughput and memory metrics will appear here.",
+
+        MetricsPanel(metrics = state.metrics)
+    }
+}
+
+@Composable
+private fun IndustrySelector(
+    selectedIndustry: AssistantIndustry,
+    enabled: Boolean,
+    onIndustrySelected: (AssistantIndustry) -> Unit,
+) {
+    AstraCard(
+        title = "Industry",
+        subtitle = "Tune the future local assistant to the current operational context.",
+        status = selectedIndustry.label,
+    ) {
+        Spacer(Modifier.height(AstraSpacing.M))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+        ) {
+            AssistantIndustry.entries.forEach { industry ->
+                IndustryChip(
+                    industry = industry,
+                    selected = industry == selectedIndustry,
+                    enabled = enabled,
+                    onClick = { onIndustrySelected(industry) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun IndustryChip(
+    industry: AssistantIndustry,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val accent = if (selected) AstraColors.Secondary else AstraColors.Border
+    Box(
+        modifier = Modifier
+            .heightIn(min = 48.dp)
+            .alpha(if (enabled) 1f else 0.54f)
+            .background(
+                color = if (selected) AstraColors.Secondary.copy(alpha = 0.14f) else AstraColors.SurfaceElevated,
+                shape = RoundedCornerShape(16.dp),
+            )
+            .border(1.dp, accent, RoundedCornerShape(16.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = industry.label,
+            style = AstraTypography.Caption,
+            color = if (selected) AstraColors.TextPrimary else AstraColors.TextSecondary,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
         )
+    }
+}
+
+@Composable
+private fun PromptCard(
+    question: String,
+    isGenerating: Boolean,
+    canAsk: Boolean,
+    onQuestionChanged: (String) -> Unit,
+    onAsk: () -> Unit,
+    onClear: () -> Unit,
+) {
+    AstraCard(
+        title = "Prompt",
+        subtitle = "Ask ASTRA about a critical operation. Generation is mocked locally for now.",
+        status = "LOCAL MOCK",
+    ) {
+        Spacer(Modifier.height(AstraSpacing.M))
+        AstraQuestionField(
+            value = question,
+            enabled = !isGenerating,
+            onValueChange = onQuestionChanged,
+        )
+        Spacer(Modifier.height(AstraSpacing.M))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+        ) {
+            AstraButton(
+                text = "Ask ASTRA",
+                onClick = onAsk,
+                modifier = Modifier.weight(1f),
+                enabled = canAsk,
+            )
+            AstraButton(
+                text = "Clear",
+                onClick = onClear,
+                style = AstraButtonStyle.Ghost,
+                enabled = !isGenerating && question.isNotBlank(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AstraQuestionField(
+    value: String,
+    enabled: Boolean,
+    onValueChange: (String) -> Unit,
+) {
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 148.dp)
+            .alpha(if (enabled) 1f else 0.68f),
+        enabled = enabled,
+        textStyle = AstraTypography.Body.copy(color = AstraColors.TextPrimary),
+        cursorBrush = SolidColor(AstraColors.Secondary),
+        decorationBox = { innerTextField ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 148.dp)
+                    .background(AstraColors.SurfaceElevated, RoundedCornerShape(20.dp))
+                    .border(1.dp, AstraColors.Border, RoundedCornerShape(20.dp))
+                    .padding(AstraSpacing.M),
+            ) {
+                if (value.isBlank()) {
+                    Text(
+                        text = "Ask ASTRA about a critical operation...",
+                        style = AstraTypography.Body,
+                        color = AstraColors.TextDisabled,
+                    )
+                }
+                innerTextField()
+            }
+        },
+    )
+}
+
+@Composable
+private fun LoadingCard() {
+    AstraCard(
+        title = "Generating local response...",
+        subtitle = "Controls are locked while ASTRA simulates the future local engine.",
+        status = "RUNNING",
+    ) {
+        Spacer(Modifier.height(AstraSpacing.M))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
+        ) {
+            AstraPulseIndicator()
+            Text(
+                text = "Generating local response...",
+                style = AstraTypography.Body,
+                color = AstraColors.TextSecondary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AstraPulseIndicator() {
+    val transition = rememberInfiniteTransition(label = "astra-loading")
+    val alpha by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 650),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "astra-loading-alpha",
+    )
+
+    Box(
+        modifier = Modifier
+            .size(18.dp)
+            .alpha(alpha)
+            .background(AstraColors.Secondary, RoundedCornerShape(50)),
+    )
+}
+
+@Composable
+private fun AssistantResponseCard(
+    response: AssistantResponse,
+    timestamp: String,
+) {
+    AstraCard(
+        title = response.title,
+        subtitle = "Generated by Mock Engine • $timestamp",
+        status = "SIMULATED",
+    ) {
+        Spacer(Modifier.height(AstraSpacing.M))
+        Text(
+            text = response.body,
+            style = AstraTypography.Body,
+            color = AstraColors.TextPrimary,
+        )
+    }
+}
+
+@Composable
+private fun MetricsPanel(metrics: AssistantMetrics) {
+    AstraCard(
+        title = "Metrics",
+        subtitle = "Mocked runtime telemetry for the future local inference pipeline.",
+    ) {
+        Spacer(Modifier.height(AstraSpacing.M))
+        Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+                AstraMetricCard(
+                    value = metrics.model,
+                    unit = "",
+                    label = "Model",
+                    modifier = Modifier.weight(1f),
+                )
+                AstraMetricCard(
+                    value = metrics.backend,
+                    unit = "",
+                    label = "Backend",
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+                AstraMetricCard(
+                    value = metrics.latency,
+                    unit = "",
+                    label = "Latency",
+                    modifier = Modifier.weight(1f),
+                )
+                AstraMetricCard(
+                    value = metrics.tokensPerSecond,
+                    unit = "",
+                    label = "Tokens/sec",
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+        Spacer(Modifier.height(AstraSpacing.S))
+        Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+            AstraChip(label = "Offline mode", color = AstraColors.Success)
+            AstraChip(label = "Local inference", color = AstraColors.Secondary)
+        }
     }
 }

@@ -90,6 +90,7 @@ fun AstraButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     style: AstraButtonStyle = AstraButtonStyle.Primary,
+    enabled: Boolean = true,
 ) {
     val containerColor = when (style) {
         AstraButtonStyle.Primary -> AstraColors.Primary
@@ -102,9 +103,13 @@ fun AstraButton(
         OutlinedButton(
             onClick = onClick,
             modifier = modifier.heightIn(min = 48.dp),
+            enabled = enabled,
             shape = RoundedCornerShape(16.dp),
             border = BorderStroke(1.dp, AstraColors.Border),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = AstraColors.TextPrimary),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = AstraColors.TextPrimary,
+                disabledContentColor = AstraColors.TextDisabled,
+            ),
         ) {
             Text(text)
         }
@@ -112,10 +117,13 @@ fun AstraButton(
         Button(
             onClick = onClick,
             modifier = modifier.heightIn(min = 48.dp),
+            enabled = enabled,
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = containerColor,
                 contentColor = AstraColors.TextPrimary,
+                disabledContainerColor = AstraColors.SurfaceElevated,
+                disabledContentColor = AstraColors.TextDisabled,
             ),
         ) {
             Text(text)
