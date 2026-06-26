@@ -4,12 +4,17 @@ import com.kevin.astra.core.ai.InferenceEngine
 import com.kevin.astra.core.ai.MockInferenceEngine
 import com.kevin.astra.core.navigation.AstraNavigator
 import com.kevin.astra.data.benchmark.MockBenchmarkRunner
+import com.kevin.astra.data.documents.KeywordDocumentContextRetriever
+import com.kevin.astra.data.documents.SimpleDocumentIndexer
 import com.kevin.astra.data.settings.InMemoryAiConfigurationRepository
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import com.kevin.astra.domain.benchmark.BenchmarkRunner
+import com.kevin.astra.domain.documents.DocumentContextRetriever
+import com.kevin.astra.domain.documents.DocumentIndexer
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import com.kevin.astra.presentation.assistant.AssistantViewModel
 import com.kevin.astra.presentation.benchmark.BenchmarkViewModel
+import com.kevin.astra.presentation.documents.DocumentsViewModel
 import com.kevin.astra.presentation.settings.SettingsViewModel
 import org.koin.core.KoinApplication
 import org.koin.dsl.koinApplication
@@ -20,6 +25,8 @@ val astraRootModule = module {
     single<AiConfigurationRepository> { InMemoryAiConfigurationRepository() }
     single<InferenceEngine> { MockInferenceEngine() }
     single<BenchmarkRunner> { MockBenchmarkRunner() }
+    single<DocumentIndexer> { SimpleDocumentIndexer() }
+    single<DocumentContextRetriever> { KeywordDocumentContextRetriever() }
     single { AskLocalAssistantUseCase(inferenceEngine = get()) }
     single {
         AssistantViewModel(
@@ -28,6 +35,14 @@ val astraRootModule = module {
         )
     }
     single { BenchmarkViewModel(benchmarkRunner = get()) }
+    single {
+        DocumentsViewModel(
+            documentIndexer = get(),
+            contextRetriever = get(),
+            askLocalAssistant = get(),
+            aiConfigurationRepository = get(),
+        )
+    }
     single { SettingsViewModel(aiConfigurationRepository = get()) }
 }
 

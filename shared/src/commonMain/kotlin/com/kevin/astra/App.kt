@@ -13,6 +13,7 @@ fun App() {
         navigator = koin.get(),
         assistantViewModel = koin.get(),
         benchmarkViewModel = koin.get(),
+        documentsViewModel = koin.get(),
         settingsViewModel = koin.get(),
     )
 }
