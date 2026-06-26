@@ -87,9 +87,9 @@ class DocumentsViewModel(
         }
 
         (documentsScope ?: viewModelScope).launch {
-            val configuration = aiConfigurationRepository.currentConfiguration.value
-            val selectedModel = modelCatalog.currentModel()
-            val selectedBackend = backendCatalog.currentBackend()
+            val configuration = aiConfigurationRepository.getConfiguration()
+            val selectedModel = modelCatalog.modelById(configuration.selectedModelId) ?: modelCatalog.currentModel()
+            val selectedBackend = backendCatalog.backendById(configuration.selectedBackendId) ?: backendCatalog.currentBackend()
             val context = contextRetriever.retrieve(
                 question = snapshot.question,
                 chunks = snapshot.indexedChunks,

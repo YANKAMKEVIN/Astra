@@ -15,11 +15,18 @@ class SettingsViewModel(
     private val backendCatalog: BackendCatalog,
     observationScope: CoroutineScope? = null,
 ) : AstraViewModel<SettingsState, SettingsIntent, SettingsEffect>(
-    initialState = aiConfigurationRepository.currentConfiguration.value.toSettingsState(modelCatalog, backendCatalog),
+    initialState = SettingsState(
+        availableModels = modelCatalog.availableModels(),
+        selectedModel = modelCatalog.currentModel(),
+        availableBackends = backendCatalog.availableBackends(),
+        selectedBackend = backendCatalog.currentBackend(),
+    ),
 ) {
+    private val settingsScope = observationScope ?: viewModelScope
+
     init {
-        (observationScope ?: viewModelScope).launch {
-            aiConfigurationRepository.currentConfiguration.collect { configuration ->
+        settingsScope.launch {
+            aiConfigurationRepository.observeConfiguration().collect { configuration ->
                 updateState { configuration.toSettingsState(modelCatalog, backendCatalog) }
             }
         }
@@ -29,40 +36,37 @@ class SettingsViewModel(
         when (intent) {
             is SettingsIntent.SelectModel -> {
                 if (modelCatalog.selectModel(intent.modelId)) {
-                    aiConfigurationRepository.updateModel(modelCatalog.currentModel().runtimeModel)
+                    settingsScope.launch {
+                        aiConfigurationRepository.updateSelectedModel(modelCatalog.currentModel().id)
+                    }
                 }
             }
 
             is SettingsIntent.SelectBackend -> {
                 if (backendCatalog.selectBackend(intent.backendId)) {
-                    aiConfigurationRepository.updateBackend(backendCatalog.currentBackend().runtimeBackend)
+                    settingsScope.launch {
+                        aiConfigurationRepository.updateSelectedBackend(backendCatalog.currentBackend().id)
+                    }
                 }
             }
 
             is SettingsIntent.SelectIndustry ->
-                aiConfigurationRepository.updateIndustry(intent.industry)
+                settingsScope.launch { aiConfigurationRepository.updateIndustry(intent.industry) }
 
             is SettingsIntent.UpdateTemperature ->
-                aiConfigurationRepository.updateTemperature(intent.temperature)
+                settingsScope.launch { aiConfigurationRepository.updateTemperature(intent.temperature) }
 
             is SettingsIntent.UpdateMaxTokens ->
-                aiConfigurationRepository.updateMaxTokens(intent.maxTokens)
+                settingsScope.launch { aiConfigurationRepository.updateMaxTokens(intent.maxTokens) }
 
             is SettingsIntent.UpdateContextWindow ->
-                aiConfigurationRepository.updateContextWindow(intent.contextWindow)
+                settingsScope.launch { aiConfigurationRepository.updateContextWindow(intent.contextWindow) }
 
             is SettingsIntent.UpdateQuantization ->
-                aiConfigurationRepository.updateQuantization(intent.quantization)
+                settingsScope.launch { aiConfigurationRepository.updateQuantization(intent.quantization) }
 
             is SettingsIntent.ToggleExperimentalFeatures ->
-                aiConfigurationRepository.updateExperimentalFeaturesEnabled(intent.enabled)
-        }
-        syncStateFromRepository()
-    }
-
-    private fun syncStateFromRepository() {
-        updateState {
-            aiConfigurationRepository.currentConfiguration.value.toSettingsState(modelCatalog, backendCatalog)
+                settingsScope.launch { aiConfigurationRepository.updateExperimentalFeaturesEnabled(intent.enabled) }
         }
     }
 }
@@ -73,9 +77,9 @@ private fun AiConfiguration.toSettingsState(
 ): SettingsState =
     SettingsState(
         availableModels = modelCatalog.availableModels(),
-        selectedModel = modelCatalog.currentModel(),
+        selectedModel = modelCatalog.modelById(selectedModelId) ?: modelCatalog.currentModel(),
         availableBackends = backendCatalog.availableBackends(),
-        selectedBackend = backendCatalog.currentBackend(),
+        selectedBackend = backendCatalog.backendById(selectedBackendId) ?: backendCatalog.currentBackend(),
         selectedIndustry = selectedIndustry,
         temperature = temperature,
         maxTokens = maxTokens,

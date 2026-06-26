@@ -55,9 +55,9 @@ class AssistantViewModel(
         }
 
         (generationScope ?: viewModelScope).launch {
-            val configuration = aiConfigurationRepository.currentConfiguration.value
-            val selectedModel = modelCatalog.currentModel()
-            val selectedBackend = backendCatalog.currentBackend()
+            val configuration = aiConfigurationRepository.getConfiguration()
+            val selectedModel = modelCatalog.modelById(configuration.selectedModelId) ?: modelCatalog.currentModel()
+            val selectedBackend = backendCatalog.backendById(configuration.selectedBackendId) ?: backendCatalog.currentBackend()
             val industry = snapshot.selectedIndustry.toPromptIndustry()
             val preparedPrompt = promptPipeline.preparePrompt(
                 PromptBuildRequest(

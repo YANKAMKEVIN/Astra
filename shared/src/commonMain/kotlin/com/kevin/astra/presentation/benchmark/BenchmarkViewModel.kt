@@ -22,7 +22,7 @@ class BenchmarkViewModel(
 ) : AstraViewModel<BenchmarkState, BenchmarkIntent, BenchmarkEffect>(
     initialState = BenchmarkState(
         availableModels = modelCatalog.availableModels(),
-        selectedModelIds = modelCatalog.availableModels().take(3).map { it.id }.toSet(),
+        selectedModelIds = setOf(modelCatalog.currentModel().id),
         availableBackends = backendCatalog.availableBackends(),
         selectedBackend = backendCatalog.currentBackend(),
     ),
@@ -77,17 +77,23 @@ class BenchmarkViewModel(
             }
 
             val report = benchmarkRunner.run(
-                BenchmarkRequest(
-                    prompt = promptPipeline.preparePrompt(
-                        PromptBuildRequest(
-                            engineerQuestion = snapshot.prompt,
-                            selectedIndustry = aiConfigurationRepository.currentConfiguration.value.selectedIndustry,
-                            selectedModel = snapshot.selectedModels().firstOrNull() ?: modelCatalog.currentModel(),
+                aiConfigurationRepository.getConfiguration().let { configuration ->
+                    val persistedModel = modelCatalog.modelById(configuration.selectedModelId) ?: modelCatalog.currentModel()
+                    val persistedBackend = backendCatalog.backendById(configuration.selectedBackendId) ?: backendCatalog.currentBackend()
+                    val selectedModels = snapshot.selectedModels().ifEmpty { listOf(persistedModel) }
+
+                    BenchmarkRequest(
+                        prompt = promptPipeline.preparePrompt(
+                            PromptBuildRequest(
+                                engineerQuestion = snapshot.prompt,
+                                selectedIndustry = configuration.selectedIndustry,
+                                selectedModel = selectedModels.first(),
+                            ),
                         ),
-                    ),
-                    models = snapshot.selectedModels(),
-                    backend = snapshot.selectedBackend?.runtimeBackend ?: backendCatalog.currentBackend().runtimeBackend,
-                ),
+                        models = selectedModels,
+                        backend = snapshot.selectedBackend?.runtimeBackend ?: persistedBackend.runtimeBackend,
+                    )
+                },
             )
 
             updateState {

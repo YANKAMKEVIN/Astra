@@ -1,12 +1,10 @@
 package com.kevin.astra.domain.settings
 
-import com.kevin.astra.core.ai.AiModel
-import com.kevin.astra.core.ai.InferenceBackend
 import com.kevin.astra.core.ai.PromptIndustry
 
 data class AiConfiguration(
-    val selectedModel: AiModel = AiModel.Mock,
-    val selectedBackend: InferenceBackend = InferenceBackend.Mock,
+    val selectedModelId: String = DefaultSelectedModelId,
+    val selectedBackendId: String = DefaultSelectedBackendId,
     val selectedIndustry: PromptIndustry = PromptIndustry.IndustrialMaintenance,
     val temperature: Double = 0.3,
     val maxTokens: Int = 512,
@@ -14,3 +12,6 @@ data class AiConfiguration(
     val quantization: String = "4-bit",
     val experimentalFeaturesEnabled: Boolean = false,
 )
+
+const val DefaultSelectedModelId: String = "mock-model"
+const val DefaultSelectedBackendId: String = "mock-engine"
