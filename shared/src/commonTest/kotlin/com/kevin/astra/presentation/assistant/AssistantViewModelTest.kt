@@ -44,6 +44,7 @@ class AssistantViewModelTest {
         assertEquals(AssistantIndustry.IndustrialMaintenance, state.selectedIndustry)
         assertEquals("Mock Model", state.metrics.model)
         assertEquals("Mock Engine", state.metrics.backend)
+        assertEquals("Simulated Local Inference", state.metrics.runtimeMode)
         assertEquals("1.2 s", state.metrics.latency)
         assertEquals("18", state.metrics.tokensPerSecond)
         assertFalse(state.canAsk)
@@ -122,6 +123,7 @@ class AssistantViewModelTest {
         assertEquals("1.2 s", state.metrics.latency)
         assertEquals("18", state.metrics.tokensPerSecond)
         assertEquals("128", state.metrics.tokensGenerated)
+        assertEquals("Simulated Local Inference", state.metrics.runtimeMode)
     }
 
     @Test

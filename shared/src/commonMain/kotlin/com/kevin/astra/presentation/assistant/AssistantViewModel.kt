@@ -133,9 +133,13 @@ private fun GenerationResult.toAssistantMetrics(): AssistantMetrics =
     AssistantMetrics(
         model = model.label,
         backend = backend.label,
+        runtimeMode = runtimeInfo.mode.label,
         latency = "${metrics.latencyMillis / 1_000.0} s",
-        tokensPerSecond = metrics.tokensPerSecond.toString(),
+        tokensPerSecond = if (metrics.tokensPerSecond > 0) metrics.tokensPerSecond.toString() else "N/A",
         timeToFirstToken = "${metrics.timeToFirstTokenMillis} ms",
         tokensGenerated = metrics.tokensGenerated.toString(),
         memoryUsage = "${metrics.memoryUsageMb} MB",
+        modelLoadTime = "${runtimeInfo.modelLoadTimeMillis} ms",
+        totalExecutionTime = "${runtimeInfo.totalExecutionTimeMillis / 1_000.0} s",
+        fallbackReason = runtimeInfo.fallbackReason,
     )

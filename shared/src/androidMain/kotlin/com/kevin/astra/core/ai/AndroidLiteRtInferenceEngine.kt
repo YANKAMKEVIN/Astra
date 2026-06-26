@@ -131,12 +131,17 @@ class AndroidLiteRtRuntimeSession(
                 latencyMillis = nativeLatencyMillis,
                 timeToFirstTokenMillis = nativeLatencyMillis,
                 tokensGenerated = outputTensor.numElements().coerceAtLeast(1),
-                tokensPerSecond = (outputTensor.numElements() * 1_000 / nativeLatencyMillis.toInt().coerceAtLeast(1)).coerceAtLeast(1),
+                tokensPerSecond = 0,
                 memoryUsageMb = ((model.bytes.size + input.capacity() + output.capacity()) / (1024 * 1024)).coerceAtLeast(1),
             ),
             model = request.model,
             backend = InferenceBackend.LiteRt,
             generatedAt = currentAndroidEdgeTimestamp(),
+            runtimeInfo = GenerationRuntimeInfo(
+                mode = RuntimeMode.Real,
+                inferenceLatencyMillis = nativeLatencyMillis,
+                totalExecutionTimeMillis = latencyMillis,
+            ),
         )
     }
 

@@ -16,6 +16,11 @@ class MockInferenceEngine(
             model = request.model,
             backend = request.backend,
             generatedAt = timestampProvider(),
+            runtimeInfo = GenerationRuntimeInfo(
+                mode = RuntimeMode.Simulated,
+                inferenceLatencyMillis = 1_200,
+                totalExecutionTimeMillis = 1_200,
+            ),
         )
     }
 

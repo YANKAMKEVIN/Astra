@@ -122,6 +122,7 @@ data class GenerationResult(
     val model: AiModel,
     val backend: InferenceBackend,
     val generatedAt: String,
+    val runtimeInfo: GenerationRuntimeInfo = GenerationRuntimeInfo(),
 )
 
 data class GenerationMetrics(
@@ -130,4 +131,18 @@ data class GenerationMetrics(
     val tokensGenerated: Int,
     val tokensPerSecond: Int,
     val memoryUsageMb: Int,
+)
+
+enum class RuntimeMode(val label: String) {
+    Real("Real Local Inference"),
+    Fallback("Fallback Mock Inference"),
+    Simulated("Simulated Local Inference"),
+}
+
+data class GenerationRuntimeInfo(
+    val mode: RuntimeMode = RuntimeMode.Simulated,
+    val modelLoadTimeMillis: Long = 0L,
+    val inferenceLatencyMillis: Long = 0L,
+    val totalExecutionTimeMillis: Long = 0L,
+    val fallbackReason: String? = null,
 )

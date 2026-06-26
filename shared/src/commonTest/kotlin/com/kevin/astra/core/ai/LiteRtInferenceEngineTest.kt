@@ -17,6 +17,7 @@ class LiteRtInferenceEngineTest {
         val result = engine.generate(testRequest(backend = InferenceBackend.Mock))
 
         assertEquals(InferenceBackend.Mock, result.backend)
+        assertEquals(RuntimeMode.Simulated, result.runtimeInfo.mode)
         assertTrue(result.text.contains("Emergency restart procedure"))
     }
 
@@ -31,6 +32,8 @@ class LiteRtInferenceEngineTest {
         val result = engine.generate(testRequest(backend = InferenceBackend.LiteRt))
 
         assertEquals(InferenceBackend.Mock, result.backend)
+        assertEquals(RuntimeMode.Fallback, result.runtimeInfo.mode)
+        assertEquals("model missing", result.runtimeInfo.fallbackReason)
         assertTrue(result.text.contains("ASTRA fallback active"))
         assertTrue(result.text.contains("model missing"))
     }
@@ -56,6 +59,7 @@ class LiteRtInferenceEngineTest {
         val result = engine.generate(testRequest(backend = InferenceBackend.LiteRt))
 
         assertEquals(InferenceBackend.LiteRt, result.backend)
+        assertEquals(RuntimeMode.Real, result.runtimeInfo.mode)
         assertTrue(result.text.contains("LiteRT local inference initialized"))
         assertTrue(result.text.contains("models/test.tflite"))
     }
@@ -70,4 +74,3 @@ class LiteRtInferenceEngineTest {
             temperature = 0.2,
         )
 }
-

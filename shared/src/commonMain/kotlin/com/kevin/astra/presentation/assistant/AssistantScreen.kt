@@ -380,7 +380,8 @@ private fun AssistantResponseCard(
 private fun MetricsPanel(metrics: AssistantMetrics) {
     AstraCard(
         title = "Metrics",
-        subtitle = "Mocked runtime telemetry for the future local inference pipeline.",
+        subtitle = "Runtime telemetry for local inference and fallback diagnostics.",
+        status = metrics.runtimeMode,
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
         Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
@@ -412,11 +413,31 @@ private fun MetricsPanel(metrics: AssistantMetrics) {
                     modifier = Modifier.weight(1f),
                 )
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+                AstraMetricCard(
+                    value = metrics.modelLoadTime,
+                    unit = "",
+                    label = "Model load",
+                    modifier = Modifier.weight(1f),
+                )
+                AstraMetricCard(
+                    value = metrics.totalExecutionTime,
+                    unit = "",
+                    label = "Total",
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            metrics.fallbackReason?.let { reason ->
+                AstraErrorView(
+                    title = "Fallback active",
+                    message = reason,
+                )
+            }
         }
         Spacer(Modifier.height(AstraSpacing.S))
         Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
             AstraChip(label = "Offline mode", color = AstraColors.Success)
-            AstraChip(label = "Local inference", color = AstraColors.Secondary)
+            AstraChip(label = metrics.runtimeMode, color = AstraColors.Secondary)
         }
     }
 }
