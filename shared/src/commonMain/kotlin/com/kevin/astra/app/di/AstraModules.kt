@@ -3,10 +3,13 @@ package com.kevin.astra.app.di
 import com.kevin.astra.core.ai.InferenceEngine
 import com.kevin.astra.core.ai.MockInferenceEngine
 import com.kevin.astra.core.navigation.AstraNavigator
+import com.kevin.astra.data.benchmark.MockBenchmarkRunner
 import com.kevin.astra.data.settings.InMemoryAiConfigurationRepository
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
+import com.kevin.astra.domain.benchmark.BenchmarkRunner
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import com.kevin.astra.presentation.assistant.AssistantViewModel
+import com.kevin.astra.presentation.benchmark.BenchmarkViewModel
 import com.kevin.astra.presentation.settings.SettingsViewModel
 import org.koin.core.KoinApplication
 import org.koin.dsl.koinApplication
@@ -16,6 +19,7 @@ val astraRootModule = module {
     single { AstraNavigator() }
     single<AiConfigurationRepository> { InMemoryAiConfigurationRepository() }
     single<InferenceEngine> { MockInferenceEngine() }
+    single<BenchmarkRunner> { MockBenchmarkRunner() }
     single { AskLocalAssistantUseCase(inferenceEngine = get()) }
     single {
         AssistantViewModel(
@@ -23,6 +27,7 @@ val astraRootModule = module {
             aiConfigurationRepository = get(),
         )
     }
+    single { BenchmarkViewModel(benchmarkRunner = get()) }
     single { SettingsViewModel(aiConfigurationRepository = get()) }
 }
 
