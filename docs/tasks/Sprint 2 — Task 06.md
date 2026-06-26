@@ -184,5 +184,5 @@ The task is complete only if:
 # Commit Message
 
 ```text
-feat: add demo scenario catalogg
+feat: add demo scenario catalog
 ```
