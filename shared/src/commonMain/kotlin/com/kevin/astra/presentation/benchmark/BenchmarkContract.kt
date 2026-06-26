@@ -22,7 +22,7 @@ data class BenchmarkState(
     val availableScenarios: List<DemoScenario> = emptyList(),
 ) : AstraState {
     val canRun: Boolean
-        get() = prompt.isNotBlank() && selectedModelIds.isNotEmpty() && !isRunning
+        get() = prompt.isNotBlank() && selectedModelIds.isNotEmpty() && selectedBackend != null && !isRunning
 }
 
 sealed interface BenchmarkIntent : AstraIntent {

@@ -1,19 +1,19 @@
 package com.kevin.astra.presentation.documents
 
 import com.kevin.astra.core.ai.AiModel
+import com.kevin.astra.core.ai.DefaultPromptBuilder
+import com.kevin.astra.core.ai.DefaultPromptPipeline
 import com.kevin.astra.core.ai.GenerationMetrics
 import com.kevin.astra.core.ai.GenerationResult
 import com.kevin.astra.core.ai.InferenceBackend
 import com.kevin.astra.core.ai.InferenceEngine
-import com.kevin.astra.core.ai.DefaultPromptBuilder
-import com.kevin.astra.core.ai.DefaultPromptPipeline
 import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.documents.KeywordDocumentContextRetriever
 import com.kevin.astra.data.documents.SimpleDocumentIndexer
-import com.kevin.astra.data.settings.InMemoryAiConfigurationRepository
+import com.kevin.astra.data.settings.testAiConfigurationRepository
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import com.kevin.astra.domain.documents.DocumentStatus
 import kotlinx.coroutines.CoroutineScope
@@ -128,7 +128,7 @@ class DocumentsViewModelTest {
             documentIndexer = SimpleDocumentIndexer(),
             contextRetriever = KeywordDocumentContextRetriever(),
             askLocalAssistant = AskLocalAssistantUseCase(inferenceEngine),
-            aiConfigurationRepository = InMemoryAiConfigurationRepository(),
+            aiConfigurationRepository = testAiConfigurationRepository(),
             modelCatalog = DefaultModelCatalog(),
             backendCatalog = DefaultBackendCatalog(),
             promptPipeline = testPromptPipeline(),

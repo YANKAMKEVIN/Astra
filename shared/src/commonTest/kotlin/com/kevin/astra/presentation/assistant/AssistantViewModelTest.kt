@@ -1,17 +1,19 @@
 package com.kevin.astra.presentation.assistant
 
 import com.kevin.astra.core.ai.AiModel
+import com.kevin.astra.core.ai.DefaultPromptBuilder
+import com.kevin.astra.core.ai.DefaultPromptPipeline
 import com.kevin.astra.core.ai.GenerationMetrics
 import com.kevin.astra.core.ai.GenerationResult
 import com.kevin.astra.core.ai.InferenceBackend
 import com.kevin.astra.core.ai.InferenceEngine
-import com.kevin.astra.core.ai.DefaultPromptBuilder
-import com.kevin.astra.core.ai.DefaultPromptPipeline
+import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
-import com.kevin.astra.data.settings.InMemoryAiConfigurationRepository
+import com.kevin.astra.data.demo.StaticDemoScenarioCatalog
+import com.kevin.astra.data.settings.testAiConfigurationRepository
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
@@ -34,6 +36,7 @@ class AssistantViewModelTest {
             modelCatalog = DefaultModelCatalog(),
             backendCatalog = DefaultBackendCatalog(),
             promptPipeline = testPromptPipeline(),
+            demoScenarioCatalog = StaticDemoScenarioCatalog(),
         )
 
         val state = viewModel.state.value
@@ -54,6 +57,7 @@ class AssistantViewModelTest {
             modelCatalog = DefaultModelCatalog(),
             backendCatalog = DefaultBackendCatalog(),
             promptPipeline = testPromptPipeline(),
+            demoScenarioCatalog = StaticDemoScenarioCatalog(),
         )
 
         viewModel.dispatch(AssistantIntent.SelectIndustry(AssistantIndustry.Energy))
@@ -66,6 +70,29 @@ class AssistantViewModelTest {
     }
 
     @Test
+    fun selectingScenarioPopulatesQuestionAndUpdatesIndustry() {
+        val catalog = StaticDemoScenarioCatalog()
+        val scenario = catalog.scenarioById("hlth-01") ?: error("Missing healthcare demo scenario")
+        val viewModel = AssistantViewModel(
+            askLocalAssistant = testUseCase(),
+            aiConfigurationRepository = testConfigurationRepository(),
+            modelCatalog = DefaultModelCatalog(),
+            backendCatalog = DefaultBackendCatalog(),
+            promptPipeline = testPromptPipeline(),
+            demoScenarioCatalog = catalog,
+        )
+
+        viewModel.dispatch(AssistantIntent.SelectScenario(scenario))
+
+        val state = viewModel.state.value
+        assertEquals(scenario.prompt, state.question)
+        assertEquals(AssistantIndustry.Healthcare, state.selectedIndustry)
+        assertTrue(state.canAsk)
+        assertTrue(state.availableScenarios.isNotEmpty())
+        assertTrue(state.availableScenarios.all { it.industry == PromptIndustry.Healthcare })
+    }
+
+    @Test
     fun askQuestionShowsLoadingThenUseCaseResponse() = runBlocking {
         val viewModel = AssistantViewModel(
             askLocalAssistant = testUseCase(),
@@ -73,6 +100,7 @@ class AssistantViewModelTest {
             modelCatalog = DefaultModelCatalog(),
             backendCatalog = DefaultBackendCatalog(),
             promptPipeline = testPromptPipeline(),
+            demoScenarioCatalog = StaticDemoScenarioCatalog(),
             generationScope = CoroutineScope(coroutineContext),
         )
 
@@ -104,6 +132,7 @@ class AssistantViewModelTest {
             modelCatalog = DefaultModelCatalog(),
             backendCatalog = DefaultBackendCatalog(),
             promptPipeline = testPromptPipeline(),
+            demoScenarioCatalog = StaticDemoScenarioCatalog(),
             generationScope = CoroutineScope(coroutineContext),
         )
 
@@ -125,7 +154,8 @@ class AssistantViewModelTest {
     @Test
     fun askQuestionUsesCurrentAiConfiguration() = runBlocking {
         var capturedRequest: PromptRequest? = null
-        val repository = testConfigurationRepository().apply {
+        val repository = testConfigurationRepository()
+        repository.apply {
             updateTemperature(0.8)
             updateMaxTokens(1_024)
             updateContextWindow(8_192)
@@ -145,6 +175,7 @@ class AssistantViewModelTest {
             modelCatalog = DefaultModelCatalog(),
             backendCatalog = DefaultBackendCatalog(),
             promptPipeline = testPromptPipeline(),
+            demoScenarioCatalog = StaticDemoScenarioCatalog(),
             generationScope = CoroutineScope(coroutineContext),
         )
 
@@ -173,7 +204,7 @@ class AssistantViewModelTest {
         )
 
     private fun testConfigurationRepository(): AiConfigurationRepository =
-        InMemoryAiConfigurationRepository()
+        testAiConfigurationRepository()
 
     private fun testPromptPipeline(): PromptPipeline =
         DefaultPromptPipeline(DefaultPromptBuilder())

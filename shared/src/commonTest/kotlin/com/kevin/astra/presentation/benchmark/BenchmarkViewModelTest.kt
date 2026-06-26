@@ -1,13 +1,13 @@
 package com.kevin.astra.presentation.benchmark
 
-import com.kevin.astra.core.ai.InferenceBackend
-import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.ai.DefaultPromptBuilder
 import com.kevin.astra.core.ai.DefaultPromptPipeline
+import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
-import com.kevin.astra.data.settings.InMemoryAiConfigurationRepository
+import com.kevin.astra.data.demo.StaticDemoScenarioCatalog
+import com.kevin.astra.data.settings.testAiConfigurationRepository
 import com.kevin.astra.domain.benchmark.BenchmarkRecommendation
 import com.kevin.astra.domain.benchmark.BenchmarkReport
 import com.kevin.astra.domain.benchmark.BenchmarkRequest
@@ -25,13 +25,13 @@ import kotlin.test.assertTrue
 
 class BenchmarkViewModelTest {
     @Test
-    fun startsWithDefaultPromptAndThreeModels() {
+    fun startsWithDefaultPromptAndPersistedModel() {
         val viewModel = testViewModel()
 
         val state = viewModel.state.value
 
         assertEquals(DefaultBenchmarkPrompt, state.prompt)
-        assertEquals(setOf("mock-model", "gemma-3-1b", "phi-3-mini"), state.selectedModelIds)
+        assertEquals(setOf("mock-model"), state.selectedModelIds)
         assertEquals(5, state.availableModels.size)
         assertEquals(5, state.availableBackends.size)
         assertEquals("mock-engine", state.selectedBackend?.id)
@@ -53,17 +53,40 @@ class BenchmarkViewModelTest {
     }
 
     @Test
+    fun selectingScenarioPopulatesBenchmarkPrompt() {
+        val catalog = StaticDemoScenarioCatalog()
+        val scenario = catalog.scenarioById("aero-02") ?: error("Missing aerospace demo scenario")
+        val viewModel = BenchmarkViewModel(
+            benchmarkRunner = testRunner(),
+            modelCatalog = DefaultModelCatalog(),
+            backendCatalog = DefaultBackendCatalog(),
+            aiConfigurationRepository = testAiConfigurationRepository(),
+            promptPipeline = testPromptPipeline(),
+            demoScenarioCatalog = catalog,
+        )
+
+        viewModel.dispatch(BenchmarkIntent.SelectScenario(scenario))
+
+        val state = viewModel.state.value
+        assertEquals(scenario.prompt, state.prompt)
+        assertTrue(state.canRun)
+    }
+
+    @Test
     fun runsBenchmarkAndStoresResults() = runBlocking {
         var capturedPrompt: String? = null
         val viewModel = BenchmarkViewModel(
             benchmarkRunner = testRunner(onRequest = { capturedPrompt = it.prompt }),
             modelCatalog = DefaultModelCatalog(),
             backendCatalog = DefaultBackendCatalog(),
-            aiConfigurationRepository = InMemoryAiConfigurationRepository(),
+            aiConfigurationRepository = testAiConfigurationRepository(),
             promptPipeline = testPromptPipeline(),
+            demoScenarioCatalog = StaticDemoScenarioCatalog(),
             benchmarkScope = CoroutineScope(coroutineContext),
         )
 
+        viewModel.dispatch(BenchmarkIntent.ToggleModel("gemma-3-1b"))
+        viewModel.dispatch(BenchmarkIntent.ToggleModel("phi-3-mini"))
         viewModel.dispatch(BenchmarkIntent.RunBenchmark)
         yield()
 
@@ -90,7 +113,18 @@ class BenchmarkViewModelTest {
         }
         viewModel.dispatch(BenchmarkIntent.RunBenchmark)
 
-        assertEquals("Select at least one model and enter a benchmark prompt.", viewModel.state.value.error)
+        assertEquals("Select at least one model before running ASTRA.", viewModel.state.value.error)
+    }
+
+    @Test
+    fun cannotRunWithoutSelectedBackend() {
+        val state = BenchmarkState(
+            prompt = "Compare local inference options",
+            selectedModelIds = setOf("mock-model"),
+            selectedBackend = null,
+        )
+
+        assertFalse(state.canRun)
     }
 
     private fun testViewModel(): BenchmarkViewModel =
@@ -98,8 +132,9 @@ class BenchmarkViewModelTest {
             benchmarkRunner = testRunner(),
             modelCatalog = DefaultModelCatalog(),
             backendCatalog = DefaultBackendCatalog(),
-            aiConfigurationRepository = InMemoryAiConfigurationRepository(),
+            aiConfigurationRepository = testAiConfigurationRepository(),
             promptPipeline = testPromptPipeline(),
+            demoScenarioCatalog = StaticDemoScenarioCatalog(),
         )
 
     private fun testPromptPipeline(): PromptPipeline =

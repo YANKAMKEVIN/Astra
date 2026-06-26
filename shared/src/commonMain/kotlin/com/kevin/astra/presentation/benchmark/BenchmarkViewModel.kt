@@ -67,8 +67,14 @@ class BenchmarkViewModel(
     private fun runBenchmark() {
         val snapshot = state.value
         if (!snapshot.canRun) {
+            val message = when {
+                snapshot.prompt.isBlank() -> "Enter a benchmark prompt before running ASTRA."
+                snapshot.selectedModelIds.isEmpty() -> "Select at least one model before running ASTRA."
+                snapshot.selectedBackend == null -> "Select an installed backend before running ASTRA."
+                else -> "Benchmark is already running."
+            }
             updateState {
-                copy(error = "Select at least one model and enter a benchmark prompt.")
+                copy(error = message)
             }
             return
         }

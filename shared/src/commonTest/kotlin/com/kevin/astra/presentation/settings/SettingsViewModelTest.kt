@@ -3,8 +3,10 @@ package com.kevin.astra.presentation.settings
 import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
-import com.kevin.astra.data.settings.InMemoryAiConfigurationRepository
+import com.kevin.astra.data.settings.testAiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -13,8 +15,9 @@ import kotlin.test.assertTrue
 
 class SettingsViewModelTest {
     @Test
-    fun exposesRepositoryDefaults() {
+    fun exposesRepositoryDefaults() = runBlocking {
         val viewModel = testViewModel()
+        delay(50)
 
         val state = viewModel.state.value
 
@@ -37,8 +40,9 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun keepsUnavailableModelsAndBackendsUnselected() {
+    fun keepsUnavailableModelsAndBackendsUnselected() = runBlocking {
         val viewModel = testViewModel()
+        delay(50)
 
         viewModel.dispatch(SettingsIntent.SelectModel("gemma-3-1b"))
         viewModel.dispatch(SettingsIntent.SelectBackend("onnx-runtime"))
@@ -49,8 +53,9 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun updatesParametersAndExperimentalToggle() {
+    fun updatesParametersAndExperimentalToggle() = runBlocking {
         val viewModel = testViewModel()
+        delay(50)
 
         viewModel.dispatch(SettingsIntent.SelectIndustry(PromptIndustry.Healthcare))
         viewModel.dispatch(SettingsIntent.UpdateTemperature(0.6))
@@ -58,6 +63,7 @@ class SettingsViewModelTest {
         viewModel.dispatch(SettingsIntent.UpdateContextWindow(8_192))
         viewModel.dispatch(SettingsIntent.UpdateQuantization("8-bit"))
         viewModel.dispatch(SettingsIntent.ToggleExperimentalFeatures(true))
+        delay(150)
 
         val state = viewModel.state.value
         assertEquals(PromptIndustry.Healthcare, state.selectedIndustry)
@@ -70,7 +76,7 @@ class SettingsViewModelTest {
 
     private fun testViewModel(): SettingsViewModel =
         SettingsViewModel(
-            aiConfigurationRepository = InMemoryAiConfigurationRepository(),
+            aiConfigurationRepository = testAiConfigurationRepository(),
             modelCatalog = DefaultModelCatalog(),
             backendCatalog = DefaultBackendCatalog(),
             observationScope = CoroutineScope(EmptyCoroutineContext),

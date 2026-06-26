@@ -45,6 +45,7 @@ class AssistantViewModel(
                 copy(
                     question = intent.scenario.prompt,
                     selectedIndustry = intent.scenario.industry.toAssistantIndustry(),
+                    availableScenarios = demoScenarioCatalog.scenariosForIndustry(intent.scenario.industry),
                     error = null,
                 )
             }
