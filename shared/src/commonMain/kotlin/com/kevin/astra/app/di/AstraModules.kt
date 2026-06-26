@@ -14,6 +14,7 @@ import com.kevin.astra.core.navigation.AstraNavigator
 import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.benchmark.MockBenchmarkRunner
+import com.kevin.astra.data.demo.StaticDemoScenarioCatalog
 import com.kevin.astra.data.documents.KeywordDocumentContextRetriever
 import com.kevin.astra.data.documents.SimpleDocumentIndexer
 import com.kevin.astra.data.settings.AiConfigurationLocalDataSource
@@ -21,6 +22,7 @@ import com.kevin.astra.data.settings.PersistentAiConfigurationRepository
 import com.kevin.astra.data.settings.createAiConfigurationKeyValueStore
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import com.kevin.astra.domain.benchmark.BenchmarkRunner
+import com.kevin.astra.domain.demo.DemoScenarioCatalog
 import com.kevin.astra.domain.documents.DocumentContextRetriever
 import com.kevin.astra.domain.documents.DocumentIndexer
 import com.kevin.astra.domain.settings.AiConfigurationRepository
@@ -44,6 +46,7 @@ val astraRootModule = module {
     single<AiConfigurationRepository> { PersistentAiConfigurationRepository(localDataSource = get()) }
     single<InferenceEngine> { MockInferenceEngine() }
     single<BenchmarkRunner> { MockBenchmarkRunner() }
+    single<DemoScenarioCatalog> { StaticDemoScenarioCatalog() }
     single<DocumentIndexer> { SimpleDocumentIndexer() }
     single<DocumentContextRetriever> { KeywordDocumentContextRetriever() }
     single { AskLocalAssistantUseCase(inferenceEngine = get()) }
@@ -55,6 +58,7 @@ val astraRootModule = module {
             modelCatalog = get(),
             backendCatalog = get(),
             promptPipeline = get(),
+            demoScenarioCatalog = get(),
         )
     }
     single {
@@ -64,6 +68,7 @@ val astraRootModule = module {
             backendCatalog = get(),
             aiConfigurationRepository = get(),
             promptPipeline = get(),
+            demoScenarioCatalog = get(),
         )
     }
     single {

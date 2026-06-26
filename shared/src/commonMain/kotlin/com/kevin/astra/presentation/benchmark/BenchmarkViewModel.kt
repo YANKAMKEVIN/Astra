@@ -8,6 +8,7 @@ import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.mvi.AstraViewModel
 import com.kevin.astra.domain.benchmark.BenchmarkRequest
 import com.kevin.astra.domain.benchmark.BenchmarkRunner
+import com.kevin.astra.domain.demo.DemoScenarioCatalog
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -18,6 +19,7 @@ class BenchmarkViewModel(
     private val backendCatalog: BackendCatalog,
     private val aiConfigurationRepository: AiConfigurationRepository,
     private val promptPipeline: PromptPipeline,
+    private val demoScenarioCatalog: DemoScenarioCatalog,
     private val benchmarkScope: CoroutineScope? = null,
 ) : AstraViewModel<BenchmarkState, BenchmarkIntent, BenchmarkEffect>(
     initialState = BenchmarkState(
@@ -25,6 +27,7 @@ class BenchmarkViewModel(
         selectedModelIds = setOf(modelCatalog.currentModel().id),
         availableBackends = backendCatalog.availableBackends(),
         selectedBackend = backendCatalog.currentBackend(),
+        availableScenarios = demoScenarioCatalog.scenarios(),
     ),
 ) {
     override fun handleIntent(intent: BenchmarkIntent) {
@@ -51,6 +54,10 @@ class BenchmarkViewModel(
                         )
                     }
                 }
+            }
+
+            is BenchmarkIntent.SelectScenario -> updateState {
+                copy(prompt = intent.scenario.prompt, error = null)
             }
 
             BenchmarkIntent.RunBenchmark -> runBenchmark()
