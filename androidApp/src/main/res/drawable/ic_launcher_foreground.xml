@@ -1,0 +1,66 @@
+<!--
+  ~ Copyright (C) 2026 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+  <group android:scaleX="0.7"
+      android:scaleY="0.7"
+      android:translateX="76.8"
+      android:translateY="76.8">
+    <path
+        android:pathData="M128,32L384,32A96,96 0,0 1,480 128L480,384A96,96 0,0 1,384 480L128,480A96,96 0,0 1,32 384L32,128A96,96 0,0 1,128 32z"
+        android:fillColor="#08111F"/>
+    <path
+        android:pathData="M110,382L220,120Q230,96 256,96Q246,120 236,146L166,382Z">
+      <aapt:attr name="android:fillColor">
+        <gradient
+            android:startX="110"
+            android:startY="382"
+            android:endX="256"
+            android:endY="96"
+            android:type="linear">
+          <item android:offset="0" android:color="#FF22D3EE"/>
+          <item android:offset="0.55" android:color="#FF3B82F6"/>
+          <item android:offset="1" android:color="#FF7C3AED"/>
+        </gradient>
+      </aapt:attr>
+    </path>
+    <path
+        android:pathData="M276,96Q302,96 312,120L402,382L346,382L282,190Q272,160 256,132Z">
+      <aapt:attr name="android:fillColor">
+        <gradient
+            android:startX="256"
+            android:startY="382"
+            android:endX="402"
+            android:endY="96"
+            android:type="linear">
+          <item android:offset="0" android:color="#FF22D3EE"/>
+          <item android:offset="0.55" android:color="#FF3B82F6"/>
+          <item android:offset="1" android:color="#FF7C3AED"/>
+        </gradient>
+      </aapt:attr>
+    </path>
+    <path
+        android:pathData="M214,382L256,244L298,382Z"
+        android:fillColor="#08111F"/>
+    <path
+        android:pathData="M256,188L265,214L291,223L265,232L256,258L247,232L221,223L247,214Z"
+        android:fillColor="#EAFBFF"/>
+  </group>
+</vector>
