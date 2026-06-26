@@ -5,6 +5,9 @@ import com.kevin.astra.core.ai.GenerationMetrics
 import com.kevin.astra.core.ai.GenerationResult
 import com.kevin.astra.core.ai.InferenceBackend
 import com.kevin.astra.core.ai.InferenceEngine
+import com.kevin.astra.core.ai.DefaultPromptBuilder
+import com.kevin.astra.core.ai.DefaultPromptPipeline
+import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.settings.InMemoryAiConfigurationRepository
@@ -28,6 +31,7 @@ class AssistantViewModelTest {
             askLocalAssistant = testUseCase(),
             aiConfigurationRepository = testConfigurationRepository(),
             modelCatalog = DefaultModelCatalog(),
+            promptPipeline = testPromptPipeline(),
         )
 
         val state = viewModel.state.value
@@ -46,6 +50,7 @@ class AssistantViewModelTest {
             askLocalAssistant = testUseCase(),
             aiConfigurationRepository = testConfigurationRepository(),
             modelCatalog = DefaultModelCatalog(),
+            promptPipeline = testPromptPipeline(),
         )
 
         viewModel.dispatch(AssistantIntent.SelectIndustry(AssistantIndustry.Energy))
@@ -63,6 +68,7 @@ class AssistantViewModelTest {
             askLocalAssistant = testUseCase(),
             aiConfigurationRepository = testConfigurationRepository(),
             modelCatalog = DefaultModelCatalog(),
+            promptPipeline = testPromptPipeline(),
             generationScope = CoroutineScope(coroutineContext),
         )
 
@@ -92,6 +98,7 @@ class AssistantViewModelTest {
             askLocalAssistant = testUseCase(),
             aiConfigurationRepository = testConfigurationRepository(),
             modelCatalog = DefaultModelCatalog(),
+            promptPipeline = testPromptPipeline(),
             generationScope = CoroutineScope(coroutineContext),
         )
 
@@ -131,6 +138,7 @@ class AssistantViewModelTest {
             askLocalAssistant = useCase,
             aiConfigurationRepository = repository,
             modelCatalog = DefaultModelCatalog(),
+            promptPipeline = testPromptPipeline(),
             generationScope = CoroutineScope(coroutineContext),
         )
 
@@ -143,6 +151,9 @@ class AssistantViewModelTest {
         assertEquals(InferenceBackend.Mock, capturedRequest?.backend)
         assertEquals(1_024, capturedRequest?.maxTokens)
         assertEquals(0.8, capturedRequest?.temperature)
+        assertTrue(capturedRequest?.prompt.orEmpty().contains("System role"))
+        assertTrue(capturedRequest?.prompt.orEmpty().contains("User request"))
+        assertTrue(capturedRequest?.prompt.orEmpty().contains("Diagnose alarm"))
     }
 
     private fun testUseCase(): AskLocalAssistantUseCase =
@@ -157,6 +168,9 @@ class AssistantViewModelTest {
 
     private fun testConfigurationRepository(): AiConfigurationRepository =
         InMemoryAiConfigurationRepository()
+
+    private fun testPromptPipeline(): PromptPipeline =
+        DefaultPromptPipeline(DefaultPromptBuilder())
 
     private fun testGenerationResult(request: PromptRequest): GenerationResult =
         GenerationResult(

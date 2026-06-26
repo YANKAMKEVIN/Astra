@@ -3,6 +3,8 @@ package com.kevin.astra.presentation.documents
 import androidx.lifecycle.viewModelScope
 import com.kevin.astra.core.ai.GenerationResult
 import com.kevin.astra.core.ai.ModelCatalog
+import com.kevin.astra.core.ai.PromptBuildRequest
+import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.core.mvi.AstraViewModel
 import com.kevin.astra.data.documents.EmbeddedMaintenanceDocument
@@ -20,6 +22,7 @@ class DocumentsViewModel(
     private val askLocalAssistant: AskLocalAssistantUseCase,
     private val aiConfigurationRepository: AiConfigurationRepository,
     private val modelCatalog: ModelCatalog,
+    private val promptPipeline: PromptPipeline,
     private val documentsScope: CoroutineScope? = null,
 ) : AstraViewModel<DocumentsState, DocumentsIntent, DocumentsEffect>(
     initialState = DocumentsState(
@@ -88,9 +91,13 @@ class DocumentsViewModel(
                 question = snapshot.question,
                 chunks = snapshot.indexedChunks,
             )
-            val prompt = buildDocumentPrompt(
-                question = snapshot.question,
-                context = context.text,
+            val preparedPrompt = promptPipeline.preparePrompt(
+                PromptBuildRequest(
+                    engineerQuestion = snapshot.question,
+                    selectedIndustry = configuration.selectedIndustry,
+                    selectedModel = selectedModel,
+                    extractedDocumentContext = context.text,
+                ),
             )
 
             updateState {
@@ -104,7 +111,7 @@ class DocumentsViewModel(
 
             val result = askLocalAssistant(
                 PromptRequest(
-                    prompt = prompt,
+                    prompt = preparedPrompt,
                     industry = configuration.selectedIndustry,
                     model = selectedModel.runtimeModel,
                     backend = configuration.selectedBackend,
@@ -123,20 +130,6 @@ class DocumentsViewModel(
         }
     }
 }
-
-private fun buildDocumentPrompt(
-    question: String,
-    context: String,
-): String =
-    """
-        Use the following local maintenance guide context to answer the engineer's question.
-
-        Extracted context:
-        $context
-
-        Engineer question:
-        $question
-    """.trimIndent()
 
 private fun GenerationResult.toDocumentsAnswer(): DocumentsAnswer =
     DocumentsAnswer(

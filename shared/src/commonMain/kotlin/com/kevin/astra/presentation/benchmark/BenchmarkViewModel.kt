@@ -3,15 +3,20 @@ package com.kevin.astra.presentation.benchmark
 import androidx.lifecycle.viewModelScope
 import com.kevin.astra.core.ai.InferenceBackend
 import com.kevin.astra.core.ai.ModelCatalog
+import com.kevin.astra.core.ai.PromptBuildRequest
+import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.mvi.AstraViewModel
 import com.kevin.astra.domain.benchmark.BenchmarkRequest
 import com.kevin.astra.domain.benchmark.BenchmarkRunner
+import com.kevin.astra.domain.settings.AiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 class BenchmarkViewModel(
     private val benchmarkRunner: BenchmarkRunner,
     private val modelCatalog: ModelCatalog,
+    private val aiConfigurationRepository: AiConfigurationRepository,
+    private val promptPipeline: PromptPipeline,
     private val benchmarkScope: CoroutineScope? = null,
 ) : AstraViewModel<BenchmarkState, BenchmarkIntent, BenchmarkEffect>(
     initialState = BenchmarkState(
@@ -65,8 +70,14 @@ class BenchmarkViewModel(
 
             val report = benchmarkRunner.run(
                 BenchmarkRequest(
-                    prompt = snapshot.prompt,
-                    models = snapshot.availableModels.filter { it.id in snapshot.selectedModelIds },
+                    prompt = promptPipeline.preparePrompt(
+                        PromptBuildRequest(
+                            engineerQuestion = snapshot.prompt,
+                            selectedIndustry = aiConfigurationRepository.currentConfiguration.value.selectedIndustry,
+                            selectedModel = snapshot.selectedModels().firstOrNull() ?: modelCatalog.currentModel(),
+                        ),
+                    ),
+                    models = snapshot.selectedModels(),
                     backend = snapshot.selectedBackend,
                 ),
             )
@@ -80,4 +91,7 @@ class BenchmarkViewModel(
             }
         }
     }
+
+    private fun BenchmarkState.selectedModels() =
+        availableModels.filter { it.id in selectedModelIds }
 }

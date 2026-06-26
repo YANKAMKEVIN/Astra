@@ -5,6 +5,9 @@ import com.kevin.astra.core.ai.GenerationMetrics
 import com.kevin.astra.core.ai.GenerationResult
 import com.kevin.astra.core.ai.InferenceBackend
 import com.kevin.astra.core.ai.InferenceEngine
+import com.kevin.astra.core.ai.DefaultPromptBuilder
+import com.kevin.astra.core.ai.DefaultPromptPipeline
+import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.documents.KeywordDocumentContextRetriever
@@ -96,7 +99,9 @@ class DocumentsViewModelTest {
         assertEquals("Pump restart answer", state.answer?.title)
         assertEquals("1.2 s", state.metrics.latency)
         assertEquals("18", state.metrics.tokensPerSecond)
-        assertTrue(capturedRequest?.prompt.orEmpty().contains("Extracted context:"))
+        assertTrue(capturedRequest?.prompt.orEmpty().contains("System role"))
+        assertTrue(capturedRequest?.prompt.orEmpty().contains("Context"))
+        assertTrue(capturedRequest?.prompt.orEmpty().contains("Pump Restart Procedure"))
     }
 
     private fun testViewModel(
@@ -124,6 +129,10 @@ class DocumentsViewModelTest {
             askLocalAssistant = AskLocalAssistantUseCase(inferenceEngine),
             aiConfigurationRepository = InMemoryAiConfigurationRepository(),
             modelCatalog = DefaultModelCatalog(),
+            promptPipeline = testPromptPipeline(),
             documentsScope = scope,
         )
+
+    private fun testPromptPipeline(): PromptPipeline =
+        DefaultPromptPipeline(DefaultPromptBuilder())
 }

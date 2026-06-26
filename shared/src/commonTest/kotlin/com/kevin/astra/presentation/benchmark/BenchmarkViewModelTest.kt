@@ -2,7 +2,11 @@ package com.kevin.astra.presentation.benchmark
 
 import com.kevin.astra.core.ai.InferenceBackend
 import com.kevin.astra.core.ai.LocalModel
+import com.kevin.astra.core.ai.DefaultPromptBuilder
+import com.kevin.astra.core.ai.DefaultPromptPipeline
+import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.data.ai.DefaultModelCatalog
+import com.kevin.astra.data.settings.InMemoryAiConfigurationRepository
 import com.kevin.astra.domain.benchmark.BenchmarkRecommendation
 import com.kevin.astra.domain.benchmark.BenchmarkReport
 import com.kevin.astra.domain.benchmark.BenchmarkRequest
@@ -48,9 +52,12 @@ class BenchmarkViewModelTest {
 
     @Test
     fun runsBenchmarkAndStoresResults() = runBlocking {
+        var capturedPrompt: String? = null
         val viewModel = BenchmarkViewModel(
-            benchmarkRunner = testRunner(),
+            benchmarkRunner = testRunner(onRequest = { capturedPrompt = it.prompt }),
             modelCatalog = DefaultModelCatalog(),
+            aiConfigurationRepository = InMemoryAiConfigurationRepository(),
+            promptPipeline = testPromptPipeline(),
             benchmarkScope = CoroutineScope(coroutineContext),
         )
 
@@ -65,6 +72,8 @@ class BenchmarkViewModelTest {
         assertFalse(state.isRunning)
         assertEquals(3, state.results.size)
         assertEquals("gemma-3-1b", state.recommendedModel?.model?.id)
+        assertTrue(capturedPrompt.orEmpty().contains("System role"))
+        assertTrue(capturedPrompt.orEmpty().contains(DefaultBenchmarkPrompt))
     }
 
     @Test
@@ -85,11 +94,17 @@ class BenchmarkViewModelTest {
         BenchmarkViewModel(
             benchmarkRunner = testRunner(),
             modelCatalog = DefaultModelCatalog(),
+            aiConfigurationRepository = InMemoryAiConfigurationRepository(),
+            promptPipeline = testPromptPipeline(),
         )
 
-    private fun testRunner(): BenchmarkRunner =
+    private fun testPromptPipeline(): PromptPipeline =
+        DefaultPromptPipeline(DefaultPromptBuilder())
+
+    private fun testRunner(onRequest: (BenchmarkRequest) -> Unit = {}): BenchmarkRunner =
         object : BenchmarkRunner {
             override suspend fun run(request: BenchmarkRequest): BenchmarkReport {
+                onRequest(request)
                 delay(10)
                 val gemma = request.models.modelById("gemma-3-1b")
                 val results = request.models.mapIndexed { index, model ->

@@ -3,6 +3,8 @@ package com.kevin.astra.presentation.assistant
 import androidx.lifecycle.viewModelScope
 import com.kevin.astra.core.ai.GenerationResult
 import com.kevin.astra.core.ai.ModelCatalog
+import com.kevin.astra.core.ai.PromptBuildRequest
+import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.core.mvi.AstraViewModel
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
@@ -14,6 +16,7 @@ class AssistantViewModel(
     private val askLocalAssistant: AskLocalAssistantUseCase,
     private val aiConfigurationRepository: AiConfigurationRepository,
     private val modelCatalog: ModelCatalog,
+    private val promptPipeline: PromptPipeline,
     private val generationScope: CoroutineScope? = null,
 ) : AstraViewModel<AssistantState, AssistantIntent, AssistantEffect>(
     initialState = AssistantState(),
@@ -52,6 +55,14 @@ class AssistantViewModel(
         (generationScope ?: viewModelScope).launch {
             val configuration = aiConfigurationRepository.currentConfiguration.value
             val selectedModel = modelCatalog.currentModel()
+            val industry = snapshot.selectedIndustry.toPromptIndustry()
+            val preparedPrompt = promptPipeline.preparePrompt(
+                PromptBuildRequest(
+                    engineerQuestion = snapshot.question,
+                    selectedIndustry = industry,
+                    selectedModel = selectedModel,
+                ),
+            )
 
             updateState {
                 copy(
@@ -63,8 +74,8 @@ class AssistantViewModel(
 
             val result = askLocalAssistant(
                 PromptRequest(
-                    prompt = snapshot.question,
-                    industry = snapshot.selectedIndustry.toPromptIndustry(),
+                    prompt = preparedPrompt,
+                    industry = industry,
                     model = selectedModel.runtimeModel,
                     backend = configuration.selectedBackend,
                     maxTokens = configuration.maxTokens,

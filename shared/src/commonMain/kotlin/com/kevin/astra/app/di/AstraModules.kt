@@ -3,6 +3,10 @@ package com.kevin.astra.app.di
 import com.kevin.astra.core.ai.InferenceEngine
 import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.ai.MockInferenceEngine
+import com.kevin.astra.core.ai.DefaultPromptBuilder
+import com.kevin.astra.core.ai.DefaultPromptPipeline
+import com.kevin.astra.core.ai.PromptBuilder
+import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.navigation.AstraNavigator
 import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.benchmark.MockBenchmarkRunner
@@ -25,6 +29,8 @@ import org.koin.dsl.module
 val astraRootModule = module {
     single { AstraNavigator() }
     single<ModelCatalog> { DefaultModelCatalog() }
+    single<PromptBuilder> { DefaultPromptBuilder() }
+    single<PromptPipeline> { DefaultPromptPipeline(promptBuilder = get()) }
     single<AiConfigurationRepository> { InMemoryAiConfigurationRepository() }
     single<InferenceEngine> { MockInferenceEngine() }
     single<BenchmarkRunner> { MockBenchmarkRunner() }
@@ -36,12 +42,15 @@ val astraRootModule = module {
             askLocalAssistant = get(),
             aiConfigurationRepository = get(),
             modelCatalog = get(),
+            promptPipeline = get(),
         )
     }
     single {
         BenchmarkViewModel(
             benchmarkRunner = get(),
             modelCatalog = get(),
+            aiConfigurationRepository = get(),
+            promptPipeline = get(),
         )
     }
     single {
@@ -51,6 +60,7 @@ val astraRootModule = module {
             askLocalAssistant = get(),
             aiConfigurationRepository = get(),
             modelCatalog = get(),
+            promptPipeline = get(),
         )
     }
     single {
