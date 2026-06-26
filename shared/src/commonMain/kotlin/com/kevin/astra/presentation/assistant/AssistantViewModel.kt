@@ -1,17 +1,17 @@
 package com.kevin.astra.presentation.assistant
 
 import androidx.lifecycle.viewModelScope
-import com.kevin.astra.core.ai.AiModel
 import com.kevin.astra.core.ai.GenerationResult
-import com.kevin.astra.core.ai.InferenceBackend
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.core.mvi.AstraViewModel
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
+import com.kevin.astra.domain.settings.AiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 class AssistantViewModel(
     private val askLocalAssistant: AskLocalAssistantUseCase,
+    private val aiConfigurationRepository: AiConfigurationRepository,
     private val generationScope: CoroutineScope? = null,
 ) : AstraViewModel<AssistantState, AssistantIntent, AssistantEffect>(
     initialState = AssistantState(),
@@ -48,6 +48,8 @@ class AssistantViewModel(
         }
 
         (generationScope ?: viewModelScope).launch {
+            val configuration = aiConfigurationRepository.currentConfiguration.value
+
             updateState {
                 copy(
                     isGenerating = true,
@@ -60,10 +62,10 @@ class AssistantViewModel(
                 PromptRequest(
                     prompt = snapshot.question,
                     industry = snapshot.selectedIndustry.toPromptIndustry(),
-                    model = AiModel.Mock,
-                    backend = InferenceBackend.Mock,
-                    maxTokens = 512,
-                    temperature = 0.2,
+                    model = configuration.selectedModel,
+                    backend = configuration.selectedBackend,
+                    maxTokens = configuration.maxTokens,
+                    temperature = configuration.temperature,
                 ),
             )
 

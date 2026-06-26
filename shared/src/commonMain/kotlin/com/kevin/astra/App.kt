@@ -12,5 +12,6 @@ fun App() {
     AstraApp(
         navigator = koin.get(),
         assistantViewModel = koin.get(),
+        settingsViewModel = koin.get(),
     )
 }

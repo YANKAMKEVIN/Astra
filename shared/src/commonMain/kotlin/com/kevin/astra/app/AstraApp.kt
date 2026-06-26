@@ -24,12 +24,14 @@ import com.kevin.astra.presentation.benchmark.BenchmarkScreen
 import com.kevin.astra.presentation.dashboard.DashboardScreen
 import com.kevin.astra.presentation.documents.DocumentsScreen
 import com.kevin.astra.presentation.settings.SettingsScreen
+import com.kevin.astra.presentation.settings.SettingsViewModel
 import com.kevin.astra.presentation.splash.SplashScreen
 
 @Composable
 fun AstraApp(
     navigator: AstraNavigator,
     assistantViewModel: AssistantViewModel,
+    settingsViewModel: SettingsViewModel,
 ) {
     val currentDestination by navigator.currentDestination.collectAsStateWithLifecycle()
 
@@ -69,7 +71,10 @@ fun AstraApp(
                         )
                         AstraDestination.Documents -> DocumentsScreen(contentPadding)
                         AstraDestination.Benchmark -> BenchmarkScreen(contentPadding)
-                        AstraDestination.Settings -> SettingsScreen(contentPadding)
+                        AstraDestination.Settings -> SettingsScreen(
+                            contentPadding = contentPadding,
+                            viewModel = settingsViewModel,
+                        )
                     }
                 }
             }

@@ -6,7 +6,9 @@ import com.kevin.astra.core.ai.GenerationResult
 import com.kevin.astra.core.ai.InferenceBackend
 import com.kevin.astra.core.ai.InferenceEngine
 import com.kevin.astra.core.ai.PromptRequest
+import com.kevin.astra.data.settings.InMemoryAiConfigurationRepository
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
+import com.kevin.astra.domain.settings.AiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -21,7 +23,10 @@ import kotlin.test.assertTrue
 class AssistantViewModelTest {
     @Test
     fun startsWithIndustrialMaintenanceAndMockMetrics() {
-        val viewModel = AssistantViewModel(askLocalAssistant = testUseCase())
+        val viewModel = AssistantViewModel(
+            askLocalAssistant = testUseCase(),
+            aiConfigurationRepository = testConfigurationRepository(),
+        )
 
         val state = viewModel.state.value
 
@@ -35,7 +40,10 @@ class AssistantViewModelTest {
 
     @Test
     fun updatesQuestionAndIndustry() {
-        val viewModel = AssistantViewModel(askLocalAssistant = testUseCase())
+        val viewModel = AssistantViewModel(
+            askLocalAssistant = testUseCase(),
+            aiConfigurationRepository = testConfigurationRepository(),
+        )
 
         viewModel.dispatch(AssistantIntent.SelectIndustry(AssistantIndustry.Energy))
         viewModel.dispatch(AssistantIntent.UpdateQuestion("Restart Pump A"))
@@ -50,6 +58,7 @@ class AssistantViewModelTest {
     fun askQuestionShowsLoadingThenUseCaseResponse() = runBlocking {
         val viewModel = AssistantViewModel(
             askLocalAssistant = testUseCase(),
+            aiConfigurationRepository = testConfigurationRepository(),
             generationScope = CoroutineScope(coroutineContext),
         )
 
@@ -77,6 +86,7 @@ class AssistantViewModelTest {
     fun clearConversationResetsPromptResponseAndTimestamp() = runBlocking {
         val viewModel = AssistantViewModel(
             askLocalAssistant = testUseCase(),
+            aiConfigurationRepository = testConfigurationRepository(),
             generationScope = CoroutineScope(coroutineContext),
         )
 
@@ -95,25 +105,65 @@ class AssistantViewModelTest {
         assertFalse(state.isGenerating)
     }
 
+    @Test
+    fun askQuestionUsesCurrentAiConfiguration() = runBlocking {
+        var capturedRequest: PromptRequest? = null
+        val repository = testConfigurationRepository().apply {
+            updateTemperature(0.8)
+            updateMaxTokens(1_024)
+            updateContextWindow(8_192)
+            updateQuantization("8-bit")
+        }
+        val useCase = AskLocalAssistantUseCase(
+            inferenceEngine = object : InferenceEngine {
+                override suspend fun generate(request: PromptRequest): GenerationResult {
+                    capturedRequest = request
+                    return testGenerationResult(request)
+                }
+            },
+        )
+        val viewModel = AssistantViewModel(
+            askLocalAssistant = useCase,
+            aiConfigurationRepository = repository,
+            generationScope = CoroutineScope(coroutineContext),
+        )
+
+        viewModel.dispatch(AssistantIntent.UpdateQuestion("Diagnose alarm"))
+        viewModel.dispatch(AssistantIntent.AskQuestion)
+        yield()
+        delay(10)
+
+        assertEquals(AiModel.Mock, capturedRequest?.model)
+        assertEquals(InferenceBackend.Mock, capturedRequest?.backend)
+        assertEquals(1_024, capturedRequest?.maxTokens)
+        assertEquals(0.8, capturedRequest?.temperature)
+    }
+
     private fun testUseCase(): AskLocalAssistantUseCase =
         AskLocalAssistantUseCase(
             inferenceEngine = object : InferenceEngine {
                 override suspend fun generate(request: PromptRequest): GenerationResult {
                     delay(10)
-                    return GenerationResult(
-                        text = "${request.industry.label} checklist assistance\n\nGenerated response",
-                        metrics = GenerationMetrics(
-                            latencyMillis = 1_200,
-                            timeToFirstTokenMillis = 320,
-                            tokensGenerated = 128,
-                            tokensPerSecond = 18,
-                            memoryUsageMb = 384,
-                        ),
-                        model = AiModel.Mock,
-                        backend = InferenceBackend.Mock,
-                        generatedAt = "2026-06-26T10:15:30Z",
-                    )
+                    return testGenerationResult(request)
                 }
             },
+        )
+
+    private fun testConfigurationRepository(): AiConfigurationRepository =
+        InMemoryAiConfigurationRepository()
+
+    private fun testGenerationResult(request: PromptRequest): GenerationResult =
+        GenerationResult(
+            text = "${request.industry.label} checklist assistance\n\nGenerated response",
+            metrics = GenerationMetrics(
+                latencyMillis = 1_200,
+                timeToFirstTokenMillis = 320,
+                tokensGenerated = 128,
+                tokensPerSecond = 18,
+                memoryUsageMb = 384,
+            ),
+            model = request.model,
+            backend = request.backend,
+            generatedAt = "2026-06-26T10:15:30Z",
         )
 }
