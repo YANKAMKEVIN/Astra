@@ -9,7 +9,6 @@ import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.core.mvi.AstraViewModel
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
-import com.kevin.astra.domain.demo.DemoScenarioCatalog
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -20,12 +19,9 @@ class AssistantViewModel(
     private val modelCatalog: ModelCatalog,
     private val backendCatalog: BackendCatalog,
     private val promptPipeline: PromptPipeline,
-    private val demoScenarioCatalog: DemoScenarioCatalog,
     private val generationScope: CoroutineScope? = null,
 ) : AstraViewModel<AssistantState, AssistantIntent, AssistantEffect>(
-    initialState = AssistantState(
-        availableScenarios = demoScenarioCatalog.scenarios()
-    ),
+    initialState = AssistantState(),
 ) {
     override fun handleIntent(intent: AssistantIntent) {
         when (intent) {
@@ -34,17 +30,7 @@ class AssistantViewModel(
             }
 
             is AssistantIntent.SelectIndustry -> updateState {
-                copy(
-                    selectedIndustry = intent.industry,
-                    availableScenarios = demoScenarioCatalog.scenariosForIndustry(intent.industry.toPromptIndustry())
-                )
-            }
-
-            is AssistantIntent.SelectScenario -> updateState {
-                copy(
-                    question = intent.scenario.prompt,
-                    selectedIndustry = intent.scenario.industry.toAssistantIndustry()
-                )
+                copy(selectedIndustry = intent.industry)
             }
 
             AssistantIntent.AskQuestion -> askQuestion()

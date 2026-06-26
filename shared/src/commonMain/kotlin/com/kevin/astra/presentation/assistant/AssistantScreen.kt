@@ -43,7 +43,6 @@ import com.kevin.astra.core.design.AstraMetricCard
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
-import com.kevin.astra.domain.demo.DemoScenario
 
 @Composable
 fun AssistantScreen(
@@ -70,11 +69,6 @@ private fun AssistantContent(
         description = "Secure Local AI for Critical Operations",
         contentPadding = contentPadding,
     ) {
-        ScenarioSelector(
-            scenarios = state.availableScenarios,
-            onScenarioSelected = { onIntent(AssistantIntent.SelectScenario(it)) },
-        )
-
         IndustrySelector(
             selectedIndustry = state.selectedIndustry,
             enabled = !state.isGenerating,
@@ -102,62 +96,6 @@ private fun AssistantContent(
         }
 
         MetricsPanel(metrics = state.metrics)
-    }
-}
-
-@Composable
-private fun ScenarioSelector(
-    scenarios: List<DemoScenario>,
-    onScenarioSelected: (DemoScenario) -> Unit,
-) {
-    AstraCard(
-        title = "Demo Scenarios",
-        subtitle = "Curated prompts for engineering demonstration.",
-    ) {
-        Spacer(Modifier.height(AstraSpacing.M))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
-        ) {
-            scenarios.forEach { scenario ->
-                ScenarioChip(
-                    scenario = scenario,
-                    onClick = { onScenarioSelected(scenario) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ScenarioChip(
-    scenario: DemoScenario,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .heightIn(min = 64.dp)
-            .background(AstraColors.SurfaceElevated, RoundedCornerShape(16.dp))
-            .border(1.dp, AstraColors.Border, RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column {
-            Text(
-                text = scenario.title,
-                style = AstraTypography.Caption,
-                color = AstraColors.TextPrimary,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = scenario.industry.label,
-                style = AstraTypography.Caption,
-                color = AstraColors.TextSecondary,
-            )
-        }
     }
 }
 

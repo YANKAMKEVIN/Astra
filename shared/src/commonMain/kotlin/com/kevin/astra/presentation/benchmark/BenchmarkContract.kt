@@ -7,7 +7,6 @@ import com.kevin.astra.core.mvi.AstraIntent
 import com.kevin.astra.core.mvi.AstraState
 import com.kevin.astra.domain.benchmark.BenchmarkRecommendation
 import com.kevin.astra.domain.benchmark.BenchmarkResult
-import com.kevin.astra.domain.demo.DemoScenario
 
 data class BenchmarkState(
     val prompt: String = DefaultBenchmarkPrompt,
@@ -19,7 +18,6 @@ data class BenchmarkState(
     val results: List<BenchmarkResult> = emptyList(),
     val recommendedModel: BenchmarkRecommendation? = null,
     val error: String? = null,
-    val availableScenarios: List<DemoScenario> = emptyList(),
 ) : AstraState {
     val canRun: Boolean
         get() = prompt.isNotBlank() && selectedModelIds.isNotEmpty() && !isRunning
@@ -29,7 +27,6 @@ sealed interface BenchmarkIntent : AstraIntent {
     data class UpdatePrompt(val prompt: String) : BenchmarkIntent
     data class ToggleModel(val modelId: String) : BenchmarkIntent
     data class SelectBackend(val backendId: String) : BenchmarkIntent
-    data class SelectScenario(val scenario: DemoScenario) : BenchmarkIntent
     data object RunBenchmark : BenchmarkIntent
 }
 
