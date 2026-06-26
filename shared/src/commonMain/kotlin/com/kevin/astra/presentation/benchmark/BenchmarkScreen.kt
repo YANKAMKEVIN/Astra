@@ -28,8 +28,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.kevin.astra.core.ai.AiModel
 import com.kevin.astra.core.ai.InferenceBackend
+import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraCard
 import com.kevin.astra.core.design.AstraChip
@@ -71,7 +71,8 @@ private fun BenchmarkContent(
             onPromptChanged = { onIntent(BenchmarkIntent.UpdatePrompt(it)) },
         )
         ModelSelectionCard(
-            selectedModels = state.selectedModels,
+            availableModels = state.availableModels,
+            selectedModelIds = state.selectedModelIds,
             isRunning = state.isRunning,
             onToggleModel = { onIntent(BenchmarkIntent.ToggleModel(it)) },
         )
@@ -97,7 +98,7 @@ private fun BenchmarkContent(
             AstraCard(
                 title = "Recommended model",
                 subtitle = recommendation.explanation,
-                status = recommendation.model.label,
+                status = recommendation.model.displayName,
             ) {
                 Spacer(Modifier.height(AstraSpacing.M))
                 AstraChip(label = "BEST SIMULATED FIT", color = AstraColors.Success)
@@ -106,7 +107,7 @@ private fun BenchmarkContent(
 
         ResultsCard(
             results = state.results,
-            recommendedModel = state.recommendedModel?.model,
+            recommendedModelId = state.recommendedModel?.model?.id,
         )
     }
 }
@@ -158,24 +159,26 @@ private fun BenchmarkPromptCard(
 
 @Composable
 private fun ModelSelectionCard(
-    selectedModels: Set<AiModel>,
+    availableModels: List<LocalModel>,
+    selectedModelIds: Set<String>,
     isRunning: Boolean,
-    onToggleModel: (AiModel) -> Unit,
+    onToggleModel: (String) -> Unit,
 ) {
     AstraCard(
         title = "Model Selection",
         subtitle = "All model profiles are selectable in this mocked lab.",
-        status = "${selectedModels.size} SELECTED",
+        status = "${selectedModelIds.size} SELECTED",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
         HorizontalOptions {
-            AiModel.entries.forEach { model ->
+            availableModels.forEach { model ->
+                val selected = model.id in selectedModelIds
                 SelectablePill(
-                    label = model.label,
-                    status = if (model in selectedModels) "SELECTED" else "AVAILABLE",
-                    selected = model in selectedModels,
+                    label = model.displayName,
+                    status = if (selected) "SELECTED" else model.status.label.uppercase(),
+                    selected = selected,
                     enabled = !isRunning,
-                    onClick = { onToggleModel(model) },
+                    onClick = { onToggleModel(model.id) },
                 )
             }
         }
@@ -221,7 +224,7 @@ private fun RunBenchmarkCard(
         Spacer(Modifier.height(AstraSpacing.M))
         Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
             AstraMetricCard(
-                value = state.selectedModels.size.toString(),
+                value = state.selectedModelIds.size.toString(),
                 unit = "",
                 label = "Models",
                 modifier = Modifier.weight(1f),
@@ -254,7 +257,7 @@ private fun RunBenchmarkCard(
 @Composable
 private fun ResultsCard(
     results: List<BenchmarkResult>,
-    recommendedModel: AiModel?,
+    recommendedModelId: String?,
 ) {
     AstraCard(
         title = "Comparison Results",
@@ -276,7 +279,7 @@ private fun ResultsCard(
                 results.forEach { result ->
                     BenchmarkResultRow(
                         result = result,
-                        recommended = result.model == recommendedModel,
+                        recommended = result.model.id == recommendedModelId,
                     )
                 }
             }
@@ -314,12 +317,12 @@ private fun BenchmarkResultRow(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = result.model.label,
+                    text = result.model.displayName,
                     style = AstraTypography.Title,
                     color = AstraColors.TextPrimary,
                 )
                 Text(
-                    text = "${result.backend.label} • ${result.status.label}",
+                    text = "${result.model.provider.label} • ${result.backend.label} • ${result.status.label}",
                     style = AstraTypography.Caption,
                     color = AstraColors.TextSecondary,
                 )

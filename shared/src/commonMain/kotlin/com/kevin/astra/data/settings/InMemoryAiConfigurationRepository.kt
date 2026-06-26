@@ -17,9 +17,7 @@ class InMemoryAiConfigurationRepository : AiConfigurationRepository {
         mutableConfiguration.asStateFlow()
 
     override fun updateModel(model: AiModel) {
-        if (model == AiModel.Mock) {
-            mutableConfiguration.update { it.copy(selectedModel = model) }
-        }
+        mutableConfiguration.update { it.copy(selectedModel = model) }
     }
 
     override fun updateBackend(backend: InferenceBackend) {

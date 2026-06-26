@@ -2,6 +2,7 @@ package com.kevin.astra.presentation.documents
 
 import androidx.lifecycle.viewModelScope
 import com.kevin.astra.core.ai.GenerationResult
+import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.core.mvi.AstraViewModel
 import com.kevin.astra.data.documents.EmbeddedMaintenanceDocument
@@ -18,6 +19,7 @@ class DocumentsViewModel(
     private val contextRetriever: DocumentContextRetriever,
     private val askLocalAssistant: AskLocalAssistantUseCase,
     private val aiConfigurationRepository: AiConfigurationRepository,
+    private val modelCatalog: ModelCatalog,
     private val documentsScope: CoroutineScope? = null,
 ) : AstraViewModel<DocumentsState, DocumentsIntent, DocumentsEffect>(
     initialState = DocumentsState(
@@ -81,6 +83,7 @@ class DocumentsViewModel(
 
         (documentsScope ?: viewModelScope).launch {
             val configuration = aiConfigurationRepository.currentConfiguration.value
+            val selectedModel = modelCatalog.currentModel()
             val context = contextRetriever.retrieve(
                 question = snapshot.question,
                 chunks = snapshot.indexedChunks,
@@ -103,7 +106,7 @@ class DocumentsViewModel(
                 PromptRequest(
                     prompt = prompt,
                     industry = configuration.selectedIndustry,
-                    model = configuration.selectedModel,
+                    model = selectedModel.runtimeModel,
                     backend = configuration.selectedBackend,
                     maxTokens = configuration.maxTokens,
                     temperature = configuration.temperature,

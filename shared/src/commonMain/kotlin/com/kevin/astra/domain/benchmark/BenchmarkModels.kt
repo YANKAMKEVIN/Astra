@@ -1,11 +1,11 @@
 package com.kevin.astra.domain.benchmark
 
-import com.kevin.astra.core.ai.AiModel
 import com.kevin.astra.core.ai.InferenceBackend
+import com.kevin.astra.core.ai.LocalModel
 
 data class BenchmarkRequest(
     val prompt: String,
-    val models: List<AiModel>,
+    val models: List<LocalModel>,
     val backend: InferenceBackend,
 )
 
@@ -15,7 +15,7 @@ data class BenchmarkReport(
 )
 
 data class BenchmarkResult(
-    val model: AiModel,
+    val model: LocalModel,
     val backend: InferenceBackend,
     val latencyMillis: Long,
     val timeToFirstTokenMillis: Long,
@@ -31,6 +31,6 @@ enum class BenchmarkStatus(val label: String) {
 }
 
 data class BenchmarkRecommendation(
-    val model: AiModel,
+    val model: LocalModel,
     val explanation: String,
 )

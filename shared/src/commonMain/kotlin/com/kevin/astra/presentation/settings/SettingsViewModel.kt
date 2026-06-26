@@ -1,8 +1,8 @@
 package com.kevin.astra.presentation.settings
 
 import androidx.lifecycle.viewModelScope
-import com.kevin.astra.core.ai.AiModel
 import com.kevin.astra.core.ai.InferenceBackend
+import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.mvi.AstraViewModel
 import com.kevin.astra.domain.settings.AiConfiguration
 import com.kevin.astra.domain.settings.AiConfigurationRepository
@@ -11,14 +11,15 @@ import kotlinx.coroutines.launch
 
 class SettingsViewModel(
     private val aiConfigurationRepository: AiConfigurationRepository,
+    private val modelCatalog: ModelCatalog,
     observationScope: CoroutineScope? = null,
 ) : AstraViewModel<SettingsState, SettingsIntent, SettingsEffect>(
-    initialState = aiConfigurationRepository.currentConfiguration.value.toSettingsState(),
+    initialState = aiConfigurationRepository.currentConfiguration.value.toSettingsState(modelCatalog),
 ) {
     init {
         (observationScope ?: viewModelScope).launch {
             aiConfigurationRepository.currentConfiguration.collect { configuration ->
-                updateState { configuration.toSettingsState() }
+                updateState { configuration.toSettingsState(modelCatalog) }
             }
         }
     }
@@ -26,8 +27,8 @@ class SettingsViewModel(
     override fun handleIntent(intent: SettingsIntent) {
         when (intent) {
             is SettingsIntent.SelectModel -> {
-                if (intent.model == AiModel.Mock) {
-                    aiConfigurationRepository.updateModel(intent.model)
+                if (modelCatalog.selectModel(intent.modelId)) {
+                    aiConfigurationRepository.updateModel(modelCatalog.currentModel().runtimeModel)
                 }
             }
 
@@ -60,14 +61,15 @@ class SettingsViewModel(
 
     private fun syncStateFromRepository() {
         updateState {
-            aiConfigurationRepository.currentConfiguration.value.toSettingsState()
+            aiConfigurationRepository.currentConfiguration.value.toSettingsState(modelCatalog)
         }
     }
 }
 
-private fun AiConfiguration.toSettingsState(): SettingsState =
+private fun AiConfiguration.toSettingsState(modelCatalog: ModelCatalog): SettingsState =
     SettingsState(
-        selectedModel = selectedModel,
+        availableModels = modelCatalog.availableModels(),
+        selectedModel = modelCatalog.currentModel(),
         selectedBackend = selectedBackend,
         selectedIndustry = selectedIndustry,
         temperature = temperature,

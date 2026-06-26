@@ -1,7 +1,8 @@
 package com.kevin.astra.presentation.benchmark
 
-import com.kevin.astra.core.ai.AiModel
 import com.kevin.astra.core.ai.InferenceBackend
+import com.kevin.astra.core.ai.LocalModel
+import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.domain.benchmark.BenchmarkRecommendation
 import com.kevin.astra.domain.benchmark.BenchmarkReport
 import com.kevin.astra.domain.benchmark.BenchmarkRequest
@@ -20,34 +21,36 @@ import kotlin.test.assertTrue
 class BenchmarkViewModelTest {
     @Test
     fun startsWithDefaultPromptAndThreeModels() {
-        val viewModel = BenchmarkViewModel(benchmarkRunner = testRunner())
+        val viewModel = testViewModel()
 
         val state = viewModel.state.value
 
         assertEquals(DefaultBenchmarkPrompt, state.prompt)
-        assertEquals(setOf(AiModel.Mock, AiModel.Gemma, AiModel.Phi), state.selectedModels)
+        assertEquals(setOf("mock-model", "gemma-3-1b", "phi-3-mini"), state.selectedModelIds)
+        assertEquals(5, state.availableModels.size)
         assertEquals(InferenceBackend.Mock, state.selectedBackend)
         assertFalse(state.isRunning)
     }
 
     @Test
     fun togglesModelSelectionAndPrompt() {
-        val viewModel = BenchmarkViewModel(benchmarkRunner = testRunner())
+        val viewModel = testViewModel()
 
         viewModel.dispatch(BenchmarkIntent.UpdatePrompt("Compare checklist answer"))
-        viewModel.dispatch(BenchmarkIntent.ToggleModel(AiModel.Mock))
-        viewModel.dispatch(BenchmarkIntent.ToggleModel(AiModel.Qwen))
+        viewModel.dispatch(BenchmarkIntent.ToggleModel("mock-model"))
+        viewModel.dispatch(BenchmarkIntent.ToggleModel("qwen-2-5-1-5b"))
 
         val state = viewModel.state.value
         assertEquals("Compare checklist answer", state.prompt)
-        assertFalse(AiModel.Mock in state.selectedModels)
-        assertTrue(AiModel.Qwen in state.selectedModels)
+        assertFalse("mock-model" in state.selectedModelIds)
+        assertTrue("qwen-2-5-1-5b" in state.selectedModelIds)
     }
 
     @Test
     fun runsBenchmarkAndStoresResults() = runBlocking {
         val viewModel = BenchmarkViewModel(
             benchmarkRunner = testRunner(),
+            modelCatalog = DefaultModelCatalog(),
             benchmarkScope = CoroutineScope(coroutineContext),
         )
 
@@ -61,16 +64,16 @@ class BenchmarkViewModelTest {
         val state = viewModel.state.value
         assertFalse(state.isRunning)
         assertEquals(3, state.results.size)
-        assertEquals(AiModel.Gemma, state.recommendedModel?.model)
+        assertEquals("gemma-3-1b", state.recommendedModel?.model?.id)
     }
 
     @Test
     fun showsErrorWhenNoModelSelected() {
-        val viewModel = BenchmarkViewModel(benchmarkRunner = testRunner())
+        val viewModel = testViewModel()
 
-        AiModel.entries.forEach { model ->
-            if (model in viewModel.state.value.selectedModels) {
-                viewModel.dispatch(BenchmarkIntent.ToggleModel(model))
+        viewModel.state.value.availableModels.forEach { model ->
+            if (model.id in viewModel.state.value.selectedModelIds) {
+                viewModel.dispatch(BenchmarkIntent.ToggleModel(model.id))
             }
         }
         viewModel.dispatch(BenchmarkIntent.RunBenchmark)
@@ -78,10 +81,17 @@ class BenchmarkViewModelTest {
         assertEquals("Select at least one model and enter a benchmark prompt.", viewModel.state.value.error)
     }
 
+    private fun testViewModel(): BenchmarkViewModel =
+        BenchmarkViewModel(
+            benchmarkRunner = testRunner(),
+            modelCatalog = DefaultModelCatalog(),
+        )
+
     private fun testRunner(): BenchmarkRunner =
         object : BenchmarkRunner {
             override suspend fun run(request: BenchmarkRequest): BenchmarkReport {
                 delay(10)
+                val gemma = request.models.modelById("gemma-3-1b")
                 val results = request.models.mapIndexed { index, model ->
                     BenchmarkResult(
                         model = model,
@@ -90,17 +100,20 @@ class BenchmarkViewModelTest {
                         timeToFirstTokenMillis = 250L + index,
                         tokensPerSecond = 20 + index,
                         memoryUsageMb = 400 + index,
-                        qualityScore = if (model == AiModel.Gemma) 92 else 80 + index,
+                        qualityScore = if (model.id == "gemma-3-1b") 92 else 80 + index,
                         status = BenchmarkStatus.Simulated,
                     )
                 }
                 return BenchmarkReport(
                     results = results,
                     recommendation = BenchmarkRecommendation(
-                        model = AiModel.Gemma,
+                        model = gemma,
                         explanation = "Gemma wins the simulated profile.",
                     ),
                 )
             }
         }
 }
+
+private fun List<LocalModel>.modelById(id: String): LocalModel =
+    first { it.id == id }

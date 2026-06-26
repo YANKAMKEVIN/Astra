@@ -2,6 +2,7 @@ package com.kevin.astra.presentation.benchmark
 
 import androidx.lifecycle.viewModelScope
 import com.kevin.astra.core.ai.InferenceBackend
+import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.mvi.AstraViewModel
 import com.kevin.astra.domain.benchmark.BenchmarkRequest
 import com.kevin.astra.domain.benchmark.BenchmarkRunner
@@ -10,9 +11,13 @@ import kotlinx.coroutines.launch
 
 class BenchmarkViewModel(
     private val benchmarkRunner: BenchmarkRunner,
+    private val modelCatalog: ModelCatalog,
     private val benchmarkScope: CoroutineScope? = null,
 ) : AstraViewModel<BenchmarkState, BenchmarkIntent, BenchmarkEffect>(
-    initialState = BenchmarkState(),
+    initialState = BenchmarkState(
+        availableModels = modelCatalog.availableModels(),
+        selectedModelIds = modelCatalog.availableModels().take(3).map { it.id }.toSet(),
+    ),
 ) {
     override fun handleIntent(intent: BenchmarkIntent) {
         when (intent) {
@@ -21,12 +26,12 @@ class BenchmarkViewModel(
             }
 
             is BenchmarkIntent.ToggleModel -> updateState {
-                val nextModels = if (intent.model in selectedModels) {
-                    selectedModels - intent.model
+                val nextModels = if (intent.modelId in selectedModelIds) {
+                    selectedModelIds - intent.modelId
                 } else {
-                    selectedModels + intent.model
+                    selectedModelIds + intent.modelId
                 }
-                copy(selectedModels = nextModels, error = null)
+                copy(selectedModelIds = nextModels, error = null)
             }
 
             is BenchmarkIntent.SelectBackend -> {
@@ -61,7 +66,7 @@ class BenchmarkViewModel(
             val report = benchmarkRunner.run(
                 BenchmarkRequest(
                     prompt = snapshot.prompt,
-                    models = snapshot.selectedModels.toList(),
+                    models = snapshot.availableModels.filter { it.id in snapshot.selectedModelIds },
                     backend = snapshot.selectedBackend,
                 ),
             )

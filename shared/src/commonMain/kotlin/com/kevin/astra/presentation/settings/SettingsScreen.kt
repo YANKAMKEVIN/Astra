@@ -25,8 +25,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.kevin.astra.core.ai.AiModel
 import com.kevin.astra.core.ai.InferenceBackend
+import com.kevin.astra.core.ai.LocalModel
+import com.kevin.astra.core.ai.ModelStatus
 import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
@@ -64,6 +65,7 @@ private fun SettingsContent(
         contentPadding = contentPadding,
     ) {
         ModelConfigurationCard(
+            models = state.availableModels,
             selectedModel = state.selectedModel,
             onSelectModel = { onIntent(SettingsIntent.SelectModel(it)) },
         )
@@ -88,23 +90,26 @@ private fun SettingsContent(
 
 @Composable
 private fun ModelConfigurationCard(
-    selectedModel: AiModel,
-    onSelectModel: (AiModel) -> Unit,
+    models: List<LocalModel>,
+    selectedModel: LocalModel?,
+    onSelectModel: (String) -> Unit,
 ) {
     AstraCard(
         title = "Model Configuration",
-        subtitle = "Mock Model is active. Production models are staged for future local runtime integration.",
-        status = selectedModel.label,
+        subtitle = "Models are provided by the local catalog. Production runtimes remain staged for future integration.",
+        status = selectedModel?.displayName ?: "No model",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
         SelectableOptionRow {
-            AiModel.entries.forEach { model ->
+            models.forEach { model ->
+                val selected = model.id == selectedModel?.id
+                val installed = model.status == ModelStatus.Installed
                 SelectableOption(
-                    label = model.label,
-                    selected = model == selectedModel,
-                    enabled = model == AiModel.Mock,
-                    status = if (model == AiModel.Mock) "ACTIVE" else "COMING SOON",
-                    onClick = { onSelectModel(model) },
+                    label = model.displayName,
+                    selected = selected,
+                    enabled = installed,
+                    status = if (selected) "ACTIVE" else model.status.label.uppercase(),
+                    onClick = { onSelectModel(model.id) },
                 )
             }
         }

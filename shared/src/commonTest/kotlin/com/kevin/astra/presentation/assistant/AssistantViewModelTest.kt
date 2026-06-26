@@ -6,6 +6,7 @@ import com.kevin.astra.core.ai.GenerationResult
 import com.kevin.astra.core.ai.InferenceBackend
 import com.kevin.astra.core.ai.InferenceEngine
 import com.kevin.astra.core.ai.PromptRequest
+import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.settings.InMemoryAiConfigurationRepository
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import com.kevin.astra.domain.settings.AiConfigurationRepository
@@ -26,6 +27,7 @@ class AssistantViewModelTest {
         val viewModel = AssistantViewModel(
             askLocalAssistant = testUseCase(),
             aiConfigurationRepository = testConfigurationRepository(),
+            modelCatalog = DefaultModelCatalog(),
         )
 
         val state = viewModel.state.value
@@ -43,6 +45,7 @@ class AssistantViewModelTest {
         val viewModel = AssistantViewModel(
             askLocalAssistant = testUseCase(),
             aiConfigurationRepository = testConfigurationRepository(),
+            modelCatalog = DefaultModelCatalog(),
         )
 
         viewModel.dispatch(AssistantIntent.SelectIndustry(AssistantIndustry.Energy))
@@ -59,6 +62,7 @@ class AssistantViewModelTest {
         val viewModel = AssistantViewModel(
             askLocalAssistant = testUseCase(),
             aiConfigurationRepository = testConfigurationRepository(),
+            modelCatalog = DefaultModelCatalog(),
             generationScope = CoroutineScope(coroutineContext),
         )
 
@@ -87,6 +91,7 @@ class AssistantViewModelTest {
         val viewModel = AssistantViewModel(
             askLocalAssistant = testUseCase(),
             aiConfigurationRepository = testConfigurationRepository(),
+            modelCatalog = DefaultModelCatalog(),
             generationScope = CoroutineScope(coroutineContext),
         )
 
@@ -125,6 +130,7 @@ class AssistantViewModelTest {
         val viewModel = AssistantViewModel(
             askLocalAssistant = useCase,
             aiConfigurationRepository = repository,
+            modelCatalog = DefaultModelCatalog(),
             generationScope = CoroutineScope(coroutineContext),
         )
 

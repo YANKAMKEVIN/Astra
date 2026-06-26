@@ -1,8 +1,10 @@
 package com.kevin.astra.app.di
 
 import com.kevin.astra.core.ai.InferenceEngine
+import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.ai.MockInferenceEngine
 import com.kevin.astra.core.navigation.AstraNavigator
+import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.benchmark.MockBenchmarkRunner
 import com.kevin.astra.data.documents.KeywordDocumentContextRetriever
 import com.kevin.astra.data.documents.SimpleDocumentIndexer
@@ -22,6 +24,7 @@ import org.koin.dsl.module
 
 val astraRootModule = module {
     single { AstraNavigator() }
+    single<ModelCatalog> { DefaultModelCatalog() }
     single<AiConfigurationRepository> { InMemoryAiConfigurationRepository() }
     single<InferenceEngine> { MockInferenceEngine() }
     single<BenchmarkRunner> { MockBenchmarkRunner() }
@@ -32,18 +35,30 @@ val astraRootModule = module {
         AssistantViewModel(
             askLocalAssistant = get(),
             aiConfigurationRepository = get(),
+            modelCatalog = get(),
         )
     }
-    single { BenchmarkViewModel(benchmarkRunner = get()) }
+    single {
+        BenchmarkViewModel(
+            benchmarkRunner = get(),
+            modelCatalog = get(),
+        )
+    }
     single {
         DocumentsViewModel(
             documentIndexer = get(),
             contextRetriever = get(),
             askLocalAssistant = get(),
             aiConfigurationRepository = get(),
+            modelCatalog = get(),
         )
     }
-    single { SettingsViewModel(aiConfigurationRepository = get()) }
+    single {
+        SettingsViewModel(
+            aiConfigurationRepository = get(),
+            modelCatalog = get(),
+        )
+    }
 }
 
 private val astraKoinApplication: KoinApplication by lazy {

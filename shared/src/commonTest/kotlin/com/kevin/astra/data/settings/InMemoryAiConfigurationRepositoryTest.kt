@@ -26,13 +26,13 @@ class InMemoryAiConfigurationRepositoryTest {
     }
 
     @Test
-    fun ignoresUnavailableModelAndBackend() {
+    fun updatesModelAndKeepsUnavailableBackendsUnselected() {
         val repository = InMemoryAiConfigurationRepository()
 
         repository.updateModel(AiModel.Gemma)
         repository.updateBackend(InferenceBackend.LiteRt)
 
-        assertEquals(AiModel.Mock, repository.currentConfiguration.value.selectedModel)
+        assertEquals(AiModel.Gemma, repository.currentConfiguration.value.selectedModel)
         assertEquals(InferenceBackend.Mock, repository.currentConfiguration.value.selectedBackend)
     }
 

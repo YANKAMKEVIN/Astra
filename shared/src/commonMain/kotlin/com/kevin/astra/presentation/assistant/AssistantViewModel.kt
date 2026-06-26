@@ -2,6 +2,7 @@ package com.kevin.astra.presentation.assistant
 
 import androidx.lifecycle.viewModelScope
 import com.kevin.astra.core.ai.GenerationResult
+import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.core.mvi.AstraViewModel
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
@@ -12,6 +13,7 @@ import kotlinx.coroutines.launch
 class AssistantViewModel(
     private val askLocalAssistant: AskLocalAssistantUseCase,
     private val aiConfigurationRepository: AiConfigurationRepository,
+    private val modelCatalog: ModelCatalog,
     private val generationScope: CoroutineScope? = null,
 ) : AstraViewModel<AssistantState, AssistantIntent, AssistantEffect>(
     initialState = AssistantState(),
@@ -49,6 +51,7 @@ class AssistantViewModel(
 
         (generationScope ?: viewModelScope).launch {
             val configuration = aiConfigurationRepository.currentConfiguration.value
+            val selectedModel = modelCatalog.currentModel()
 
             updateState {
                 copy(
@@ -62,7 +65,7 @@ class AssistantViewModel(
                 PromptRequest(
                     prompt = snapshot.question,
                     industry = snapshot.selectedIndustry.toPromptIndustry(),
-                    model = configuration.selectedModel,
+                    model = selectedModel.runtimeModel,
                     backend = configuration.selectedBackend,
                     maxTokens = configuration.maxTokens,
                     temperature = configuration.temperature,
