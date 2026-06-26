@@ -28,7 +28,7 @@ class DefaultModelCatalog : ModelCatalog {
             parameterCount = "1B",
             quantization = "4-bit",
             contextWindow = 8_192,
-            supportedBackends = listOf(InferenceBackend.LiteRt, InferenceBackend.OnnxRuntime),
+            supportedBackends = listOf(InferenceBackend.LiteRt, InferenceBackend.LiteRtLm, InferenceBackend.OnnxRuntime),
             minimumMemoryMb = 1_024,
             status = ModelStatus.Available,
             runtimeModel = AiModel.Gemma,

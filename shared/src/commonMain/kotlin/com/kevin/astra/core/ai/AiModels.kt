@@ -48,6 +48,7 @@ interface ModelCatalog {
 enum class BackendStatus(val label: String) {
     Installed("Installed"),
     Available("Available"),
+    ModelRequired("Model Required"),
     ComingSoon("Coming Soon"),
     Unsupported("Unsupported"),
 }
@@ -94,6 +95,7 @@ interface BackendCatalog {
 enum class InferenceBackend(val label: String) {
     Mock("Mock Engine"),
     LiteRt("LiteRT"),
+    LiteRtLm("LiteRT-LM"),
     OnnxRuntime("ONNX Runtime"),
     CoreMl("Core ML"),
     LlamaCpp("llama.cpp"),
@@ -135,7 +137,11 @@ data class GenerationMetrics(
 
 enum class RuntimeMode(val label: String) {
     Real("Real Local Inference"),
-    Fallback("Fallback Mock Inference"),
+    LiteRtTensor("LiteRT Tensor Runtime"),
+    LiteRtLmGenerative("LiteRT-LM Generative Runtime"),
+    ModelMissing("Model Missing"),
+    UnsupportedPlatform("Unsupported Platform"),
+    Fallback("Mock Fallback"),
     Simulated("Simulated Local Inference"),
 }
 

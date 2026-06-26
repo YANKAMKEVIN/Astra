@@ -18,14 +18,26 @@ fun initializeAndroidEdgeAiRuntime(context: Context) {
 
 actual fun createInferenceEngine(): InferenceEngine {
     val context = applicationContext
-    return LiteRtInferenceEngine(
-        modelLoader = if (context != null) {
-            AndroidAssetLocalModelLoader(context = context)
-        } else {
-            UnavailableLocalModelLoader("Android context is not initialized yet.")
-        },
-        runtimeSession = AndroidLiteRtRuntimeSession(),
-        fallbackEngine = MockInferenceEngine(),
+    val mockEngine = MockInferenceEngine()
+    return RoutingInferenceEngine(
+        mockEngine = mockEngine,
+        liteRtEngine = LiteRtInferenceEngine(
+            modelLoader = if (context != null) {
+                AndroidAssetLocalModelLoader(context = context)
+            } else {
+                UnavailableLocalModelLoader("Android context is not initialized yet.")
+            },
+            runtimeSession = AndroidLiteRtRuntimeSession(),
+            fallbackEngine = mockEngine,
+        ),
+        liteRtLmEngine = LiteRtLmInferenceEngine(
+            modelLoader = if (context != null) {
+                AndroidAssetLiteRtLmModelLoader(context = context)
+            } else {
+                UnsupportedLiteRtLmModelLoader("Android context is not initialized yet.")
+            },
+            fallbackEngine = mockEngine,
+        ),
     )
 }
 
@@ -153,6 +165,49 @@ class AndroidLiteRtRuntimeSession(
 }
 
 private const val DefaultLiteRtModelAssetPath = "models/astra-slm.tflite"
+private const val DefaultLiteRtLmModelAssetRoot = "models/litert-lm"
+
+class AndroidAssetLiteRtLmModelLoader(
+    private val context: Context,
+    private val assetRoot: String = DefaultLiteRtLmModelAssetRoot,
+) : LiteRtLmModelLoader {
+    override suspend fun loadModel(request: PromptRequest): LiteRtLmModelLoadResult =
+        try {
+            val files = context.assets.list(assetRoot).orEmpty().toSet()
+            val modelFile = files.firstOrNull { it.endsWith(".tflite") || it.endsWith(".task") || it.endsWith(".bin") }
+            val tokenizerFile = files.firstOrNull { it.endsWith(".model") || it.endsWith(".spm") || it.contains("tokenizer", ignoreCase = true) }
+            val configFile = files.firstOrNull { it.endsWith(".json") }
+
+            when {
+                files.isEmpty() -> LiteRtLmModelLoadResult.Missing(
+                    "No LiteRT-LM assets found under '$assetRoot'. Add a generative model bundle before selecting LiteRT-LM.",
+                )
+
+                modelFile == null -> LiteRtLmModelLoadResult.Missing(
+                    "LiteRT-LM bundle under '$assetRoot' is missing a model file.",
+                )
+
+                tokenizerFile == null -> LiteRtLmModelLoadResult.Missing(
+                    "LiteRT-LM bundle under '$assetRoot' is missing a tokenizer file.",
+                )
+
+                else -> LiteRtLmModelLoadResult.Loaded(
+                    LiteRtLmModelBundle(
+                        id = request.model.name.lowercase(),
+                        displayName = request.model.label,
+                        rootPath = assetRoot,
+                        modelPath = "$assetRoot/$modelFile",
+                        tokenizerPath = "$assetRoot/$tokenizerFile",
+                        configPath = configFile?.let { "$assetRoot/$it" },
+                    ),
+                )
+            }
+        } catch (error: Throwable) {
+            LiteRtLmModelLoadResult.Missing(
+                "Unable to inspect LiteRT-LM assets under '$assetRoot': ${error.message ?: "unknown asset error"}",
+            )
+        }
+}
 
 private fun zeroedBufferFor(dataType: DataType, byteSize: Int): ByteBuffer =
     ByteBuffer.allocateDirect(byteSize)

@@ -7,7 +7,7 @@ actual fun createBackendCatalog(): BackendCatalog =
     DefaultBackendCatalog(
         statusOverrides = mapOf(
             "litert" to BackendStatus.Installed,
+            "litert-lm" to BackendStatus.ModelRequired,
             "core-ml" to BackendStatus.Unsupported,
         ),
     )
-

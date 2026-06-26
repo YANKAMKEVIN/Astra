@@ -33,7 +33,7 @@ class BenchmarkViewModelTest {
         assertEquals(DefaultBenchmarkPrompt, state.prompt)
         assertEquals(setOf("mock-model"), state.selectedModelIds)
         assertEquals(5, state.availableModels.size)
-        assertEquals(5, state.availableBackends.size)
+        assertEquals(6, state.availableBackends.size)
         assertEquals("mock-engine", state.selectedBackend?.id)
         assertFalse(state.isRunning)
     }

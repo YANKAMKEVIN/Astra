@@ -15,9 +15,10 @@ class DefaultBackendCatalogTest {
         val backends = catalog.availableBackends()
 
         assertEquals(
-            listOf("Mock Engine", "LiteRT", "ONNX Runtime", "Core ML", "llama.cpp"),
+            listOf("Mock Engine", "LiteRT", "LiteRT-LM", "ONNX Runtime", "Core ML", "llama.cpp"),
             backends.map { it.displayName },
         )
+        assertEquals(BackendStatus.ModelRequired, catalog.backendById("litert-lm")?.status)
         assertEquals(listOf("mock-engine"), catalog.installedBackends().map { it.id })
         assertEquals("mock-engine", catalog.currentBackend().id)
         assertTrue(backends.drop(1).all { it.status != BackendStatus.Installed })

@@ -34,6 +34,17 @@ class DefaultBackendCatalog(
             runtimeBackend = InferenceBackend.LiteRt,
         ),
         InferenceBackendInfo(
+            id = "litert-lm",
+            displayName = "LiteRT-LM",
+            provider = BackendProvider.Google,
+            supportedPlatforms = listOf("Android"),
+            supportedModelFormats = listOf("LiteRT-LM bundle", "TFLite", "SentencePiece tokenizer"),
+            accelerationTargets = listOf(AccelerationTarget.Cpu, AccelerationTarget.Gpu, AccelerationTarget.Nnapi, AccelerationTarget.Npu),
+            status = statusFor("litert-lm", BackendStatus.ModelRequired),
+            description = "Generative SLM runtime foundation for tokenizer-driven local text generation on Android.",
+            runtimeBackend = InferenceBackend.LiteRtLm,
+        ),
+        InferenceBackendInfo(
             id = "onnx-runtime",
             displayName = "ONNX Runtime",
             provider = BackendProvider.Microsoft,

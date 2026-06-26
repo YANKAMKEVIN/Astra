@@ -30,7 +30,7 @@ class SettingsViewModelTest {
         )
         assertEquals("mock-engine", state.selectedBackend?.id)
         assertEquals(
-            listOf("Mock Engine", "LiteRT", "ONNX Runtime", "Core ML", "llama.cpp"),
+            listOf("Mock Engine", "LiteRT", "LiteRT-LM", "ONNX Runtime", "Core ML", "llama.cpp"),
             state.availableBackends.map { it.displayName },
         )
         assertEquals(PromptIndustry.IndustrialMaintenance, state.selectedIndustry)
