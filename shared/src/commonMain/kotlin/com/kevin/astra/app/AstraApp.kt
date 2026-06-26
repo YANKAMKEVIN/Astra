@@ -23,6 +23,7 @@ import com.kevin.astra.presentation.assistant.AssistantViewModel
 import com.kevin.astra.presentation.benchmark.BenchmarkScreen
 import com.kevin.astra.presentation.benchmark.BenchmarkViewModel
 import com.kevin.astra.presentation.dashboard.DashboardScreen
+import com.kevin.astra.presentation.dashboard.DashboardViewModel
 import com.kevin.astra.presentation.documents.DocumentsScreen
 import com.kevin.astra.presentation.documents.DocumentsViewModel
 import com.kevin.astra.presentation.settings.SettingsScreen
@@ -32,6 +33,7 @@ import com.kevin.astra.presentation.splash.SplashScreen
 @Composable
 fun AstraApp(
     navigator: AstraNavigator,
+    dashboardViewModel: DashboardViewModel,
     assistantViewModel: AssistantViewModel,
     benchmarkViewModel: BenchmarkViewModel,
     documentsViewModel: DocumentsViewModel,
@@ -68,7 +70,10 @@ fun AstraApp(
                             onFinished = { navigator.navigateTo(AstraDestination.Dashboard) },
                         )
 
-                        AstraDestination.Dashboard -> DashboardScreen(contentPadding)
+                        AstraDestination.Dashboard -> DashboardScreen(
+                            contentPadding = contentPadding,
+                            viewModel = dashboardViewModel,
+                        )
                         AstraDestination.Assistant -> AssistantScreen(
                             contentPadding = contentPadding,
                             viewModel = assistantViewModel,

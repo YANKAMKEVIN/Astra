@@ -11,6 +11,7 @@ fun App() {
     val koin = initializeKoin().koin
     AstraApp(
         navigator = koin.get(),
+        dashboardViewModel = koin.get(),
         assistantViewModel = koin.get(),
         benchmarkViewModel = koin.get(),
         documentsViewModel = koin.get(),
