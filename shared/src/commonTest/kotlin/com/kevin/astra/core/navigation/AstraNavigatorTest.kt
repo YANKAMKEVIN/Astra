@@ -22,10 +22,11 @@ class AstraNavigatorTest {
     }
 
     @Test
-    fun exposesFivePrimaryDestinations() {
+    fun exposesPrimaryDestinations() {
         assertEquals(
             listOf(
                 AstraDestination.Dashboard,
+                AstraDestination.Demo,
                 AstraDestination.Assistant,
                 AstraDestination.Documents,
                 AstraDestination.Benchmark,

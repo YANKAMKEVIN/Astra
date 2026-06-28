@@ -31,6 +31,7 @@ import com.kevin.astra.domain.settings.AiConfigurationRepository
 import com.kevin.astra.presentation.assistant.AssistantViewModel
 import com.kevin.astra.presentation.benchmark.BenchmarkViewModel
 import com.kevin.astra.presentation.dashboard.DashboardViewModel
+import com.kevin.astra.presentation.demo.DemoViewModel
 import com.kevin.astra.presentation.documents.DocumentsViewModel
 import com.kevin.astra.presentation.settings.SettingsViewModel
 import org.koin.core.KoinApplication
@@ -54,6 +55,16 @@ val astraRootModule = module {
     single<DocumentContextRetriever> { KeywordDocumentContextRetriever() }
     single { AskLocalAssistantUseCase(inferenceEngine = get()) }
     single { DashboardViewModel(deviceCapabilityProvider = get()) }
+    single {
+        DemoViewModel(
+            deviceCapabilityProvider = get(),
+            aiConfigurationRepository = get(),
+            modelCatalog = get(),
+            backendCatalog = get(),
+            modelReadinessProvider = get(),
+            demoScenarioCatalog = get(),
+        )
+    }
     single {
         AssistantViewModel(
             askLocalAssistant = get(),
