@@ -9,8 +9,8 @@ import com.kevin.astra.domain.documents.IndexedDocumentChunk
 import com.kevin.astra.domain.documents.RetrievedDocumentContext
 
 data class DocumentsMetrics(
-    val model: String = "Mock Model",
-    val backend: String = "Mock Engine",
+    val model: String = "—",
+    val backend: String = "—",
     val latency: String = "—",
     val tokensPerSecond: String = "—",
 )

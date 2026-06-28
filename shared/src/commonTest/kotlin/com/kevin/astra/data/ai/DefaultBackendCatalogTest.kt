@@ -18,10 +18,10 @@ class DefaultBackendCatalogTest {
             listOf("Mock Engine", "LiteRT", "LiteRT-LM", "ONNX Runtime", "Core ML", "llama.cpp"),
             backends.map { it.displayName },
         )
-        assertEquals(BackendStatus.ModelRequired, catalog.backendById("litert-lm")?.status)
-        assertEquals(listOf("mock-engine"), catalog.installedBackends().map { it.id })
+        assertEquals(BackendStatus.Installed, catalog.backendById("litert-lm")?.status)
+        assertEquals(listOf("mock-engine", "litert-lm"), catalog.installedBackends().map { it.id })
         assertEquals("mock-engine", catalog.currentBackend().id)
-        assertTrue(backends.drop(1).all { it.status != BackendStatus.Installed })
+        assertTrue(catalog.backendById("onnx-runtime")?.status != BackendStatus.Installed)
     }
 
     @Test
@@ -30,6 +30,8 @@ class DefaultBackendCatalogTest {
 
         assertFalse(catalog.selectBackend("onnx-runtime"))
         assertEquals("mock-engine", catalog.currentBackend().id)
+        assertTrue(catalog.selectBackend("litert-lm"))
+        assertEquals("litert-lm", catalog.currentBackend().id)
         assertTrue(catalog.selectBackend("mock-engine"))
         assertNotNull(catalog.backendById("core-ml"))
     }

@@ -110,7 +110,7 @@ private fun ModelConfigurationCard(
         SelectableOptionRow {
             models.forEach { model ->
                 val selected = model.id == selectedModel?.id
-                val installed = model.status == ModelStatus.Installed
+                val installed = model.status != ModelStatus.Unsupported
                 SelectableOption(
                     label = model.displayName,
                     selected = selected,
@@ -161,7 +161,7 @@ private fun ModelManagerCard(modelReadiness: List<ModelReadiness>) {
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
         Text(
-            text = "Downloads are intentionally disabled in this V1. Missing production bundles keep ASTRA on the Mock fallback.",
+            text = "Downloads are intentionally disabled. Add a local LiteRT-LM bundle through the developer setup path, or ASTRA keeps the Mock fallback active.",
             style = AstraTypography.Caption,
             color = AstraColors.TextSecondary,
         )

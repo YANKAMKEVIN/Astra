@@ -8,11 +8,14 @@ import com.kevin.astra.core.ai.PromptBuildRequest
 import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.core.mvi.AstraViewModel
+import com.kevin.astra.core.notification.NotificationService
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import com.kevin.astra.domain.demo.DemoScenarioCatalog
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class AssistantViewModel(
     private val askLocalAssistant: AskLocalAssistantUseCase,
@@ -21,6 +24,7 @@ class AssistantViewModel(
     private val backendCatalog: BackendCatalog,
     private val promptPipeline: PromptPipeline,
     private val demoScenarioCatalog: DemoScenarioCatalog,
+    private val notificationService: NotificationService,
     private val generationScope: CoroutineScope? = null,
 ) : AstraViewModel<AssistantState, AssistantIntent, AssistantEffect>(
     initialState = AssistantState(
@@ -57,6 +61,7 @@ class AssistantViewModel(
                     response = null,
                     isGenerating = false,
                     generationTimestamp = null,
+                    metrics = AssistantMetrics(),
                 )
             }
         }
@@ -100,16 +105,18 @@ class AssistantViewModel(
                 )
             }
 
-            val result = askLocalAssistant(
-                PromptRequest(
-                    prompt = preparedPrompt,
-                    industry = industry,
-                    model = selectedModel.runtimeModel,
-                    backend = selectedBackend.runtimeBackend,
-                    maxTokens = configuration.maxTokens,
-                    temperature = configuration.temperature,
-                ),
-            )
+            val result = withContext(Dispatchers.Default) {
+                askLocalAssistant(
+                    PromptRequest(
+                        prompt = preparedPrompt,
+                        industry = industry,
+                        model = selectedModel.runtimeModel,
+                        backend = selectedBackend.runtimeBackend,
+                        maxTokens = configuration.maxTokens,
+                        temperature = configuration.temperature,
+                    ),
+                )
+            }
 
             updateState {
                 copy(
@@ -119,6 +126,12 @@ class AssistantViewModel(
                     metrics = result.toAssistantMetrics(),
                 )
             }
+
+            notificationService.showNotification(
+                title = "AI Analysis Ready",
+                message = "ASTRA has completed the mission-critical analysis.",
+                targetDestination = "assistant"
+            )
         }
     }
 }

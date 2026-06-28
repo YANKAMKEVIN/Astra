@@ -6,12 +6,15 @@ import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.ai.PromptBuildRequest
 import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.mvi.AstraViewModel
+import com.kevin.astra.core.notification.NotificationService
 import com.kevin.astra.domain.benchmark.BenchmarkRequest
 import com.kevin.astra.domain.benchmark.BenchmarkRunner
 import com.kevin.astra.domain.demo.DemoScenarioCatalog
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class BenchmarkViewModel(
     private val benchmarkRunner: BenchmarkRunner,
@@ -20,6 +23,7 @@ class BenchmarkViewModel(
     private val aiConfigurationRepository: AiConfigurationRepository,
     private val promptPipeline: PromptPipeline,
     private val demoScenarioCatalog: DemoScenarioCatalog,
+    private val notificationService: NotificationService,
     private val benchmarkScope: CoroutineScope? = null,
 ) : AstraViewModel<BenchmarkState, BenchmarkIntent, BenchmarkEffect>(
     initialState = BenchmarkState(
@@ -89,26 +93,28 @@ class BenchmarkViewModel(
                 )
             }
 
-            val report = benchmarkRunner.run(
-                aiConfigurationRepository.getConfiguration().let { configuration ->
-                    val persistedModel = modelCatalog.modelById(configuration.selectedModelId) ?: modelCatalog.currentModel()
-                    val persistedBackend = backendCatalog.backendById(configuration.selectedBackendId) ?: backendCatalog.currentBackend()
-                    val selectedModels = snapshot.selectedModels().ifEmpty { listOf(persistedModel) }
+            val report = withContext(Dispatchers.Default) {
+                benchmarkRunner.run(
+                    aiConfigurationRepository.getConfiguration().let { configuration ->
+                        val persistedModel = modelCatalog.modelById(configuration.selectedModelId) ?: modelCatalog.currentModel()
+                        val persistedBackend = backendCatalog.backendById(configuration.selectedBackendId) ?: backendCatalog.currentBackend()
+                        val selectedModels = snapshot.selectedModels().ifEmpty { listOf(persistedModel) }
 
-                    BenchmarkRequest(
-                        prompt = promptPipeline.preparePrompt(
-                            PromptBuildRequest(
-                                engineerQuestion = snapshot.prompt,
-                                selectedIndustry = configuration.selectedIndustry,
-                                selectedModel = selectedModels.first(),
+                        BenchmarkRequest(
+                            prompt = promptPipeline.preparePrompt(
+                                PromptBuildRequest(
+                                    engineerQuestion = snapshot.prompt,
+                                    selectedIndustry = configuration.selectedIndustry,
+                                    selectedModel = selectedModels.first(),
+                                ),
                             ),
-                        ),
-                        models = selectedModels,
-                        backend = snapshot.selectedBackend?.runtimeBackend ?: persistedBackend.runtimeBackend,
-                        industry = configuration.selectedIndustry,
-                    )
-                },
-            )
+                            models = selectedModels,
+                            backend = snapshot.selectedBackend?.runtimeBackend ?: persistedBackend.runtimeBackend,
+                            industry = configuration.selectedIndustry,
+                        )
+                    },
+                )
+            }
 
             updateState {
                 copy(
@@ -117,6 +123,12 @@ class BenchmarkViewModel(
                     recommendedModel = report.recommendation,
                 )
             }
+
+            notificationService.showNotification(
+                title = "Benchmark Complete",
+                message = "ASTRA has finished evaluating all selected AI models.",
+                targetDestination = "benchmark"
+            )
         }
     }
 

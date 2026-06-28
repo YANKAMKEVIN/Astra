@@ -40,8 +40,8 @@ class DefaultBackendCatalog(
             supportedPlatforms = listOf("Android"),
             supportedModelFormats = listOf("LiteRT-LM bundle", "TFLite", "SentencePiece tokenizer"),
             accelerationTargets = listOf(AccelerationTarget.Cpu, AccelerationTarget.Gpu, AccelerationTarget.Nnapi, AccelerationTarget.Npu),
-            status = statusFor("litert-lm", BackendStatus.ModelRequired),
-            description = "Generative SLM runtime foundation for tokenizer-driven local text generation on Android.",
+            status = statusFor("litert-lm", BackendStatus.Installed),
+            description = "Android GenAI runtime for real local LiteRT-LM text generation when a compatible model bundle is present.",
             runtimeBackend = InferenceBackend.LiteRtLm,
         ),
         InferenceBackendInfo(

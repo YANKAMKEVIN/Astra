@@ -17,3 +17,11 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+
+# Local AI model bundles are large and may require separate license terms.
+shared/src/androidMain/assets/models/litert-lm/*.task
+shared/src/androidMain/assets/models/litert-lm/*.litertlm
+shared/src/androidMain/assets/models/litert-lm/*.tflite
+shared/src/androidMain/assets/models/litert-lm/*.bin
+shared/src/androidMain/assets/models/litert-lm/*.model
+shared/src/androidMain/assets/models/litert-lm/*.spm

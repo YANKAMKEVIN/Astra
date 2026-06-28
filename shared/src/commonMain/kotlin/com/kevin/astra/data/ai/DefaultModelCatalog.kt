@@ -83,7 +83,7 @@ class DefaultModelCatalog : ModelCatalog {
 
     override fun selectModel(modelId: String): Boolean {
         val model = modelById(modelId) ?: return false
-        if (model.status != ModelStatus.Installed) return false
+        if (model.status == ModelStatus.Unsupported) return false
         currentModelId = model.id
         return true
     }

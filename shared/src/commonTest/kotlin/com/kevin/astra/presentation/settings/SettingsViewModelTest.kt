@@ -54,16 +54,26 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun keepsUnavailableModelsAndBackendsUnselected() = runBlocking {
-        val viewModel = testViewModel()
-        delay(50)
+    fun selectsAvailableModelAndInstalledBackendOnly() = runBlocking {
+        val observationScope = CoroutineScope(coroutineContext + Job())
+        val viewModel = testViewModel(observationScope)
+        try {
+            delay(50)
 
-        viewModel.dispatch(SettingsIntent.SelectModel("gemma-3-1b"))
-        viewModel.dispatch(SettingsIntent.SelectBackend("onnx-runtime"))
+            viewModel.dispatch(SettingsIntent.SelectModel("gemma-3-1b"))
+            viewModel.dispatch(SettingsIntent.SelectBackend("onnx-runtime"))
+            delay(150)
 
-        val state = viewModel.state.value
-        assertEquals("mock-model", state.selectedModel?.id)
-        assertEquals("mock-engine", state.selectedBackend?.id)
+            val state = viewModel.state.value
+            assertEquals("gemma-3-1b", state.selectedModel?.id)
+            assertEquals("mock-engine", state.selectedBackend?.id)
+
+            viewModel.dispatch(SettingsIntent.SelectBackend("litert-lm"))
+            delay(150)
+            assertEquals("litert-lm", viewModel.state.value.selectedBackend?.id)
+        } finally {
+            observationScope.cancel()
+        }
     }
 
     @Test

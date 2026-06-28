@@ -38,24 +38,25 @@ class AndroidModelReadinessProvider(
     private fun LocalModel.liteRtLmReadiness(): ModelReadiness {
         val root = "models/litert-lm"
         val files = context?.assets?.list(root).orEmpty().toSet()
-        val modelPresent = files.any { it.endsWith(".tflite") || it.endsWith(".task") || it.endsWith(".bin") }
+        val bundlePresent = files.any { it.endsWith(".task") || it.endsWith(".litertlm") }
+        val splitModelPresent = files.any { it.endsWith(".tflite") || it.endsWith(".bin") }
         val tokenizerPresent = files.any { it.endsWith(".model") || it.endsWith(".spm") || it.contains("tokenizer", ignoreCase = true) }
         val configPresent = files.any { it.endsWith(".json") }
         val requiredFiles = listOf(
-            RequiredModelFile("$root/model.tflite", modelPresent, "LiteRT-LM model file"),
-            RequiredModelFile("$root/tokenizer.model", tokenizerPresent, "Tokenizer model"),
+            RequiredModelFile("$root/gemma.task or $root/gemma.litertlm", bundlePresent, "LiteRT-LM generative model bundle"),
+            RequiredModelFile("$root/model.tflite + tokenizer.model", splitModelPresent && tokenizerPresent, "Legacy split model/tokenizer fallback"),
             RequiredModelFile("$root/config.json", configPresent, "Optional runtime configuration"),
         )
-        val missingRequired = requiredFiles.filter { !it.present && !it.description.startsWith("Optional") }
+        val hasSupportedBundle = bundlePresent || (splitModelPresent && tokenizerPresent)
 
         return baseReadiness(
             requiredFiles = requiredFiles,
             localPath = "shared/src/androidMain/assets/$root/",
-            status = if (missingRequired.isEmpty()) ModelReadinessStatus.ModelRequired else ModelReadinessStatus.MissingFiles,
-            readinessMessage = if (missingRequired.isEmpty()) {
-                "LiteRT-LM bundle detected. Generative session integration is prepared, but full generation remains staged."
+            status = if (hasSupportedBundle) ModelReadinessStatus.Installed else ModelReadinessStatus.MissingFiles,
+            readinessMessage = if (hasSupportedBundle) {
+                "LiteRT-LM bundle detected. Assistant can execute the real Android GenAI runtime when LiteRT-LM is selected."
             } else {
-                "Missing required files: ${missingRequired.joinToString { it.description }}. Use Mock fallback until the bundle is added."
+                "Missing LiteRT-LM bundle. Add gemma.task or gemma.litertlm under $root, or use Mock fallback."
             },
         )
     }
@@ -107,4 +108,3 @@ class AndroidModelReadinessProvider(
             readinessMessage = readinessMessage,
         )
 }
-

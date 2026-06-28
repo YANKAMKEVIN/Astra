@@ -17,10 +17,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -45,6 +48,13 @@ fun DocumentsScreen(
     viewModel: DocumentsViewModel,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val haptic = LocalHapticFeedback.current
+
+    LaunchedEffect(state.isGenerating) {
+        if (!state.isGenerating && state.answer != null) {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+    }
 
     DocumentsContent(
         state = state,
@@ -73,6 +83,14 @@ private fun DocumentsContent(
             onIndex = { onIntent(DocumentsIntent.IndexSelectedDocument) },
         )
 
+        AnimatedVisibility(visible = state.isGenerating) {
+            AstraCard(
+                title = "Generating document answer...",
+                subtitle = "ASTRA is using extracted local context with the mock inference engine.",
+                status = "LOCAL",
+            )
+        }
+
         QuestionCard(
             question = state.question,
             enabled = !state.isGenerating && !state.isIndexing,
@@ -83,21 +101,12 @@ private fun DocumentsContent(
             onClear = { onIntent(DocumentsIntent.ClearConversation) },
         )
 
-        AnimatedVisibility(visible = state.isGenerating) {
-            AstraCard(
-                title = "Generating document answer...",
-                subtitle = "ASTRA is using extracted local context with the mock inference engine.",
-                status = "LOCAL",
-            )
-        }
-
         ContextCard(context = state.extractedContext)
 
         state.answer?.let { answer ->
             AnswerCard(answer = answer)
+            MetricsPanel(metrics = state.metrics)
         }
-
-        MetricsPanel(metrics = state.metrics)
     }
 }
 

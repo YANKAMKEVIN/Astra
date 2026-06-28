@@ -15,6 +15,7 @@ junit = "4.13.2"
 koin = "4.2.2"
 kotlin = "2.4.0"
 litert = "2.1.0"
+mediapipeTasksGenai = "0.10.35"
 material3 = "1.9.0"
 
 [libraries]
@@ -38,6 +39,7 @@ compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-previ
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 litert = { module = "com.google.ai.edge.litert:litert", version.ref = "litert" }
+mediapipe-tasks-genai = { module = "com.google.mediapipe:tasks-genai", version.ref = "mediapipeTasksGenai" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

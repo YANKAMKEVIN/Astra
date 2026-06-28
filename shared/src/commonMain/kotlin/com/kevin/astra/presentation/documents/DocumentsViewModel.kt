@@ -8,6 +8,7 @@ import com.kevin.astra.core.ai.PromptBuildRequest
 import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.core.mvi.AstraViewModel
+import com.kevin.astra.core.notification.NotificationService
 import com.kevin.astra.data.documents.EmbeddedMaintenanceDocument
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import com.kevin.astra.domain.documents.DocumentContextRetriever
@@ -15,7 +16,9 @@ import com.kevin.astra.domain.documents.DocumentIndexer
 import com.kevin.astra.domain.documents.DocumentStatus
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class DocumentsViewModel(
     private val documentIndexer: DocumentIndexer,
@@ -25,6 +28,7 @@ class DocumentsViewModel(
     private val modelCatalog: ModelCatalog,
     private val backendCatalog: BackendCatalog,
     private val promptPipeline: PromptPipeline,
+    private val notificationService: NotificationService,
     private val documentsScope: CoroutineScope? = null,
 ) : AstraViewModel<DocumentsState, DocumentsIntent, DocumentsEffect>(
     initialState = DocumentsState(
@@ -47,6 +51,7 @@ class DocumentsViewModel(
                     extractedContext = null,
                     answer = null,
                     error = null,
+                    metrics = DocumentsMetrics(),
                 )
             }
         }
@@ -65,7 +70,9 @@ class DocumentsViewModel(
                 )
             }
 
-            val chunks = documentIndexer.index(document)
+            val chunks = withContext(Dispatchers.Default) {
+                documentIndexer.index(document)
+            }
 
             updateState {
                 copy(
@@ -90,10 +97,14 @@ class DocumentsViewModel(
             val configuration = aiConfigurationRepository.getConfiguration()
             val selectedModel = modelCatalog.modelById(configuration.selectedModelId) ?: modelCatalog.currentModel()
             val selectedBackend = backendCatalog.backendById(configuration.selectedBackendId) ?: backendCatalog.currentBackend()
-            val context = contextRetriever.retrieve(
-                question = snapshot.question,
-                chunks = snapshot.indexedChunks,
-            )
+            
+            val context = withContext(Dispatchers.Default) {
+                contextRetriever.retrieve(
+                    question = snapshot.question,
+                    chunks = snapshot.indexedChunks,
+                )
+            }
+            
             val preparedPrompt = promptPipeline.preparePrompt(
                 PromptBuildRequest(
                     engineerQuestion = snapshot.question,
@@ -112,16 +123,18 @@ class DocumentsViewModel(
                 )
             }
 
-            val result = askLocalAssistant(
-                PromptRequest(
-                    prompt = preparedPrompt,
-                    industry = configuration.selectedIndustry,
-                    model = selectedModel.runtimeModel,
-                    backend = selectedBackend.runtimeBackend,
-                    maxTokens = configuration.maxTokens,
-                    temperature = configuration.temperature,
-                ),
-            )
+            val result = withContext(Dispatchers.Default) {
+                askLocalAssistant(
+                    PromptRequest(
+                        prompt = preparedPrompt,
+                        industry = configuration.selectedIndustry,
+                        model = selectedModel.runtimeModel,
+                        backend = selectedBackend.runtimeBackend,
+                        maxTokens = configuration.maxTokens,
+                        temperature = configuration.temperature,
+                    ),
+                )
+            }
 
             updateState {
                 copy(
@@ -130,6 +143,12 @@ class DocumentsViewModel(
                     metrics = result.toDocumentsMetrics(),
                 )
             }
+
+            notificationService.showNotification(
+                title = "Document Analysis Ready",
+                message = "The local document has been processed and analyzed.",
+                targetDestination = "documents"
+            )
         }
     }
 }

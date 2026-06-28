@@ -4,7 +4,6 @@ import com.kevin.astra.core.ai.ModelProvider
 import com.kevin.astra.core.ai.ModelStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -25,12 +24,12 @@ class DefaultModelCatalogTest {
     }
 
     @Test
-    fun keepsCurrentModelOnInstalledCatalogEntryOnly() {
+    fun selectsAvailableModelsAsRuntimeTargets() {
         val catalog = DefaultModelCatalog()
 
         assertEquals("mock-model", catalog.currentModel().id)
-        assertFalse(catalog.selectModel("gemma-3-1b"))
-        assertEquals("mock-model", catalog.currentModel().id)
+        assertTrue(catalog.selectModel("gemma-3-1b"))
+        assertEquals("gemma-3-1b", catalog.currentModel().id)
         assertTrue(catalog.selectModel("mock-model"))
         assertEquals("mock-model", catalog.currentModel().id)
         assertNotNull(catalog.modelById("qwen-2-5-1-5b"))

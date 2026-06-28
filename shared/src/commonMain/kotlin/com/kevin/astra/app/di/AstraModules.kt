@@ -11,6 +11,7 @@ import com.kevin.astra.core.ai.createInferenceEngine
 import com.kevin.astra.core.device.DeviceCapabilityProvider
 import com.kevin.astra.core.device.createDeviceCapabilityProvider
 import com.kevin.astra.core.navigation.AstraNavigator
+import com.kevin.astra.core.notification.createNotificationService
 import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.ai.createBackendCatalog
 import com.kevin.astra.data.benchmark.RuntimeBenchmarkRunner
@@ -36,7 +37,7 @@ import com.kevin.astra.presentation.documents.DocumentsViewModel
 import com.kevin.astra.presentation.overview.ProjectOverviewViewModel
 import com.kevin.astra.presentation.settings.SettingsViewModel
 import org.koin.core.KoinApplication
-import org.koin.dsl.koinApplication
+import org.koin.core.context.startKoin
 import org.koin.dsl.module
 
 val astraRootModule = module {
@@ -44,6 +45,7 @@ val astraRootModule = module {
     single<ModelCatalog> { DefaultModelCatalog() }
     single<BackendCatalog> { createBackendCatalog() }
     single<DeviceCapabilityProvider> { createDeviceCapabilityProvider() }
+    single { createNotificationService() }
     single { AiConfigurationLocalDataSource(keyValueStore = createAiConfigurationKeyValueStore()) }
     single<PromptBuilder> { DefaultPromptBuilder() }
     single<PromptPipeline> { DefaultPromptPipeline(promptBuilder = get()) }
@@ -83,6 +85,7 @@ val astraRootModule = module {
             backendCatalog = get(),
             promptPipeline = get(),
             demoScenarioCatalog = get(),
+            notificationService = get(),
         )
     }
     single {
@@ -93,6 +96,7 @@ val astraRootModule = module {
             aiConfigurationRepository = get(),
             promptPipeline = get(),
             demoScenarioCatalog = get(),
+            notificationService = get(),
         )
     }
     single {
@@ -104,6 +108,7 @@ val astraRootModule = module {
             modelCatalog = get(),
             backendCatalog = get(),
             promptPipeline = get(),
+            notificationService = get(),
         )
     }
     single {
@@ -116,10 +121,13 @@ val astraRootModule = module {
     }
 }
 
-private val astraKoinApplication: KoinApplication by lazy {
-    koinApplication {
-        modules(astraRootModule)
-    }
-}
+private var koinApp: KoinApplication? = null
 
-fun initializeKoin(): KoinApplication = astraKoinApplication
+fun initializeKoin(): KoinApplication {
+    if (koinApp == null) {
+        koinApp = startKoin {
+            modules(astraRootModule)
+        }
+    }
+    return koinApp!!
+}

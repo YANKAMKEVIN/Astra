@@ -1,8 +1,10 @@
 package com.kevin.astra.core.ai
 
 import android.content.Context
+import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
+import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.min
@@ -35,6 +37,11 @@ actual fun createInferenceEngine(): InferenceEngine {
                 AndroidAssetLiteRtLmModelLoader(context = context)
             } else {
                 UnsupportedLiteRtLmModelLoader("Android context is not initialized yet.")
+            },
+            runtimeSession = if (context != null) {
+                AndroidLiteRtLmRuntimeSession(context = context)
+            } else {
+                UnavailableLiteRtLmRuntimeSession("Android context is not initialized yet.")
             },
             fallbackEngine = mockEngine,
         ),
@@ -174,7 +181,9 @@ class AndroidAssetLiteRtLmModelLoader(
     override suspend fun loadModel(request: PromptRequest): LiteRtLmModelLoadResult =
         try {
             val files = context.assets.list(assetRoot).orEmpty().toSet()
-            val modelFile = files.firstOrNull { it.endsWith(".tflite") || it.endsWith(".task") || it.endsWith(".bin") }
+            val bundleFile = files.firstOrNull { it.endsWith(".task") || it.endsWith(".litertlm") }
+            val splitModelFile = files.firstOrNull { it.endsWith(".tflite") || it.endsWith(".bin") }
+            val modelFile = bundleFile ?: splitModelFile
             val tokenizerFile = files.firstOrNull { it.endsWith(".model") || it.endsWith(".spm") || it.contains("tokenizer", ignoreCase = true) }
             val configFile = files.firstOrNull { it.endsWith(".json") }
 
@@ -184,29 +193,124 @@ class AndroidAssetLiteRtLmModelLoader(
                 )
 
                 modelFile == null -> LiteRtLmModelLoadResult.Missing(
-                    "LiteRT-LM bundle under '$assetRoot' is missing a model file.",
+                    "LiteRT-LM bundle under '$assetRoot' is missing a .task or .litertlm model bundle.",
                 )
 
-                tokenizerFile == null -> LiteRtLmModelLoadResult.Missing(
+                bundleFile == null && tokenizerFile == null -> LiteRtLmModelLoadResult.Missing(
                     "LiteRT-LM bundle under '$assetRoot' is missing a tokenizer file.",
                 )
 
-                else -> LiteRtLmModelLoadResult.Loaded(
-                    LiteRtLmModelBundle(
-                        id = request.model.name.lowercase(),
-                        displayName = request.model.label,
-                        rootPath = assetRoot,
-                        modelPath = "$assetRoot/$modelFile",
-                        tokenizerPath = "$assetRoot/$tokenizerFile",
-                        configPath = configFile?.let { "$assetRoot/$it" },
-                    ),
-                )
+                else -> {
+                    val assetModelPath = "$assetRoot/$modelFile"
+                    val localModelFile = copyAssetToCache(assetModelPath)
+                    LiteRtLmModelLoadResult.Loaded(
+                        LiteRtLmModelBundle(
+                            id = request.model.name.lowercase(),
+                            displayName = request.model.label,
+                            rootPath = assetRoot,
+                            modelPath = localModelFile.absolutePath,
+                            sourceModelPath = assetModelPath,
+                            tokenizerPath = tokenizerFile?.let { "$assetRoot/$it" },
+                            configPath = configFile?.let { "$assetRoot/$it" },
+                            sizeBytes = localModelFile.length(),
+                        ),
+                    )
+                }
             }
         } catch (error: Throwable) {
             LiteRtLmModelLoadResult.Missing(
                 "Unable to inspect LiteRT-LM assets under '$assetRoot': ${error.message ?: "unknown asset error"}",
             )
         }
+
+    private fun copyAssetToCache(assetPath: String): File {
+        val outputDir = File(context.cacheDir, "astra-litert-lm").apply { mkdirs() }
+        val output = File(outputDir, assetPath.substringAfterLast('/'))
+        context.assets.open(assetPath).use { input ->
+            output.outputStream().use { stream ->
+                input.copyTo(stream)
+            }
+        }
+        return output
+    }
+}
+
+class AndroidLiteRtLmRuntimeSession(
+    private val context: Context,
+    private val logger: EdgeAiLogger = ConsoleEdgeAiLogger,
+) : LiteRtLmRuntimeSession {
+    private var inference: LlmInference? = null
+    private var activeModelPath: String? = null
+    private var lastModelLoadTimeMillis: Long = 0L
+
+    override suspend fun generate(
+        request: PromptRequest,
+        bundle: LiteRtLmModelBundle,
+    ): GenerationResult {
+        val loadTime = ensureInference(bundle = bundle, request = request)
+        val runtime = inference ?: error("LiteRT-LM session was not initialized.")
+        val generationMark = TimeSource.Monotonic.markNow()
+
+        val text = runtime.generateResponse(request.prompt)
+            .trim()
+            .ifBlank { "LiteRT-LM returned an empty response." }
+        val generationLatencyMillis = generationMark.elapsedNow().inWholeMilliseconds.coerceAtLeast(1L)
+        val generatedTokens = runCatching { runtime.sizeInTokens(text) }
+            .getOrDefault(text.split(Regex("\\s+")).count { it.isNotBlank() })
+            .coerceAtLeast(1)
+        val tokensPerSecond = ((generatedTokens * 1_000L) / generationLatencyMillis).toInt().coerceAtLeast(1)
+
+        return GenerationResult(
+            text = text,
+            metrics = GenerationMetrics(
+                latencyMillis = generationLatencyMillis,
+                timeToFirstTokenMillis = generationLatencyMillis,
+                tokensGenerated = generatedTokens,
+                tokensPerSecond = tokensPerSecond,
+                memoryUsageMb = (bundle.sizeBytes / (1024 * 1024)).toInt().coerceAtLeast(1),
+            ),
+            model = request.model,
+            backend = InferenceBackend.LiteRtLm,
+            generatedAt = currentAndroidEdgeTimestamp(),
+            runtimeInfo = GenerationRuntimeInfo(
+                mode = RuntimeMode.LiteRtLmGenerative,
+                modelLoadTimeMillis = loadTime,
+                inferenceLatencyMillis = generationLatencyMillis,
+                totalExecutionTimeMillis = loadTime + generationLatencyMillis,
+                fallbackReason = null,
+            ),
+        )
+    }
+
+    override fun close() {
+        inference?.close()
+        inference = null
+        activeModelPath = null
+        lastModelLoadTimeMillis = 0L
+    }
+
+    private fun ensureInference(
+        bundle: LiteRtLmModelBundle,
+        request: PromptRequest,
+    ): Long {
+        if (inference != null && activeModelPath == bundle.modelPath) {
+            return 0L
+        }
+
+        close()
+
+        val loadMark = TimeSource.Monotonic.markNow()
+        val options = LlmInference.LlmInferenceOptions.builder()
+            .setModelPath(bundle.modelPath)
+            .setMaxTokens(request.maxTokens.coerceIn(128, 4_096))
+            .setMaxTopK(40)
+            .build()
+        inference = LlmInference.createFromOptions(context, options)
+        activeModelPath = bundle.modelPath
+        lastModelLoadTimeMillis = loadMark.elapsedNow().inWholeMilliseconds.coerceAtLeast(1L)
+        logger.info("LiteRT-LM LlmInference initialized from ${bundle.sourceModelPath}.")
+        return lastModelLoadTimeMillis
+    }
 }
 
 private fun zeroedBufferFor(dataType: DataType, byteSize: Int): ByteBuffer =

@@ -7,8 +7,10 @@ data class LiteRtLmModelBundle(
     val displayName: String,
     val rootPath: String,
     val modelPath: String,
-    val tokenizerPath: String,
+    val sourceModelPath: String = modelPath,
+    val tokenizerPath: String? = null,
     val configPath: String? = null,
+    val sizeBytes: Long = 0L,
 )
 
 sealed interface LiteRtLmModelLoadResult {
@@ -21,8 +23,20 @@ interface LiteRtLmModelLoader {
     suspend fun loadModel(request: PromptRequest): LiteRtLmModelLoadResult
 }
 
+interface LiteRtLmRuntimeSession {
+    suspend fun generate(
+        request: PromptRequest,
+        bundle: LiteRtLmModelBundle,
+    ): GenerationResult
+
+    fun close()
+}
+
 class LiteRtLmInferenceEngine(
     private val modelLoader: LiteRtLmModelLoader,
+    private val runtimeSession: LiteRtLmRuntimeSession = UnavailableLiteRtLmRuntimeSession(
+        "LiteRT-LM runtime session is not available on this platform.",
+    ),
     private val fallbackEngine: InferenceEngine = MockInferenceEngine(),
     private val logger: EdgeAiLogger = ConsoleEdgeAiLogger,
 ) : InferenceEngine {
@@ -37,14 +51,19 @@ class LiteRtLmInferenceEngine(
         return when (val loaded = modelLoader.loadModel(request)) {
             is LiteRtLmModelLoadResult.Loaded -> {
                 val loadTime = loadMark.elapsedNow().inWholeMilliseconds.coerceAtLeast(1L)
-                logger.info("LiteRT-LM bundle located at ${loaded.bundle.rootPath}; controlled fallback remains active until the generative session is implemented.")
-                controlledFallback(
-                    request = request,
-                    mode = RuntimeMode.LiteRtLmGenerative,
-                    reason = "LiteRT-LM bundle was found, but token generation loop integration is intentionally deferred.",
-                    modelLoadTimeMillis = loadTime,
-                    totalExecutionTimeMillis = totalMark.elapsedNow().inWholeMilliseconds,
-                )
+                logger.info("LiteRT-LM bundle located at ${loaded.bundle.sourceModelPath}; starting generative session.")
+                runCatching {
+                    runtimeSession.generate(request = request, bundle = loaded.bundle)
+                }.getOrElse { error ->
+                    logger.error("LiteRT-LM generation failed. Activating Mock fallback.", error)
+                    controlledFallback(
+                        request = request,
+                        mode = RuntimeMode.Fallback,
+                        reason = error.message ?: "LiteRT-LM generation failed.",
+                        modelLoadTimeMillis = loadTime,
+                        totalExecutionTimeMillis = totalMark.elapsedNow().inWholeMilliseconds,
+                    )
+                }
             }
 
             is LiteRtLmModelLoadResult.Missing -> {
@@ -96,6 +115,18 @@ class LiteRtLmInferenceEngine(
             ),
         )
     }
+}
+
+class UnavailableLiteRtLmRuntimeSession(
+    private val reason: String,
+) : LiteRtLmRuntimeSession {
+    override suspend fun generate(
+        request: PromptRequest,
+        bundle: LiteRtLmModelBundle,
+    ): GenerationResult =
+        error(reason)
+
+    override fun close() = Unit
 }
 
 class UnsupportedLiteRtLmModelLoader(

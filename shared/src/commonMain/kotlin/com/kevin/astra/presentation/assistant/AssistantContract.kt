@@ -31,16 +31,16 @@ fun PromptIndustry.toAssistantIndustry(): AssistantIndustry = when (this) {
 }
 
 data class AssistantMetrics(
-    val model: String = "Mock Model",
-    val backend: String = "Mock Engine",
-    val runtimeMode: String = "Simulated Local Inference",
-    val latency: String = "1.2 s",
-    val tokensPerSecond: String = "18",
-    val timeToFirstToken: String = "320 ms",
-    val tokensGenerated: String = "0",
-    val memoryUsage: String = "384 MB",
-    val modelLoadTime: String = "0 ms",
-    val totalExecutionTime: String = "1.2 s",
+    val model: String = "—",
+    val backend: String = "—",
+    val runtimeMode: String = "Pending",
+    val latency: String = "—",
+    val tokensPerSecond: String = "—",
+    val timeToFirstToken: String = "—",
+    val tokensGenerated: String = "—",
+    val memoryUsage: String = "—",
+    val modelLoadTime: String = "—",
+    val totalExecutionTime: String = "—",
     val fallbackReason: String? = null,
 )
 
