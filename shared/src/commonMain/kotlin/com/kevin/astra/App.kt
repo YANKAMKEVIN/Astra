@@ -13,6 +13,7 @@ fun App() {
         navigator = koin.get(),
         dashboardViewModel = koin.get(),
         demoViewModel = koin.get(),
+        projectOverviewViewModel = koin.get(),
         assistantViewModel = koin.get(),
         benchmarkViewModel = koin.get(),
         documentsViewModel = koin.get(),

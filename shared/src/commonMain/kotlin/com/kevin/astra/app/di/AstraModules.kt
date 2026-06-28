@@ -33,6 +33,7 @@ import com.kevin.astra.presentation.benchmark.BenchmarkViewModel
 import com.kevin.astra.presentation.dashboard.DashboardViewModel
 import com.kevin.astra.presentation.demo.DemoViewModel
 import com.kevin.astra.presentation.documents.DocumentsViewModel
+import com.kevin.astra.presentation.overview.ProjectOverviewViewModel
 import com.kevin.astra.presentation.settings.SettingsViewModel
 import org.koin.core.KoinApplication
 import org.koin.dsl.koinApplication
@@ -63,6 +64,15 @@ val astraRootModule = module {
             backendCatalog = get(),
             modelReadinessProvider = get(),
             demoScenarioCatalog = get(),
+        )
+    }
+    single {
+        ProjectOverviewViewModel(
+            deviceCapabilityProvider = get(),
+            aiConfigurationRepository = get(),
+            modelCatalog = get(),
+            backendCatalog = get(),
+            modelReadinessProvider = get(),
         )
     }
     single {

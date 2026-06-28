@@ -28,6 +28,8 @@ import com.kevin.astra.presentation.demo.DemoScreen
 import com.kevin.astra.presentation.demo.DemoViewModel
 import com.kevin.astra.presentation.documents.DocumentsScreen
 import com.kevin.astra.presentation.documents.DocumentsViewModel
+import com.kevin.astra.presentation.overview.ProjectOverviewScreen
+import com.kevin.astra.presentation.overview.ProjectOverviewViewModel
 import com.kevin.astra.presentation.settings.SettingsScreen
 import com.kevin.astra.presentation.settings.SettingsViewModel
 import com.kevin.astra.presentation.splash.SplashScreen
@@ -37,6 +39,7 @@ fun AstraApp(
     navigator: AstraNavigator,
     dashboardViewModel: DashboardViewModel,
     demoViewModel: DemoViewModel,
+    projectOverviewViewModel: ProjectOverviewViewModel,
     assistantViewModel: AssistantViewModel,
     benchmarkViewModel: BenchmarkViewModel,
     documentsViewModel: DocumentsViewModel,
@@ -80,6 +83,10 @@ fun AstraApp(
                         AstraDestination.Demo -> DemoScreen(
                             contentPadding = contentPadding,
                             viewModel = demoViewModel,
+                        )
+                        AstraDestination.ProjectOverview -> ProjectOverviewScreen(
+                            contentPadding = contentPadding,
+                            viewModel = projectOverviewViewModel,
                         )
                         AstraDestination.Assistant -> AssistantScreen(
                             contentPadding = contentPadding,

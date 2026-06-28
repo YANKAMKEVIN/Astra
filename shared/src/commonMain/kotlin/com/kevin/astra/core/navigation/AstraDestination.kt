@@ -8,6 +8,7 @@ enum class AstraDestination(
     Splash(label = "Splash", shortLabel = "Splash", showsNavigationBar = false),
     Dashboard(label = "Dashboard", shortLabel = "Home"),
     Demo(label = "Demo Mode", shortLabel = "Demo"),
+    ProjectOverview(label = "Project Overview", shortLabel = "Overview"),
     Assistant(label = "Assistant", shortLabel = "AI"),
     Documents(label = "Documents", shortLabel = "Docs"),
     Benchmark(label = "Benchmark", shortLabel = "Bench"),

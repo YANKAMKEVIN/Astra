@@ -27,6 +27,7 @@ class AstraNavigatorTest {
             listOf(
                 AstraDestination.Dashboard,
                 AstraDestination.Demo,
+                AstraDestination.ProjectOverview,
                 AstraDestination.Assistant,
                 AstraDestination.Documents,
                 AstraDestination.Benchmark,
