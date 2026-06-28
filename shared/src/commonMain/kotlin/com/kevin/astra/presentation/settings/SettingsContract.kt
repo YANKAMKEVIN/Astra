@@ -6,10 +6,12 @@ import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.core.mvi.AstraEffect
 import com.kevin.astra.core.mvi.AstraIntent
 import com.kevin.astra.core.mvi.AstraState
+import com.kevin.astra.domain.modelmanager.ModelReadiness
 
 data class SettingsState(
     val availableModels: List<LocalModel> = emptyList(),
     val selectedModel: LocalModel? = null,
+    val modelReadiness: List<ModelReadiness> = emptyList(),
     val availableBackends: List<InferenceBackendInfo> = emptyList(),
     val selectedBackend: InferenceBackendInfo? = null,
     val selectedIndustry: PromptIndustry = PromptIndustry.IndustrialMaintenance,

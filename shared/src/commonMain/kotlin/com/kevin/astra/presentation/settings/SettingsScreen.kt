@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -39,6 +40,9 @@ import com.kevin.astra.core.design.AstraMetricCard
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
+import com.kevin.astra.domain.modelmanager.ModelReadiness
+import com.kevin.astra.domain.modelmanager.ModelReadinessStatus
+import com.kevin.astra.domain.modelmanager.RequiredModelFile
 
 @Composable
 fun SettingsScreen(
@@ -75,6 +79,7 @@ private fun SettingsContent(
             selectedBackend = state.selectedBackend,
             onSelectBackend = { onIntent(SettingsIntent.SelectBackend(it)) },
         )
+        ModelManagerCard(modelReadiness = state.modelReadiness)
         IndustryConfigurationCard(
             selectedIndustry = state.selectedIndustry,
             onSelectIndustry = { onIntent(SettingsIntent.SelectIndustry(it)) },
@@ -145,6 +150,155 @@ private fun BackendConfigurationCard(
         }
     }
 }
+
+@Composable
+private fun ModelManagerCard(modelReadiness: List<ModelReadiness>) {
+    val readyCount = modelReadiness.count { it.status == ModelReadinessStatus.Installed }
+    AstraCard(
+        title = "Model Manager",
+        subtitle = "Local model readiness, required files and fallback guidance. Setup: docs/REAL_INFERENCE_SETUP.md",
+        status = "$readyCount/${modelReadiness.size} READY",
+    ) {
+        Spacer(Modifier.height(AstraSpacing.M))
+        Text(
+            text = "Downloads are intentionally disabled in this V1. Missing production bundles keep ASTRA on the Mock fallback.",
+            style = AstraTypography.Caption,
+            color = AstraColors.TextSecondary,
+        )
+        Spacer(Modifier.height(AstraSpacing.M))
+        Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+            modelReadiness.forEach { readiness ->
+                ModelReadinessRow(readiness = readiness)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModelReadinessRow(readiness: ModelReadiness) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(AstraColors.SurfaceElevated, RoundedCornerShape(18.dp))
+            .border(1.dp, AstraColors.Border, RoundedCornerShape(18.dp))
+            .padding(AstraSpacing.M),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = readiness.displayName,
+                    style = AstraTypography.Body,
+                    color = AstraColors.TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(AstraSpacing.XS))
+                Text(
+                    text = "${readiness.provider} • ${readiness.parameterCount} • ${readiness.quantization} • ${readiness.expectedSize}",
+                    style = AstraTypography.Caption,
+                    color = AstraColors.TextSecondary,
+                )
+            }
+            AstraChip(
+                label = readiness.status.label.uppercase(),
+                color = readiness.status.statusColor(),
+            )
+        }
+        Spacer(Modifier.height(AstraSpacing.S))
+        Text(
+            text = readiness.readinessMessage,
+            style = AstraTypography.Caption,
+            color = AstraColors.TextSecondary,
+        )
+        Spacer(Modifier.height(AstraSpacing.S))
+        MetadataLine(label = "Backends", value = readiness.supportedBackends.joinToString { it.label })
+        MetadataLine(label = "Local path", value = readiness.localPath)
+        if (readiness.requiredFiles.isNotEmpty()) {
+            Spacer(Modifier.height(AstraSpacing.S))
+            Text(
+                text = "Required files",
+                style = AstraTypography.Caption,
+                color = AstraColors.TextSecondary,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(AstraSpacing.XS))
+            Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.XS)) {
+                readiness.requiredFiles.forEach { file ->
+                    RequiredFileRow(file = file)
+                }
+            }
+        }
+        Spacer(Modifier.height(AstraSpacing.S))
+        SelectableOptionRow {
+            AstraButton(
+                text = "View setup guide",
+                onClick = {},
+                style = AstraButtonStyle.Ghost,
+            )
+            AstraButton(
+                text = "Model download coming soon",
+                onClick = {},
+                style = AstraButtonStyle.Secondary,
+                enabled = false,
+            )
+            AstraButton(
+                text = "Use Mock fallback",
+                onClick = {},
+                style = AstraButtonStyle.Secondary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun MetadataLine(
+    label: String,
+    value: String,
+) {
+    Text(
+        text = "$label: $value",
+        style = AstraTypography.Caption,
+        color = AstraColors.TextSecondary,
+    )
+}
+
+@Composable
+private fun RequiredFileRow(file: RequiredModelFile) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = file.path,
+                style = AstraTypography.Caption,
+                color = AstraColors.TextPrimary,
+            )
+            Text(
+                text = file.description,
+                style = AstraTypography.Caption,
+                color = AstraColors.TextSecondary,
+            )
+        }
+        AstraChip(
+            label = if (file.present) "PRESENT" else "MISSING",
+            color = if (file.present) AstraColors.Success else AstraColors.Warning,
+        )
+    }
+}
+
+private fun ModelReadinessStatus.statusColor(): Color =
+    when (this) {
+        ModelReadinessStatus.Installed -> AstraColors.Success
+        ModelReadinessStatus.ModelRequired -> AstraColors.Secondary
+        ModelReadinessStatus.MissingFiles -> AstraColors.Warning
+        ModelReadinessStatus.UnsupportedPlatform -> AstraColors.Error
+        ModelReadinessStatus.ComingSoon -> AstraColors.TextSecondary
+    }
 
 @Composable
 private fun IndustryConfigurationCard(

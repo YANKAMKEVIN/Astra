@@ -25,6 +25,8 @@ import com.kevin.astra.domain.benchmark.BenchmarkRunner
 import com.kevin.astra.domain.demo.DemoScenarioCatalog
 import com.kevin.astra.domain.documents.DocumentContextRetriever
 import com.kevin.astra.domain.documents.DocumentIndexer
+import com.kevin.astra.domain.modelmanager.ModelReadinessProvider
+import com.kevin.astra.domain.modelmanager.createModelReadinessProvider
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import com.kevin.astra.presentation.assistant.AssistantViewModel
 import com.kevin.astra.presentation.benchmark.BenchmarkViewModel
@@ -46,6 +48,7 @@ val astraRootModule = module {
     single<AiConfigurationRepository> { PersistentAiConfigurationRepository(localDataSource = get()) }
     single<InferenceEngine> { createInferenceEngine() }
     single<BenchmarkRunner> { RuntimeBenchmarkRunner(inferenceEngine = get()) }
+    single<ModelReadinessProvider> { createModelReadinessProvider() }
     single<DemoScenarioCatalog> { StaticDemoScenarioCatalog() }
     single<DocumentIndexer> { SimpleDocumentIndexer() }
     single<DocumentContextRetriever> { KeywordDocumentContextRetriever() }
@@ -87,6 +90,7 @@ val astraRootModule = module {
             aiConfigurationRepository = get(),
             modelCatalog = get(),
             backendCatalog = get(),
+            modelReadinessProvider = get(),
         )
     }
 }

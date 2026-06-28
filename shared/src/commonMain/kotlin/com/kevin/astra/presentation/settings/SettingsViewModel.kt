@@ -4,6 +4,7 @@ import androidx.lifecycle.viewModelScope
 import com.kevin.astra.core.ai.BackendCatalog
 import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.mvi.AstraViewModel
+import com.kevin.astra.domain.modelmanager.ModelReadinessProvider
 import com.kevin.astra.domain.settings.AiConfiguration
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
@@ -13,11 +14,13 @@ class SettingsViewModel(
     private val aiConfigurationRepository: AiConfigurationRepository,
     private val modelCatalog: ModelCatalog,
     private val backendCatalog: BackendCatalog,
+    private val modelReadinessProvider: ModelReadinessProvider,
     observationScope: CoroutineScope? = null,
 ) : AstraViewModel<SettingsState, SettingsIntent, SettingsEffect>(
     initialState = SettingsState(
         availableModels = modelCatalog.availableModels(),
         selectedModel = modelCatalog.currentModel(),
+        modelReadiness = modelReadinessProvider.readinessFor(modelCatalog.availableModels()),
         availableBackends = backendCatalog.availableBackends(),
         selectedBackend = backendCatalog.currentBackend(),
     ),
@@ -27,7 +30,13 @@ class SettingsViewModel(
     init {
         settingsScope.launch {
             aiConfigurationRepository.observeConfiguration().collect { configuration ->
-                updateState { configuration.toSettingsState(modelCatalog, backendCatalog) }
+                updateState {
+                    configuration.toSettingsState(
+                        modelCatalog = modelCatalog,
+                        backendCatalog = backendCatalog,
+                        modelReadinessProvider = modelReadinessProvider,
+                    )
+                }
             }
         }
     }
@@ -90,10 +99,12 @@ class SettingsViewModel(
 private fun AiConfiguration.toSettingsState(
     modelCatalog: ModelCatalog,
     backendCatalog: BackendCatalog,
+    modelReadinessProvider: ModelReadinessProvider,
 ): SettingsState =
     SettingsState(
         availableModels = modelCatalog.availableModels(),
         selectedModel = modelCatalog.modelById(selectedModelId) ?: modelCatalog.currentModel(),
+        modelReadiness = modelReadinessProvider.readinessFor(modelCatalog.availableModels()),
         availableBackends = backendCatalog.availableBackends(),
         selectedBackend = backendCatalog.backendById(selectedBackendId) ?: backendCatalog.currentBackend(),
         selectedIndustry = selectedIndustry,

@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.kevin.astra.core.ai.initializeAndroidEdgeAiRuntime
 import com.kevin.astra.data.settings.initializeAndroidAiConfigurationStorage
+import com.kevin.astra.domain.modelmanager.initializeAndroidModelReadinessProvider
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -15,6 +16,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         initializeAndroidAiConfigurationStorage(this)
         initializeAndroidEdgeAiRuntime(this)
+        initializeAndroidModelReadinessProvider(this)
 
         setContent {
             App()

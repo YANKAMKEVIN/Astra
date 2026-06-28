@@ -4,6 +4,8 @@ import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.settings.testAiConfigurationRepository
+import com.kevin.astra.domain.modelmanager.ModelReadinessStatus
+import com.kevin.astra.domain.modelmanager.StaticModelReadinessProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
@@ -29,6 +31,16 @@ class SettingsViewModelTest {
             state.availableModels.map { it.displayName },
         )
         assertEquals("mock-engine", state.selectedBackend?.id)
+        assertEquals(
+            listOf(
+                ModelReadinessStatus.Installed,
+                ModelReadinessStatus.UnsupportedPlatform,
+                ModelReadinessStatus.ComingSoon,
+                ModelReadinessStatus.ComingSoon,
+                ModelReadinessStatus.ComingSoon,
+            ),
+            state.modelReadiness.map { it.status },
+        )
         assertEquals(
             listOf("Mock Engine", "LiteRT", "LiteRT-LM", "ONNX Runtime", "Core ML", "llama.cpp"),
             state.availableBackends.map { it.displayName },
@@ -88,6 +100,7 @@ class SettingsViewModelTest {
             aiConfigurationRepository = testAiConfigurationRepository(),
             modelCatalog = DefaultModelCatalog(),
             backendCatalog = DefaultBackendCatalog(),
+            modelReadinessProvider = StaticModelReadinessProvider(platformName = "Test"),
             observationScope = observationScope,
         )
 }
