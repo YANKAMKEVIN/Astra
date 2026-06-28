@@ -3,6 +3,7 @@ package com.kevin.astra.presentation.benchmark
 import com.kevin.astra.core.ai.DefaultPromptBuilder
 import com.kevin.astra.core.ai.DefaultPromptPipeline
 import com.kevin.astra.core.ai.LocalModel
+import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
@@ -14,6 +15,7 @@ import com.kevin.astra.domain.benchmark.BenchmarkRequest
 import com.kevin.astra.domain.benchmark.BenchmarkResult
 import com.kevin.astra.domain.benchmark.BenchmarkRunner
 import com.kevin.astra.domain.benchmark.BenchmarkStatus
+import com.kevin.astra.domain.evaluation.RuleBasedTaskEvaluationEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -154,7 +156,15 @@ class BenchmarkViewModelTest {
                         timeToFirstTokenMillis = 250L + index,
                         tokensPerSecond = 20 + index,
                         memoryUsageMb = 400 + index,
-                        qualityScore = if (model.id == "gemma-3-1b") 92 else 80 + index,
+                        taskEvaluation = RuleBasedTaskEvaluationEngine().evaluate(
+                            prompt = request.prompt,
+                            response = if (model.id == "gemma-3-1b") {
+                                "1. Verify safety. 2. Inspect pressure and shutdown cause. 3. Follow the checklist. 4. Restart and monitor vibration."
+                            } else {
+                                "Check the system and restart."
+                            },
+                            industry = PromptIndustry.IndustrialMaintenance,
+                        ),
                         status = BenchmarkStatus.Simulated,
                     )
                 }

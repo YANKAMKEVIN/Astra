@@ -105,6 +105,7 @@ class BenchmarkViewModel(
                         ),
                         models = selectedModels,
                         backend = snapshot.selectedBackend?.runtimeBackend ?: persistedBackend.runtimeBackend,
+                        industry = configuration.selectedIndustry,
                     )
                 },
             )

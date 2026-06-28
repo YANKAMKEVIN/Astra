@@ -43,6 +43,7 @@ import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
 import com.kevin.astra.domain.benchmark.BenchmarkResult
 import com.kevin.astra.domain.demo.DemoScenario
+import com.kevin.astra.domain.evaluation.TaskEvaluationCriterion
 
 @Composable
 fun BenchmarkScreen(
@@ -336,7 +337,7 @@ private fun ResultsCard(
         subtitle = if (results.isEmpty()) {
             "Run the benchmark to display model rankings and telemetry."
         } else {
-            "Simulated latency, throughput, memory and quality for each selected model."
+            "Measures how well each response satisfies the selected operational task."
         },
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
@@ -413,10 +414,57 @@ private fun BenchmarkResultRow(
                 AstraMetricCard("${result.memoryUsageMb}", "MB", "Memory", Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-                AstraMetricCard("${result.qualityScore}", "/100", "Quality", Modifier.weight(1f))
+                AstraMetricCard("${result.taskEvaluation.overallScore}", "/100", "Task Score", Modifier.weight(1f))
                 AstraMetricCard(result.status.label, "", "Status", Modifier.weight(1f))
             }
+            TaskEvaluationBreakdown(result = result)
         }
+    }
+}
+
+@Composable
+private fun TaskEvaluationBreakdown(result: BenchmarkResult) {
+    Spacer(Modifier.height(AstraSpacing.S))
+    Text(
+        text = "Task Evaluation",
+        style = AstraTypography.Caption,
+        color = AstraColors.TextSecondary,
+    )
+    Spacer(Modifier.height(AstraSpacing.S))
+    Text(
+        text = result.taskEvaluation.recommendationSummary,
+        style = AstraTypography.Caption,
+        color = AstraColors.TextPrimary,
+    )
+    Spacer(Modifier.height(AstraSpacing.S))
+    Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+        EvaluationCriterionRow(result, TaskEvaluationCriterion.Safety)
+        EvaluationCriterionRow(result, TaskEvaluationCriterion.ProcedureCompleteness)
+        EvaluationCriterionRow(result, TaskEvaluationCriterion.TechnicalAccuracy)
+        EvaluationCriterionRow(result, TaskEvaluationCriterion.DomainTerminology)
+        EvaluationCriterionRow(result, TaskEvaluationCriterion.Clarity)
+    }
+}
+
+@Composable
+private fun EvaluationCriterionRow(
+    result: BenchmarkResult,
+    criterion: TaskEvaluationCriterion,
+) {
+    val score = result.taskEvaluation.breakdown.scoreFor(criterion)
+    Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+        AstraMetricCard(
+            value = score.score.toString(),
+            unit = "/100",
+            label = criterion.label,
+            modifier = Modifier.weight(1f),
+        )
+        AstraMetricCard(
+            value = criterion.weight.toString(),
+            unit = "%",
+            label = "Weight",
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
