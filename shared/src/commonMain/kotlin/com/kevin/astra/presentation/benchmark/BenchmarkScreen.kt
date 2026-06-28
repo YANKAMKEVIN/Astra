@@ -112,7 +112,7 @@ private fun BenchmarkContent(
                 status = "RUNNING",
             ) {
                 Spacer(Modifier.height(AstraSpacing.M))
-                AstraChip(label = "Mock execution", color = AstraColors.Secondary)
+                AstraChip(label = "Runtime execution", color = AstraColors.Secondary)
             }
         }
 
@@ -394,7 +394,7 @@ private fun BenchmarkResultRow(
                     color = AstraColors.TextPrimary,
                 )
                 Text(
-                    text = "${result.model.provider.label} • ${result.backend.label} • ${result.status.label}",
+                    text = "${result.model.provider.label} • Selected: ${result.selectedBackend.label} • Used: ${result.usedBackend.label}",
                     style = AstraTypography.Caption,
                     color = AstraColors.TextSecondary,
                 )
@@ -406,18 +406,28 @@ private fun BenchmarkResultRow(
         Spacer(Modifier.height(AstraSpacing.M))
         Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
             Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-                AstraMetricCard("${result.latencyMillis}", "ms", "Latency", Modifier.weight(1f))
-                AstraMetricCard("${result.timeToFirstTokenMillis}", "ms", "TTFT", Modifier.weight(1f))
+                AstraMetricCard(result.latencyMillis.displayNumber(), result.latencyMillis.displayUnit("ms"), "Latency", Modifier.weight(1f))
+                AstraMetricCard(result.runtimeInfo.modelLoadTimeMillis.displayLong(), result.runtimeInfo.modelLoadTimeMillis.displayLongUnit("ms"), "Load Time", Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-                AstraMetricCard("${result.tokensPerSecond}", "", "Tokens/sec", Modifier.weight(1f))
-                AstraMetricCard("${result.memoryUsageMb}", "MB", "Memory", Modifier.weight(1f))
+                AstraMetricCard(result.runtimeInfo.totalExecutionTimeMillis.displayLong(), result.runtimeInfo.totalExecutionTimeMillis.displayLongUnit("ms"), "Total Time", Modifier.weight(1f))
+                AstraMetricCard(result.timeToFirstTokenMillis.displayNumber(), result.timeToFirstTokenMillis.displayUnit("ms"), "TTFT", Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
                 AstraMetricCard("${result.taskEvaluation.overallScore}", "/100", "Task Score", Modifier.weight(1f))
-                AstraMetricCard(result.status.label, "", "Status", Modifier.weight(1f))
+                AstraMetricCard(result.tokensPerSecond.displayNumber(), "", "Tokens/sec", Modifier.weight(1f))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+                AstraMetricCard(result.memoryUsageMb.displayNumber(), result.memoryUsageMb.displayUnit("MB"), "Memory", Modifier.weight(1f))
+                AstraMetricCard(result.runtimeInfo.mode.label, "", "Runtime Mode", Modifier.weight(1f))
             }
             TaskEvaluationBreakdown(result = result)
+            result.runtimeInfo.fallbackReason?.let { reason ->
+                AstraErrorView(
+                    title = "Fallback transparency",
+                    message = "Selected: ${result.selectedBackend.label}\nUsed: ${result.usedBackend.label}\nReason: $reason",
+                )
+            }
         }
     }
 }
@@ -467,6 +477,24 @@ private fun EvaluationCriterionRow(
         )
     }
 }
+
+private fun Int?.displayNumber(): String =
+    this?.toString() ?: "N/A"
+
+private fun Int?.displayUnit(unit: String): String =
+    if (this == null) "" else unit
+
+private fun Long?.displayNumber(): String =
+    this?.toString() ?: "N/A"
+
+private fun Long?.displayUnit(unit: String): String =
+    if (this == null) "" else unit
+
+private fun Long.displayLong(): String =
+    if (this > 0L) toString() else "N/A"
+
+private fun Long.displayLongUnit(unit: String): String =
+    if (this > 0L) unit else ""
 
 @Composable
 private fun HorizontalOptions(content: @Composable () -> Unit) {

@@ -13,7 +13,7 @@ import com.kevin.astra.core.device.createDeviceCapabilityProvider
 import com.kevin.astra.core.navigation.AstraNavigator
 import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.ai.createBackendCatalog
-import com.kevin.astra.data.benchmark.MockBenchmarkRunner
+import com.kevin.astra.data.benchmark.RuntimeBenchmarkRunner
 import com.kevin.astra.data.demo.StaticDemoScenarioCatalog
 import com.kevin.astra.data.documents.KeywordDocumentContextRetriever
 import com.kevin.astra.data.documents.SimpleDocumentIndexer
@@ -45,7 +45,7 @@ val astraRootModule = module {
     single<PromptPipeline> { DefaultPromptPipeline(promptBuilder = get()) }
     single<AiConfigurationRepository> { PersistentAiConfigurationRepository(localDataSource = get()) }
     single<InferenceEngine> { createInferenceEngine() }
-    single<BenchmarkRunner> { MockBenchmarkRunner() }
+    single<BenchmarkRunner> { RuntimeBenchmarkRunner(inferenceEngine = get()) }
     single<DemoScenarioCatalog> { StaticDemoScenarioCatalog() }
     single<DocumentIndexer> { SimpleDocumentIndexer() }
     single<DocumentContextRetriever> { KeywordDocumentContextRetriever() }

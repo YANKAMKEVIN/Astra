@@ -1,5 +1,6 @@
 package com.kevin.astra.domain.benchmark
 
+import com.kevin.astra.core.ai.GenerationRuntimeInfo
 import com.kevin.astra.core.ai.InferenceBackend
 import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.ai.PromptIndustry
@@ -19,14 +20,19 @@ data class BenchmarkReport(
 
 data class BenchmarkResult(
     val model: LocalModel,
-    val backend: InferenceBackend,
-    val latencyMillis: Long,
-    val timeToFirstTokenMillis: Long,
-    val tokensPerSecond: Int,
-    val memoryUsageMb: Int,
+    val selectedBackend: InferenceBackend,
+    val usedBackend: InferenceBackend,
+    val runtimeInfo: GenerationRuntimeInfo,
+    val latencyMillis: Long?,
+    val timeToFirstTokenMillis: Long?,
+    val tokensPerSecond: Int?,
+    val memoryUsageMb: Int?,
     val taskEvaluation: TaskEvaluationReport,
     val status: BenchmarkStatus,
-)
+) {
+    val backend: InferenceBackend
+        get() = usedBackend
+}
 
 enum class BenchmarkStatus(val label: String) {
     Completed("Completed"),

@@ -2,9 +2,11 @@ package com.kevin.astra.presentation.benchmark
 
 import com.kevin.astra.core.ai.DefaultPromptBuilder
 import com.kevin.astra.core.ai.DefaultPromptPipeline
+import com.kevin.astra.core.ai.GenerationRuntimeInfo
 import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.core.ai.PromptPipeline
+import com.kevin.astra.core.ai.RuntimeMode
 import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.demo.StaticDemoScenarioCatalog
@@ -151,7 +153,13 @@ class BenchmarkViewModelTest {
                 val results = request.models.mapIndexed { index, model ->
                     BenchmarkResult(
                         model = model,
-                        backend = request.backend,
+                        selectedBackend = request.backend,
+                        usedBackend = request.backend,
+                        runtimeInfo = GenerationRuntimeInfo(
+                            mode = RuntimeMode.Simulated,
+                            inferenceLatencyMillis = 1_000L + index,
+                            totalExecutionTimeMillis = 1_100L + index,
+                        ),
                         latencyMillis = 1_000L + index,
                         timeToFirstTokenMillis = 250L + index,
                         tokensPerSecond = 20 + index,
