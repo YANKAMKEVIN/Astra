@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800" role="img" aria-label="ASTRA documents screen">
+  <rect width="1280" height="800" fill="#07111F"/>
+  <text x="80" y="96" fill="#EAF6FF" font-size="46" font-family="Inter, Arial" font-weight="800">Documents</text>
+  <text x="80" y="134" fill="#93A4B8" font-size="22" font-family="Inter, Arial">Embedded maintenance context retrieval, fully local</text>
+  <rect x="80" y="180" width="520" height="430" rx="28" fill="#101C2D" stroke="#24364C"/>
+  <text x="118" y="236" fill="#EAF6FF" font-size="28" font-family="Inter, Arial" font-weight="700">Industrial Pump Guide</text>
+  <text x="118" y="292" fill="#93A4B8" font-size="22" font-family="Inter, Arial">Index status: embedded and ready</text>
+  <rect x="118" y="340" width="200" height="48" rx="16" fill="#31D0AA" opacity=".15" stroke="#31D0AA"/>
+  <text x="218" y="371" text-anchor="middle" fill="#31D0AA" font-size="18" font-family="Inter, Arial" font-weight="700">LOCAL INDEX</text>
+  <rect x="640" y="180" width="560" height="430" rx="28" fill="#101C2D" stroke="#24364C"/>
+  <text x="678" y="236" fill="#EAF6FF" font-size="28" font-family="Inter, Arial" font-weight="700">Document Q&amp;A</text>
+  <rect x="678" y="282" width="460" height="96" rx="18" fill="#07111F" stroke="#24364C"/>
+  <text x="704" y="338" fill="#93A4B8" font-size="20" font-family="Inter, Arial">Emergency shutdown procedure?</text>
+  <text x="678" y="444" fill="#EAF6FF" font-size="24" font-family="Inter, Arial">Extracted Context</text>
+  <text x="678" y="492" fill="#93A4B8" font-size="20" font-family="Inter, Arial">Relevant local sections are injected before inference.</text>
+</svg>

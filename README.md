@@ -1,286 +1,211 @@
 # ASTRA
 
-> **Secure Local AI for Critical Operations**
+> Secure Local AI for Critical Operations
+> Version 1.0.0 release candidate
 
-```{=html}
-<p align="center">
-```
-A cross-platform Edge AI platform built with **Kotlin Multiplatform** to
-evaluate, benchmark and demonstrate **Small Language Models (SLMs)**
-running **entirely on-device**, without relying on the cloud.
-```{=html}
-</p>
-```
+ASTRA is a cross-platform Edge AI demonstration application built with Kotlin Multiplatform and Compose Multiplatform. It helps engineers and innovation teams evaluate, explain and demonstrate Small Language Model workflows that run locally on-device, with transparent fallback when production model files are not available.
 
-------------------------------------------------------------------------
+ASTRA is not a general chatbot. It is a technical showcase for offline-first AI architecture, runtime readiness, benchmarking, document grounding and model transparency.
 
-## ✨ Overview
+## Project overview
 
-ASTRA is not a chatbot.
+ASTRA demonstrates how critical-operation assistants can be designed without depending on cloud execution by default. The application includes:
 
-It is an **Edge AI experimentation platform** designed to help
-engineers, architects and innovation teams evaluate local AI inference
-on Android and iOS.
+- a guided Demo Mode for five-minute stakeholder walkthroughs;
+- a device dashboard for platform capability inspection;
+- a local assistant powered by a deterministic Mock runtime;
+- an embedded Documents Assistant for local context retrieval;
+- a Benchmark Lab with runtime metrics and task evaluation;
+- a Model Manager that explains local file readiness and fallback status;
+- a Project Overview screen for architecture discussions.
 
-The project demonstrates how Small Language Models can run directly on a
-mobile device while exposing measurable metrics such as latency, memory
-usage and inference speed.
-
-------------------------------------------------------------------------
-
-## 🎯 Vision
-
-Modern enterprises increasingly require AI systems that:
-
--   work offline
--   preserve data privacy
--   reduce cloud costs
--   provide low latency
--   operate inside critical environments
-
-ASTRA demonstrates that these objectives are achievable through **Edge
-AI**.
-
-------------------------------------------------------------------------
-
-## 🚀 Key Features
-
-### 🤖 Local AI Assistant
-
--   Local document assistant
--   Offline-first
--   Industrial personas
--   Streaming responses
--   Prompt pipeline
-
-### 📊 AI Benchmark Lab
-
-Compare multiple models using the same prompt.
-
-Metrics include:
-
--   Latency
--   Time To First Token
--   Tokens / second
--   Memory usage
--   Backend
--   Device capabilities
-
-### 📄 Document Assistant
-
--   Local documents
--   Question answering
--   Context injection
--   Offline workflow
-
-### 📱 Device Dashboard
-
-Display:
-
--   CPU
--   GPU
--   NPU
--   Memory
--   Storage
--   Platform information
--   Current model
--   Current backend
-
-------------------------------------------------------------------------
+The v1.0.0 release candidate is presentation-ready and intentionally conservative: real model downloads, remote registries and cloud inference are out of scope.
 
 ## Screenshots
 
-> Screenshots will be added after the first stable demo build.
+The screenshots below are documentation panels stored in `docs/images/` for release discussions and README previews.
 
-| Dashboard | Assistant | Benchmark |
-|:---:|:---:|:---:|
-| TBD | TBD | TBD |
+| Splash | Dashboard |
+|:--:|:--:|
+| ![Splash](docs/images/splash.svg) | ![Dashboard](docs/images/dashboard.svg) |
 
-------------------------------------------------------------------------
+| Assistant | Documents |
+|:--:|:--:|
+| ![Assistant](docs/images/assistant.svg) | ![Documents](docs/images/documents.svg) |
 
-## 🏗 Architecture
+| Benchmark | Settings |
+|:--:|:--:|
+| ![Benchmark](docs/images/benchmark.svg) | ![Settings](docs/images/settings.svg) |
 
-ASTRA follows:
+| Demo Mode |
+|:--:|
+| ![Demo Mode](docs/images/demo-mode.svg) |
 
--   Kotlin Multiplatform
--   Compose Multiplatform
--   MVI
--   Clean Architecture
--   Koin
--   Offline First
--   SOLID principles
+## Architecture
 
-High-level architecture:
+ASTRA follows Clean Architecture with an MVI presentation layer:
 
-``` text
+```text
 Presentation
-        │
-     Domain
-        │
-      Data
-        │
- Platform Layer
-(Android / iOS)
+  ├── Compose screens
+  ├── immutable State
+  ├── typed Intent
+  └── ViewModel reducers
 
-        │
+Domain
+  ├── AI configuration
+  ├── benchmark contracts
+  ├── document contracts
+  ├── task evaluation
+  └── model readiness
 
-    AI Core
+Data
+  ├── static model/backend catalogs
+  ├── embedded demo scenarios
+  ├── document indexing
+  └── persistent settings
 
- ├── InferenceEngine
- ├── ModelCatalog
- ├── BenchmarkRunner
- ├── PromptPipeline
- └── DeviceCapabilityProvider
+Core
+  ├── PromptPipeline
+  ├── RoutingInferenceEngine
+  ├── MockInferenceEngine
+  ├── LiteRT foundation
+  ├── LiteRT-LM foundation
+  └── DeviceCapabilityProvider
+
+Platform
+  ├── Android runtime adapters
+  └── iOS runtime adapters
 ```
 
-------------------------------------------------------------------------
+Key principles:
 
-## 📱 Supported Platforms
+- Kotlin Multiplatform shared logic and UI;
+- Koin dependency injection;
+- offline-first behavior;
+- replaceable model and backend abstractions;
+- transparent fallback instead of fake runtime claims;
+- reusable ASTRA design system components.
 
-  Platform   Status
-  ---------- -----------
-  Android    ✅
-  iOS        🚧
-  Desktop    🔮 Future
+## Features
 
-------------------------------------------------------------------------
+### Dashboard
 
-## 🤖 Supported Models (Roadmap)
+Displays local platform information, memory, storage, supported features and supported inference backends.
 
--   Gemma
--   Phi
--   Llama
--   Qwen
--   Mock Model
+### Assistant
 
-------------------------------------------------------------------------
+Runs curated operational prompts through the prompt pipeline and local inference abstraction. The Mock runtime provides deterministic offline output and metrics for demos.
 
-## ⚙ Supported Inference Engines
+### Documents
 
--   LiteRT
--   ONNX Runtime
--   llama.cpp
--   Core ML
--   Mock Engine
+Indexes an embedded maintenance document and retrieves relevant context locally before asking ASTRA.
 
-------------------------------------------------------------------------
+### Benchmark
 
-## 🧪 Technology Stack
+Compares catalog models against demo scenarios and reports latency, time to first token, memory usage, runtime mode and task evaluation quality.
 
--   Kotlin Multiplatform
--   Compose Multiplatform
--   Koin
--   Coroutines
--   Kotlin Flow
--   MVI
--   Clean Architecture
+### Task Evaluation
 
-------------------------------------------------------------------------
+Scores responses against safety, procedure completeness, technical accuracy, domain terminology and clarity.
 
-## 📂 Project Structure
+### Model Manager
 
-``` text
-astra/
-│
-├── README.md
-├── ROADMAP.md
-├── docs/
-│
-├── androidApp/
-├── iosApp/
-│
-└── shared/
-    ├── core/
-    │   ├── ai/
-    │   ├── design/
-    │   ├── device/
-    │   └── navigation/
-    │
-    ├── data/
-    ├── domain/
-    ├── presentation/
-    └── platform/
+Shows model readiness, required files, supported backends, expected size and why fallback is active when local model bundles are missing.
+
+### Demo Mode
+
+Guides a stakeholder walkthrough across device capabilities, runtime selection, assistant, documents, benchmark, task evaluation and model manager.
+
+### Project Overview
+
+Provides a read-only technical architecture explorer directly inside the app.
+
+## Supported platforms
+
+| Platform | Status | Notes |
+|---|---|---|
+| Android | Supported | Compose UI, device capability provider, Mock runtime, LiteRT/LiteRT-LM foundations. |
+| iOS | Supported | Compose UI, Mock runtime and static readiness/fallback transparency. |
+| Desktop | Future | Not part of v1.0.0. |
+
+## Runtime and model status
+
+| Runtime | Status |
+|---|---|
+| Mock Engine | Installed and demo-ready. |
+| LiteRT | Foundation implemented; requires local Android model assets for real execution. |
+| LiteRT-LM | Foundation implemented; Android model bundle readiness is surfaced in Model Manager. |
+| ONNX Runtime | Cataloged for future work. |
+| Core ML | Cataloged for future work. |
+| llama.cpp | Cataloged for future work. |
+
+Production model downloads are intentionally not implemented in v1.0.0.
+
+## Build instructions
+
+### Requirements
+
+- JDK 17+
+- Android Studio or compatible Android SDK
+- Xcode for iOS builds on macOS
+- Gradle wrapper included in the repository
+
+### Android
+
+```bash
+./gradlew :androidApp:assembleDebug --no-configuration-cache
 ```
 
-------------------------------------------------------------------------
+### Shared Kotlin Multiplatform checks
 
-## 🛣 Roadmap
+```bash
+./gradlew :shared:testAndroidHostTest :shared:iosSimulatorArm64Test :shared:compileAndroidMain :shared:compileKotlinIosSimulatorArm64 --no-configuration-cache
+```
 
-### Sprint 0
+### iOS
 
--   Bootstrap project
--   Design System
--   Navigation
--   Platform architecture
+```bash
+xcodebuild \
+  -project iosApp/iosApp.xcodeproj \
+  -scheme iosApp \
+  -sdk iphonesimulator \
+  -configuration Debug \
+  -derivedDataPath /tmp/AstraDerivedData \
+  CODE_SIGNING_ALLOWED=NO \
+  build -quiet
+```
 
-### Sprint 1
+## Documentation
 
--   Dashboard
--   Assistant
--   Settings
+- [Product Vision](docs/01_Product_Vision.md)
+- [Functional Requirements](docs/02_Functional_Requirements.md)
+- [Platform Architecture](docs/03_Platform_Architecture.md)
+- [Design System](docs/04_Design_System.md)
+- [Edge AI Runtime Evaluation](docs/05_Edge_AI_Runtime_Evaluation.md)
+- [LiteRT-LM Evaluation](docs/06_LiteRT_LM_Evaluation.md)
+- [Task Evaluation Methodology](docs/07_Task_Evaluation_Methodology.md)
+- [Benchmark Methodology](docs/08_Benchmark_Methodology.md)
+- [Real Inference Setup](docs/REAL_INFERENCE_SETUP.md)
+- [Demo Script](docs/DEMO_SCRIPT.md)
 
-### Sprint 2
+## Future roadmap
 
--   Documents
--   Benchmark
+ASTRA v1.0.0 is a polished demonstration baseline. Future work may include:
 
-### Sprint 3
+- real local model packaging workflow;
+- production LiteRT-LM generation loop;
+- ONNX Runtime integration;
+- Core ML integration;
+- llama.cpp/GGUF experiments;
+- exportable benchmark reports;
+- accessibility pass and localization;
+- CI release automation.
 
--   LiteRT integration
--   Mock inference engine
+## License and usage
 
-### Sprint 4
+No open-source license has been selected yet. Until a license is added, treat ASTRA as an internal demonstration and engineering showcase project.
 
--   ONNX Runtime
--   Core ML
--   Real benchmarks
+## Author
 
-### Sprint 5
-
--   Polish
--   Export reports
--   Presentation
-
-------------------------------------------------------------------------
-
-## 🎯 Mission
-
-ASTRA was created to explore the transition from **Cloud AI** to **Edge
-AI** by providing a professional experimentation platform capable of
-evaluating on-device inference for critical industries such as:
-
--   Aerospace
--   Defense
--   Energy
--   Healthcare
--   Industrial Maintenance
-
-------------------------------------------------------------------------
-
-## 📖 Documentation
-
-Project documentation is available in the `/docs` directory.
-
--   Product Vision
--   Functional Requirements
--   Platform Architecture
--   Development Roadmap
--   Design Guidelines
-
-------------------------------------------------------------------------
-
-## 🤝 Philosophy
-
-> **Everything is replaceable.**
-
-Models, inference engines and platform implementations are abstracted
-behind clean interfaces to ensure long-term extensibility.
-
-------------------------------------------------------------------------
-
-## 👨‍💻 Author
-
-Developed by Kevin Hermann.
-
-Designed as a showcase project demonstrating modern Mobile Engineering,
-Kotlin Multiplatform and Edge AI.
+Developed by Kevin Hermann as a showcase of modern mobile engineering, Kotlin Multiplatform and Edge AI architecture.

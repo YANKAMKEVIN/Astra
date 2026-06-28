@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800" role="img" aria-label="ASTRA dashboard screen">
+  <rect width="1280" height="800" fill="#07111F"/>
+  <text x="80" y="96" fill="#EAF6FF" font-size="46" font-family="Inter, Arial" font-weight="800">Welcome Engineer</text>
+  <text x="80" y="134" fill="#93A4B8" font-size="22" font-family="Inter, Arial">Secure Edge AI operations overview</text>
+  <rect x="80" y="184" width="520" height="210" rx="28" fill="#101C2D" stroke="#24364C"/>
+  <text x="118" y="236" fill="#EAF6FF" font-size="28" font-family="Inter, Arial" font-weight="700">System status</text>
+  <text x="118" y="278" fill="#93A4B8" font-size="20" font-family="Inter, Arial">Local environment detected</text>
+  <rect x="118" y="320" width="170" height="44" rx="14" fill="#31D0AA" opacity=".15" stroke="#31D0AA"/>
+  <text x="203" y="349" fill="#31D0AA" text-anchor="middle" font-size="18" font-family="Inter, Arial" font-weight="700">READY</text>
+  <rect x="640" y="184" width="560" height="430" rx="28" fill="#101C2D" stroke="#24364C"/>
+  <text x="678" y="236" fill="#EAF6FF" font-size="28" font-family="Inter, Arial" font-weight="700">Device capabilities</text>
+  <text x="678" y="292" fill="#93A4B8" font-size="22" font-family="Inter, Arial">CPU • GPU • NPU • Memory • Storage</text>
+  <text x="678" y="352" fill="#EAF6FF" font-size="24" font-family="Inter, Arial">Platform: Android / iOS</text>
+  <text x="678" y="404" fill="#EAF6FF" font-size="24" font-family="Inter, Arial">Offline: ON</text>
+  <text x="678" y="456" fill="#EAF6FF" font-size="24" font-family="Inter, Arial">Supported: Mock, LiteRT foundation</text>
+  <rect x="80" y="438" width="520" height="176" rx="28" fill="#101C2D" stroke="#24364C"/>
+  <text x="118" y="490" fill="#EAF6FF" font-size="28" font-family="Inter, Arial" font-weight="700">Quick actions</text>
+  <text x="118" y="540" fill="#93A4B8" font-size="22" font-family="Inter, Arial">Navigate to Demo, Assistant, Benchmark or Settings</text>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800" role="img" aria-label="ASTRA benchmark screen">
+  <rect width="1280" height="800" fill="#07111F"/>
+  <text x="80" y="96" fill="#EAF6FF" font-size="46" font-family="Inter, Arial" font-weight="800">Benchmark Lab</text>
+  <text x="80" y="134" fill="#93A4B8" font-size="22" font-family="Inter, Arial">Compare local models, runtime metrics and task quality</text>
+  <rect x="80" y="180" width="1120" height="180" rx="28" fill="#101C2D" stroke="#24364C"/>
+  <text x="118" y="236" fill="#EAF6FF" font-size="28" font-family="Inter, Arial" font-weight="700">Scenario comparison</text>
+  <text x="118" y="292" fill="#93A4B8" font-size="22" font-family="Inter, Arial">Latency • TTFT • Tokens/sec • Memory • Runtime mode • Task score</text>
+  <rect x="80" y="400" width="340" height="220" rx="28" fill="#101C2D" stroke="#24364C"/>
+  <text x="118" y="464" fill="#31D0AA" font-size="56" font-family="Inter, Arial" font-weight="800">92</text>
+  <text x="118" y="512" fill="#93A4B8" font-size="22" font-family="Inter, Arial">Task Evaluation</text>
+  <rect x="470" y="400" width="340" height="220" rx="28" fill="#101C2D" stroke="#24364C"/>
+  <text x="508" y="464" fill="#31D0AA" font-size="56" font-family="Inter, Arial" font-weight="800">Mock</text>
+  <text x="508" y="512" fill="#93A4B8" font-size="22" font-family="Inter, Arial">Runtime ready</text>
+  <rect x="860" y="400" width="340" height="220" rx="28" fill="#101C2D" stroke="#24364C"/>
+  <text x="898" y="464" fill="#31D0AA" font-size="56" font-family="Inter, Arial" font-weight="800">Local</text>
+  <text x="898" y="512" fill="#93A4B8" font-size="22" font-family="Inter, Arial">Offline execution</text>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800" role="img" aria-label="ASTRA demo mode screen">
+  <rect width="1280" height="800" fill="#07111F"/>
+  <text x="80" y="96" fill="#EAF6FF" font-size="46" font-family="Inter, Arial" font-weight="800">Demo Mode</text>
+  <text x="80" y="134" fill="#93A4B8" font-size="22" font-family="Inter, Arial">Guided five-minute stakeholder walkthrough</text>
+  <rect x="80" y="180" width="1120" height="180" rx="28" fill="#101C2D" stroke="#24364C"/>
+  <text x="118" y="236" fill="#EAF6FF" font-size="28" font-family="Inter, Arial" font-weight="700">Demo readiness</text>
+  <text x="118" y="294" fill="#31D0AA" font-size="22" font-family="Inter, Arial">Device Ready • Runtime Ready • Model Ready • Benchmark Ready • Documents Ready</text>
+  <rect x="80" y="410" width="1120" height="220" rx="28" fill="#101C2D" stroke="#24364C"/>
+  <text x="118" y="468" fill="#EAF6FF" font-size="28" font-family="Inter, Arial" font-weight="700">Guided workflow</text>
+  <text x="118" y="528" fill="#93A4B8" font-size="22" font-family="Inter, Arial">1 Device → 2 Runtime → 3 Assistant → 4 Documents → 5 Benchmark → 6 Evaluation → 7 Model Manager</text>
+  <rect x="118" y="568" width="260" height="46" rx="16" fill="#31D0AA"/>
+  <text x="248" y="598" text-anchor="middle" fill="#07111F" font-size="18" font-family="Inter, Arial" font-weight="800">Next step</text>
+</svg>

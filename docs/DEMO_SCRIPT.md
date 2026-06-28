@@ -7,6 +7,11 @@ This document provides a structured flow for demonstrating ASTRA's capabilities.
 2. **Splash Screen**: Briefly show the hero splash screen while it "initializes local AI environment".
 3. **Objective**: Explain that ASTRA is a secure, offline-first Edge AI platform for critical operations.
 
+## Demo Mode (45 seconds)
+1. **Open Demo Mode**: Use the guided flow as the main storyline.
+2. **Readiness**: Point out Device Ready, Runtime Ready, Model Ready, Benchmark Ready and Documents Ready.
+3. **Progression**: Explain the seven-step walkthrough from device capabilities to Model Manager.
+
 ## Dashboard (1 minute)
 1. **Show Dashboard**: Point out the "Welcome Engineer" message and system status.
 2. **Device Capabilities**: Explain how ASTRA detects local CPU, GPU, and NPU availability through the `DeviceCapabilityProvider`.
@@ -34,7 +39,9 @@ This document provides a structured flow for demonstrating ASTRA's capabilities.
 
 ## Settings & Architecture (1 minute)
 1. **Show Settings**: Navigate to Settings to show how AI configuration (temperature, tokens, etc.) is persisted locally.
-2. **Explain Architecture**: Summarize the KMP + Clean Architecture foundation that makes all components (models, engines) easily replaceable.
+2. **Show Model Manager**: Explain model readiness, required files and why Mock fallback remains active when real model bundles are missing.
+3. **Open Project Overview**: Summarize the KMP + Clean Architecture foundation that makes all components (models, engines) easily replaceable.
 
 ## Conclusion
 - Summarize that ASTRA provides a measurable, privacy-preserving alternative to cloud AI.
+- Close by noting that v1.0.0 is a presentation-ready release candidate focused on transparency, not fake production inference.

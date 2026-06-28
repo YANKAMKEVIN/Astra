@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800" role="img" aria-label="ASTRA splash screen">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#07111F"/>
+      <stop offset="1" stop-color="#102B3D"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="18" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1280" height="800" fill="url(#bg)"/>
+  <circle cx="640" cy="340" r="126" fill="#31D0AA" opacity=".12" filter="url(#glow)"/>
+  <circle cx="640" cy="340" r="74" fill="none" stroke="#31D0AA" stroke-width="3"/>
+  <path d="M640 250 L720 430 H690 L672 390 H608 L590 430 H560 Z M620 360 H660 L640 310 Z" fill="#EAF6FF"/>
+  <text x="640" y="515" text-anchor="middle" fill="#EAF6FF" font-size="72" font-family="Inter, Arial" font-weight="800">ASTRA</text>
+  <text x="640" y="570" text-anchor="middle" fill="#93A4B8" font-size="28" font-family="Inter, Arial">Secure Local AI for Critical Operations</text>
+  <rect x="452" y="630" width="376" height="44" rx="22" fill="#31D0AA" opacity=".16" stroke="#31D0AA"/>
+  <text x="640" y="660" text-anchor="middle" fill="#31D0AA" font-size="20" font-family="Inter, Arial" font-weight="700">Offline Demo Mode • v1.0.0</text>
+</svg>
