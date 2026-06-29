@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import com.kevin.astra.core.navigation.AstraDestination
 
 private var astraContext: Context? = null
 
@@ -44,11 +45,11 @@ class AndroidNotificationService(
         }
     }
 
-    override fun showNotification(title: String, message: String, targetDestination: String?) {
+    override fun showNotification(title: String, message: String, targetDestination: AstraDestination?) {
         val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             if (targetDestination != null) {
-                putExtra("EXTRA_TARGET_DESTINATION", targetDestination)
+                putExtra(NotificationKeys.TARGET_DESTINATION, targetDestination.id)
             }
         }
 

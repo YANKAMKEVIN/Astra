@@ -8,6 +8,7 @@ import com.kevin.astra.core.ai.PromptBuildRequest
 import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.core.mvi.AstraViewModel
+import com.kevin.astra.core.navigation.AstraDestination
 import com.kevin.astra.core.notification.NotificationService
 import com.kevin.astra.data.documents.EmbeddedMaintenanceDocument
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
@@ -147,7 +148,7 @@ class DocumentsViewModel(
             notificationService.showNotification(
                 title = "Document Analysis Ready",
                 message = "The local document has been processed and analyzed.",
-                targetDestination = "documents"
+                targetDestination = AstraDestination.Documents
             )
         }
     }

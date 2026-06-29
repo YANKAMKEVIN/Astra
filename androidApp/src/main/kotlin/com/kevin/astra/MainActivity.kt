@@ -12,6 +12,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.kevin.astra.core.ai.initializeAndroidEdgeAiRuntime
 import com.kevin.astra.core.navigation.AstraDestination
 import com.kevin.astra.core.navigation.AstraNavigator
+import com.kevin.astra.core.notification.NotificationKeys
 import com.kevin.astra.core.notification.initializeNotificationService
 import com.kevin.astra.data.settings.initializeAndroidAiConfigurationStorage
 import com.kevin.astra.domain.modelmanager.initializeAndroidModelReadinessProvider
@@ -45,11 +46,11 @@ class MainActivity : ComponentActivity(), KoinComponent {
     }
 
     private fun handleIntent(intent: Intent?) {
-        val target = intent?.getStringExtra("EXTRA_TARGET_DESTINATION")
-        when (target) {
-            "assistant" -> navigator.navigateTo(AstraDestination.Assistant)
-            "documents" -> navigator.navigateTo(AstraDestination.Documents)
-            "benchmark" -> navigator.navigateTo(AstraDestination.Benchmark)
+        val targetId = intent?.getStringExtra(NotificationKeys.TARGET_DESTINATION)
+        val destination = AstraDestination.fromId(targetId)
+        
+        if (destination != null) {
+            navigator.navigateTo(destination)
         }
     }
 

@@ -1,5 +1,6 @@
 package com.kevin.astra.core.notification
 
+import com.kevin.astra.core.navigation.AstraDestination
 import platform.UserNotifications.UNMutableNotificationContent
 import platform.UserNotifications.UNNotificationRequest
 import platform.UserNotifications.UNUserNotificationCenter
@@ -7,7 +8,7 @@ import platform.UserNotifications.UNUserNotificationCenter
 actual fun createNotificationService(): NotificationService = IosNotificationService()
 
 class IosNotificationService : NotificationService {
-    override fun showNotification(title: String, message: String, targetDestination: String?) {
+    override fun showNotification(title: String, message: String, targetDestination: AstraDestination?) {
         val content = UNMutableNotificationContent().apply {
             setTitle(title)
             setBody(message)

@@ -8,6 +8,7 @@ import com.kevin.astra.core.ai.PromptBuildRequest
 import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.core.mvi.AstraViewModel
+import com.kevin.astra.core.navigation.AstraDestination
 import com.kevin.astra.core.notification.NotificationService
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import com.kevin.astra.domain.demo.DemoScenarioCatalog
@@ -130,7 +131,7 @@ class AssistantViewModel(
             notificationService.showNotification(
                 title = "AI Analysis Ready",
                 message = "ASTRA has completed the mission-critical analysis.",
-                targetDestination = "assistant"
+                targetDestination = AstraDestination.Assistant
             )
         }
     }

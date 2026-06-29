@@ -6,6 +6,7 @@ import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.ai.PromptBuildRequest
 import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.mvi.AstraViewModel
+import com.kevin.astra.core.navigation.AstraDestination
 import com.kevin.astra.core.notification.NotificationService
 import com.kevin.astra.domain.benchmark.BenchmarkRequest
 import com.kevin.astra.domain.benchmark.BenchmarkRunner
@@ -127,7 +128,7 @@ class BenchmarkViewModel(
             notificationService.showNotification(
                 title = "Benchmark Complete",
                 message = "ASTRA has finished evaluating all selected AI models.",
-                targetDestination = "benchmark"
+                targetDestination = AstraDestination.Benchmark
             )
         }
     }
