@@ -38,11 +38,14 @@ import com.kevin.astra.presentation.overview.ProjectOverviewScreen
 import com.kevin.astra.presentation.overview.ProjectOverviewViewModel
 import com.kevin.astra.presentation.settings.SettingsScreen
 import com.kevin.astra.presentation.settings.SettingsViewModel
+import com.kevin.astra.domain.onboarding.OnboardingRepository
+import com.kevin.astra.presentation.onboarding.OnboardingScreen
 import com.kevin.astra.presentation.splash.SplashScreen
 
 @Composable
 fun AstraApp(
     navigator: AstraNavigator,
+    onboardingRepository: OnboardingRepository,
     dashboardViewModel: DashboardViewModel,
     demoViewModel: DemoViewModel,
     projectOverviewViewModel: ProjectOverviewViewModel,
@@ -82,7 +85,21 @@ fun AstraApp(
                     when (destination) {
                         AstraDestination.Splash -> SplashScreen(
                             contentPadding = contentPadding,
-                            onFinished = { navigator.navigateTo(AstraDestination.Dashboard) },
+                            onFinished = {
+                                if (onboardingRepository.isOnboardingCompleted()) {
+                                    navigator.navigateTo(AstraDestination.Dashboard)
+                                } else {
+                                    navigator.navigateTo(AstraDestination.Onboarding)
+                                }
+                            },
+                        )
+
+                        AstraDestination.Onboarding -> OnboardingScreen(
+                            contentPadding = contentPadding,
+                            onFinished = {
+                                onboardingRepository.markOnboardingCompleted()
+                                navigator.navigateTo(AstraDestination.Dashboard)
+                            },
                         )
 
                         AstraDestination.Dashboard -> DashboardScreen(

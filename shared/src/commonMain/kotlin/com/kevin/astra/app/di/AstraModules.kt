@@ -53,6 +53,7 @@ import com.kevin.astra.presentation.dashboard.DashboardViewModel
 import com.kevin.astra.presentation.demo.DemoViewModel
 import com.kevin.astra.presentation.documents.DocumentsViewModel
 import com.kevin.astra.presentation.history.ConversationHistoryViewModel
+import com.kevin.astra.domain.onboarding.OnboardingRepository
 import com.kevin.astra.presentation.overview.ProjectOverviewViewModel
 import com.kevin.astra.presentation.settings.SettingsViewModel
 import org.koin.core.KoinApplication
@@ -65,7 +66,9 @@ val astraRootModule = module {
     single<BackendCatalog> { createBackendCatalog() }
     single<DeviceCapabilityProvider> { createDeviceCapabilityProvider() }
     single { createNotificationService() }
-    single { AiConfigurationLocalDataSource(keyValueStore = createAiConfigurationKeyValueStore()) }
+    single { createAiConfigurationKeyValueStore() }
+    single { AiConfigurationLocalDataSource(keyValueStore = get()) }
+    single { OnboardingRepository(store = get()) }
     single<PromptBuilder> { DefaultPromptBuilder() }
     single<PromptPipeline> { DefaultPromptPipeline(promptBuilder = get()) }
     single<AiConfigurationRepository> { PersistentAiConfigurationRepository(localDataSource = get()) }

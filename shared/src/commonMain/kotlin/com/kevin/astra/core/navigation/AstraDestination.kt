@@ -13,6 +13,13 @@ sealed class AstraDestination(
         showsNavigationBar = false
     )
 
+    data object Onboarding : AstraDestination(
+        id = "onboarding",
+        label = "Onboarding",
+        shortLabel = "Welcome",
+        showsNavigationBar = false
+    )
+
     data object Dashboard : AstraDestination(
         id = "dashboard",
         label = "Dashboard",
@@ -75,7 +82,7 @@ sealed class AstraDestination(
 
     companion object {
         val all = listOf(
-            Splash, Dashboard, Demo, ProjectOverview,
+            Splash, Onboarding, Dashboard, Demo, ProjectOverview,
             Assistant, Documents, Benchmark, Settings, History, VoiceAssistant, VisionAssistant
         )
         
