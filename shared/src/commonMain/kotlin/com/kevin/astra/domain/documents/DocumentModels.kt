@@ -24,12 +24,14 @@ data class IndexedDocumentChunk(
     val documentId: String,
     val title: String,
     val content: String,
+    val pageHint: Int = 0,
 )
 
 enum class DocumentStatus(val label: String) {
     NotIndexed("Not Indexed"),
     Indexed("Indexed"),
     Processing("Processing"),
+    Error("Error"),
 }
 
 data class RetrievedDocumentContext(
@@ -37,6 +39,13 @@ data class RetrievedDocumentContext(
 ) {
     val text: String
         get() = chunks.joinToString(separator = "\n\n") { chunk ->
-            "${chunk.title}\n${chunk.content}"
+            if (chunk.pageHint > 0) "[Page ${chunk.pageHint}] ${chunk.content}"
+            else chunk.content
         }
 }
+
+data class LoadedPdfDocument(
+    val fileName: String,
+    val rawText: String,
+    val pageCount: Int,
+)
