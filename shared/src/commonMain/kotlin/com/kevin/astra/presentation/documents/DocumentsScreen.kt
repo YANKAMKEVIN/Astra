@@ -1,8 +1,10 @@
 package com.kevin.astra.presentation.documents
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -39,6 +42,7 @@ import com.kevin.astra.core.design.AstraMetricCard
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
+import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.domain.documents.DocumentStatus
 import com.kevin.astra.domain.documents.RetrievedDocumentContext
 
@@ -88,6 +92,15 @@ private fun DocumentsContent(
             onPickPdf = pdfLauncher,
             onClear = { onIntent(DocumentsIntent.ClearDocument) },
         )
+
+        if (state.availableModels.size > 1) {
+            RagModelSelector(
+                models = state.availableModels,
+                selectedModel = state.sessionModel,
+                enabled = !state.isGenerating && !state.isIndexing,
+                onSelectModel = { onIntent(DocumentsIntent.SelectSessionModel(it)) },
+            )
+        }
 
         AnimatedVisibility(visible = state.isLoading || state.isIndexing) {
             Column {
@@ -358,6 +371,38 @@ private fun MetricsPanel(metrics: DocumentsMetrics) {
             Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
                 AstraMetricCard(metrics.latency, "", "Latency", Modifier.weight(1f))
                 AstraMetricCard(metrics.tokensPerSecond, "", "Tokens/sec", Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RagModelSelector(
+    models: List<LocalModel>,
+    selectedModel: LocalModel?,
+    enabled: Boolean,
+    onSelectModel: (String) -> Unit,
+) {
+    AstraCard(
+        title = "Generation Model",
+        subtitle = "Model used to answer questions from retrieved context.",
+        status = selectedModel?.displayName ?: "—",
+    ) {
+        Spacer(Modifier.height(AstraSpacing.S))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+        ) {
+            models.forEach { model ->
+                val selected = model.id == selectedModel?.id
+                AstraChip(
+                    label = model.displayName,
+                    color = if (selected) AstraColors.Secondary else AstraColors.Border,
+                    modifier = Modifier
+                        .then(if (enabled) Modifier.clickable { onSelectModel(model.id) } else Modifier),
+                )
             }
         }
     }

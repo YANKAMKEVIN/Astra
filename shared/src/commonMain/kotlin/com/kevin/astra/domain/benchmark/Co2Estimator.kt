@@ -34,7 +34,7 @@ object Co2Estimator {
     /** Human-readable display string for milligrams: "12 mg" or "1.3 g". */
     fun display(mg: Double): String =
         if (mg < 1_000) "${mg.toInt()} mg CO₂"
-        else "${"%.2f".format(mg / 1_000.0)} g CO₂"
+        else "${(mg / 10.0).toInt() / 100.0} g CO₂"
 
     /** Savings percentage: how much less CO₂ on-device vs cloud (clamped 0–100). */
     fun savingsPercent(onDeviceMg: Double, cloudMg: Double): Int {

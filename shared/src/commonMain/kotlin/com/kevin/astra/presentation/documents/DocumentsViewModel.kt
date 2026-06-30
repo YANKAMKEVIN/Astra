@@ -31,7 +31,10 @@ class DocumentsViewModel(
     private val promptPipeline: PromptPipeline,
     private val notificationService: NotificationService,
 ) : AstraViewModel<DocumentsState, DocumentsIntent, DocumentsEffect>(
-    initialState = DocumentsState(),
+    initialState = DocumentsState(
+        availableModels = modelCatalog.installedModels(),
+        sessionModel = modelCatalog.currentModel(),
+    ),
 ) {
     override fun handleIntent(intent: DocumentsIntent) {
         when (intent) {
@@ -39,8 +42,14 @@ class DocumentsViewModel(
             DocumentsIntent.IndexDocument -> indexDocument()
             is DocumentsIntent.UpdateQuestion -> updateState { copy(question = intent.question, error = null) }
             DocumentsIntent.AskDocument -> askDocument()
-            DocumentsIntent.ClearDocument -> updateState { DocumentsState() }
+            DocumentsIntent.ClearDocument -> updateState {
+                DocumentsState(availableModels = availableModels, sessionModel = sessionModel)
+            }
             DocumentsIntent.ClearAnswer -> updateState { copy(answer = null, extractedContext = null, metrics = DocumentsMetrics(), error = null) }
+            is DocumentsIntent.SelectSessionModel -> {
+                val model = modelCatalog.modelById(intent.modelId) ?: return
+                updateState { copy(sessionModel = model) }
+            }
         }
     }
 
@@ -100,7 +109,9 @@ class DocumentsViewModel(
 
         viewModelScope.launch {
             val configuration = aiConfigurationRepository.getConfiguration()
-            val selectedModel = modelCatalog.modelById(configuration.selectedModelId) ?: modelCatalog.currentModel()
+            val selectedModel = snapshot.sessionModel
+                ?: modelCatalog.modelById(configuration.selectedModelId)
+                ?: modelCatalog.currentModel()
             val selectedBackend = backendCatalog.backendById(configuration.selectedBackendId) ?: backendCatalog.currentBackend()
 
             val context = withContext(Dispatchers.Default) {

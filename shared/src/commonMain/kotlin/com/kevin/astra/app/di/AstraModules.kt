@@ -16,8 +16,11 @@ import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.ai.createBackendCatalog
 import com.kevin.astra.data.benchmark.RuntimeBenchmarkRunner
 import com.kevin.astra.data.demo.StaticDemoScenarioCatalog
+import com.kevin.astra.data.documents.HybridContextRetriever
 import com.kevin.astra.data.documents.SmartTextChunker
 import com.kevin.astra.data.documents.TfIdfContextRetriever
+import com.kevin.astra.domain.documents.EmbeddingEngine
+import com.kevin.astra.domain.documents.createEmbeddingEngine
 import com.kevin.astra.data.history.DefaultConversationRepository
 import com.kevin.astra.data.history.createConversationFileStore
 import com.kevin.astra.data.settings.AiConfigurationLocalDataSource
@@ -79,8 +82,9 @@ val astraRootModule = module {
     single<ModelDownloadManager> { createModelDownloadManager() }
     single<ImageClassifier> { createImageClassifier() }
     single<PdfExtractor> { createPdfExtractor() }
+    single<EmbeddingEngine> { createEmbeddingEngine() }
     single { SmartTextChunker() }
-    single<DocumentContextRetriever> { TfIdfContextRetriever() }
+    single<DocumentContextRetriever> { HybridContextRetriever(embeddingEngine = get()) }
     single<ConversationRepository> { DefaultConversationRepository(fileStore = createConversationFileStore()) }
     single<ConversationShareHelper> { createConversationShareHelper() }
     single<SpeechRecognitionService> { createSpeechRecognitionService() }

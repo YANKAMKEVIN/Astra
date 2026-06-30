@@ -1,5 +1,6 @@
 package com.kevin.astra.presentation.documents
 
+import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.mvi.AstraEffect
 import com.kevin.astra.core.mvi.AstraIntent
 import com.kevin.astra.core.mvi.AstraState
@@ -20,6 +21,8 @@ data class DocumentsAnswer(
 )
 
 data class DocumentsState(
+    val availableModels: List<LocalModel> = emptyList(),
+    val sessionModel: LocalModel? = null,
     val loadedFileName: String? = null,
     val pageCount: Int = 0,
     val documentStatus: DocumentStatus = DocumentStatus.NotIndexed,
@@ -50,6 +53,7 @@ sealed interface DocumentsIntent : AstraIntent {
     data object AskDocument : DocumentsIntent
     data object ClearDocument : DocumentsIntent
     data object ClearAnswer : DocumentsIntent
+    data class SelectSessionModel(val modelId: String) : DocumentsIntent
 }
 
 sealed interface DocumentsEffect : AstraEffect
