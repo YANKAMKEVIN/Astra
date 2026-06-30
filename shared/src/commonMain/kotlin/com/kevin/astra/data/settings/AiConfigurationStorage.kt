@@ -33,6 +33,7 @@ class AiConfigurationLocalDataSource(
             contextWindow = keyValueStore.getInt(ContextWindowKey) ?: 4_096,
             quantization = keyValueStore.getString(QuantizationKey) ?: "4-bit",
             experimentalFeaturesEnabled = keyValueStore.getBoolean(ExperimentalFeaturesEnabledKey) ?: false,
+            demoModeEnabled = keyValueStore.getBoolean(DemoModeEnabledKey) ?: false,
         )
 
     fun saveConfiguration(configuration: AiConfiguration) {
@@ -44,6 +45,7 @@ class AiConfigurationLocalDataSource(
         keyValueStore.putInt(ContextWindowKey, configuration.contextWindow)
         keyValueStore.putString(QuantizationKey, configuration.quantization)
         keyValueStore.putBoolean(ExperimentalFeaturesEnabledKey, configuration.experimentalFeaturesEnabled)
+        keyValueStore.putBoolean(DemoModeEnabledKey, configuration.demoModeEnabled)
     }
 }
 
@@ -55,3 +57,4 @@ private const val MaxTokensKey = "ai.max_tokens"
 private const val ContextWindowKey = "ai.context_window"
 private const val QuantizationKey = "ai.quantization"
 private const val ExperimentalFeaturesEnabledKey = "ai.experimental_features_enabled"
+private const val DemoModeEnabledKey = "ai.demo_mode_enabled"

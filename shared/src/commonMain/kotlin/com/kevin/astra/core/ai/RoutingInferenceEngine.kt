@@ -7,6 +7,7 @@ class RoutingInferenceEngine(
     private val mockEngine: InferenceEngine,
     private val liteRtEngine: InferenceEngine,
     private val liteRtLmEngine: InferenceEngine,
+    private val isDemoMode: () -> Boolean = { com.kevin.astra.domain.settings.DemoModeHolder.isEnabled() },
 ) : InferenceEngine {
     override suspend fun generate(request: PromptRequest): GenerationResult =
         engineFor(request).generate(request)
@@ -14,8 +15,9 @@ class RoutingInferenceEngine(
     override fun generateStream(request: PromptRequest): Flow<StreamEvent> =
         engineFor(request).generateStream(request)
 
-    private fun engineFor(request: PromptRequest): InferenceEngine =
-        when (request.backend) {
+    private fun engineFor(request: PromptRequest): InferenceEngine {
+        if (isDemoMode()) return mockEngine
+        return when (request.backend) {
             InferenceBackend.Mock -> mockEngine
             InferenceBackend.LiteRt -> liteRtEngine
             InferenceBackend.LiteRtLm -> liteRtLmEngine
@@ -24,5 +26,6 @@ class RoutingInferenceEngine(
             InferenceBackend.LlamaCpp,
             -> mockEngine
         }
+    }
 }
 

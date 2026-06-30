@@ -118,6 +118,11 @@ class SettingsViewModel(
                 settingsScope.launch { aiConfigurationRepository.updateExperimentalFeaturesEnabled(intent.enabled) }
             }
 
+            is SettingsIntent.ToggleDemoMode -> {
+                updateState { copy(demoModeEnabled = intent.enabled) }
+                settingsScope.launch { aiConfigurationRepository.updateDemoModeEnabled(intent.enabled) }
+            }
+
             is SettingsIntent.DownloadModel -> {
                 val model = modelCatalog.modelById(intent.modelId) ?: return
                 val url = model.downloadUrl ?: run {
@@ -188,6 +193,7 @@ private fun AiConfiguration.toSettingsState(
         contextWindow = contextWindow,
         quantization = quantization,
         experimentalFeaturesEnabled = experimentalFeaturesEnabled,
+        demoModeEnabled = demoModeEnabled,
         downloadState = downloadState,
         storageUsageMb = storageUsageMb,
     )

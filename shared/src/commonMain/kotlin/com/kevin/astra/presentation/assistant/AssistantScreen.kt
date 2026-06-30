@@ -49,8 +49,10 @@ import com.kevin.astra.core.design.AstraMetricCard
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
+import com.kevin.astra.core.design.DemoModeBanner
 import com.kevin.astra.domain.assistant.PromptTemplate
 import com.kevin.astra.domain.demo.DemoScenario
+import com.kevin.astra.domain.settings.DemoModeHolder
 
 @Composable
 fun AssistantScreen(
@@ -79,11 +81,15 @@ private fun AssistantContent(
     contentPadding: PaddingValues,
     onIntent: (AssistantIntent) -> Unit,
 ) {
+    val isDemoMode by DemoModeHolder.enabled.collectAsStateWithLifecycle()
+
     AstraScreen(
         title = "ASTRA Assistant",
         description = "Secure Local AI for Critical Operations",
         contentPadding = contentPadding,
     ) {
+        if (isDemoMode) DemoModeBanner()
+
         if (state.installedModels.size > 1) {
             ModelSelector(
                 models = state.installedModels,

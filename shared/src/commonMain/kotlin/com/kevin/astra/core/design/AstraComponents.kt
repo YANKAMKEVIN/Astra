@@ -342,3 +342,22 @@ fun AstraNavigationBar(
         }
     }
 }
+
+@Composable
+fun DemoModeBanner(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(AstraColors.Warning.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
+            .border(1.dp, AstraColors.Warning.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = "⚡ OFFLINE DEMO MODE — responses are simulated",
+            style = AstraTypography.Caption,
+            color = AstraColors.Warning,
+            textAlign = TextAlign.Center,
+        )
+    }
+}

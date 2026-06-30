@@ -11,6 +11,7 @@ data class AiConfiguration(
     val contextWindow: Int = 4_096,
     val quantization: String = "4-bit",
     val experimentalFeaturesEnabled: Boolean = false,
+    val demoModeEnabled: Boolean = false,
 )
 
 const val DefaultSelectedModelId: String = "mock-model"

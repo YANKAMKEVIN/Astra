@@ -40,6 +40,8 @@ import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraColors
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
+import com.kevin.astra.core.design.DemoModeBanner
+import com.kevin.astra.domain.settings.DemoModeHolder
 
 @Composable
 fun VoiceAssistantScreen(
@@ -47,6 +49,7 @@ fun VoiceAssistantScreen(
     contentPadding: PaddingValues,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val isDemoMode by DemoModeHolder.enabled.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
@@ -57,6 +60,8 @@ fun VoiceAssistantScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(AstraSpacing.M),
     ) {
+        if (isDemoMode) DemoModeBanner()
+
         Spacer(Modifier.height(AstraSpacing.L))
 
         // Header

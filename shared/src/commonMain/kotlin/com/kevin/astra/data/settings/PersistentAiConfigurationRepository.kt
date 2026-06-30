@@ -3,6 +3,7 @@ package com.kevin.astra.data.settings
 import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.domain.settings.AiConfiguration
 import com.kevin.astra.domain.settings.AiConfigurationRepository
+import com.kevin.astra.domain.settings.DemoModeHolder
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,7 +11,9 @@ import kotlinx.coroutines.flow.asStateFlow
 class PersistentAiConfigurationRepository(
     private val localDataSource: AiConfigurationLocalDataSource,
 ) : AiConfigurationRepository {
-    private val mutableConfiguration = MutableStateFlow(localDataSource.loadConfiguration().normalized())
+    private val mutableConfiguration = MutableStateFlow(localDataSource.loadConfiguration().normalized()).also {
+        DemoModeHolder.set(it.value.demoModeEnabled)
+    }
 
     override fun observeConfiguration(): Flow<AiConfiguration> =
         mutableConfiguration.asStateFlow()
@@ -22,6 +25,7 @@ class PersistentAiConfigurationRepository(
         val normalized = configuration.normalized()
         localDataSource.saveConfiguration(normalized)
         mutableConfiguration.value = normalized
+        DemoModeHolder.set(normalized.demoModeEnabled)
     }
 
     override suspend fun updateSelectedModel(modelId: String) {
@@ -54,6 +58,10 @@ class PersistentAiConfigurationRepository(
 
     override suspend fun updateExperimentalFeaturesEnabled(enabled: Boolean) {
         updateConfiguration(mutableConfiguration.value.copy(experimentalFeaturesEnabled = enabled))
+    }
+
+    override suspend fun updateDemoModeEnabled(enabled: Boolean) {
+        updateConfiguration(mutableConfiguration.value.copy(demoModeEnabled = enabled))
     }
 }
 
