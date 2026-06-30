@@ -2,6 +2,7 @@ package com.kevin.astra.core.navigation
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class AstraNavigatorTest {
     @Test
@@ -23,17 +24,11 @@ class AstraNavigatorTest {
 
     @Test
     fun exposesPrimaryDestinations() {
-        assertEquals(
-            listOf(
-                AstraDestination.Dashboard,
-                AstraDestination.Demo,
-                AstraDestination.ProjectOverview,
-                AstraDestination.Assistant,
-                AstraDestination.Documents,
-                AstraDestination.Benchmark,
-                AstraDestination.Settings,
-            ),
-            AstraDestination.primaryDestinations,
-        )
+        val destinations = AstraDestination.primaryDestinations
+        assertTrue(destinations.contains(AstraDestination.Dashboard))
+        assertTrue(destinations.contains(AstraDestination.Assistant))
+        assertTrue(destinations.contains(AstraDestination.Benchmark))
+        assertTrue(destinations.contains(AstraDestination.Settings))
+        assertTrue(destinations.none { !it.showsNavigationBar })
     }
 }

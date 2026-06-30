@@ -16,6 +16,7 @@ import com.kevin.astra.domain.documents.DocumentContextRetriever
 import com.kevin.astra.domain.documents.DocumentStatus
 import com.kevin.astra.domain.documents.PdfExtractor
 import com.kevin.astra.domain.settings.AiConfigurationRepository
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -30,6 +31,7 @@ class DocumentsViewModel(
     private val backendCatalog: BackendCatalog,
     private val promptPipeline: PromptPipeline,
     private val notificationService: NotificationService,
+    private val workScope: CoroutineScope? = null,
 ) : AstraViewModel<DocumentsState, DocumentsIntent, DocumentsEffect>(
     initialState = DocumentsState(
         availableModels = modelCatalog.installedModels(),
@@ -54,7 +56,7 @@ class DocumentsViewModel(
     }
 
     private fun loadPdf(bytes: ByteArray, fileName: String) {
-        viewModelScope.launch {
+        (workScope ?: viewModelScope).launch {
             updateState { copy(isLoading = true, error = null, documentStatus = DocumentStatus.NotIndexed, indexedChunks = emptyList()) }
             try {
                 val pdf = withContext(Dispatchers.Default) { pdfExtractor.extract(bytes, fileName) }
@@ -80,7 +82,7 @@ class DocumentsViewModel(
 
     private fun indexDocument() {
         if (!state.value.canIndex) return
-        viewModelScope.launch { indexDocumentInternal(null, state.value.loadedFileName ?: return@launch) }
+        (workScope ?: viewModelScope).launch { indexDocumentInternal(null, state.value.loadedFileName ?: return@launch) }
     }
 
     private suspend fun indexDocumentInternal(bytes: ByteArray?, fileName: String) {
@@ -107,7 +109,7 @@ class DocumentsViewModel(
         val snapshot = state.value
         if (!snapshot.canAsk) return
 
-        viewModelScope.launch {
+        (workScope ?: viewModelScope).launch {
             val configuration = aiConfigurationRepository.getConfiguration()
             val selectedModel = snapshot.sessionModel
                 ?: modelCatalog.modelById(configuration.selectedModelId)

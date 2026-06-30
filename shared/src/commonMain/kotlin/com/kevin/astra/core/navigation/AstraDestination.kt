@@ -81,13 +81,15 @@ sealed class AstraDestination(
     )
 
     companion object {
-        val all = listOf(
-            Splash, Onboarding, Dashboard, Demo, ProjectOverview,
-            Assistant, Documents, Benchmark, Settings, History, VoiceAssistant, VisionAssistant
-        )
-        
-        val primaryDestinations = all.filter(AstraDestination::showsNavigationBar)
-        
+        val all: List<AstraDestination>
+            get() = listOf(
+                Splash, Onboarding, Dashboard, Demo, ProjectOverview,
+                Assistant, Documents, Benchmark, Settings, History, VoiceAssistant, VisionAssistant
+            )
+
+        val primaryDestinations: List<AstraDestination>
+            get() = all.filter { it.showsNavigationBar }
+
         fun fromId(id: String?): AstraDestination? = all.find { it.id == id }
     }
 }

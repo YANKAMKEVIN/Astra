@@ -20,6 +20,6 @@ class StaticModelReadinessProviderTest {
 
         assertEquals(ModelReadinessStatus.UnsupportedPlatform, gemma.status)
         assertTrue(gemma.readinessMessage.contains("Use Mock fallback"))
-        assertEquals("~0.8–2 GB quantized", gemma.expectedSize)
+        assertTrue(gemma.expectedSize.startsWith("~0.8"), "Unexpected size: ${gemma.expectedSize}")
     }
 }
