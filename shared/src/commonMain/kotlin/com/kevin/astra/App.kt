@@ -19,5 +19,6 @@ fun App() {
         documentsViewModel = koin.get(),
         settingsViewModel = koin.get(),
         historyViewModel = koin.get(),
+        voiceViewModel = koin.get(),
     )
 }

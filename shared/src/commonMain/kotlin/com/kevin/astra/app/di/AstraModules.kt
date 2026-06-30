@@ -32,6 +32,11 @@ import com.kevin.astra.domain.export.ConversationShareHelper
 import com.kevin.astra.domain.export.createConversationShareHelper
 import com.kevin.astra.domain.history.ConversationRepository
 import com.kevin.astra.domain.modelmanager.ModelDownloadManager
+import com.kevin.astra.domain.voice.SpeechRecognitionService
+import com.kevin.astra.domain.voice.TextToSpeechService
+import com.kevin.astra.domain.voice.createSpeechRecognitionService
+import com.kevin.astra.domain.voice.createTextToSpeechService
+import com.kevin.astra.presentation.voice.VoiceAssistantViewModel
 import com.kevin.astra.domain.modelmanager.ModelReadinessProvider
 import com.kevin.astra.domain.modelmanager.createModelDownloadManager
 import com.kevin.astra.domain.modelmanager.createModelReadinessProvider
@@ -64,6 +69,8 @@ val astraRootModule = module {
     single<ModelDownloadManager> { createModelDownloadManager() }
     single<ConversationRepository> { DefaultConversationRepository(fileStore = createConversationFileStore()) }
     single<ConversationShareHelper> { createConversationShareHelper() }
+    single<SpeechRecognitionService> { createSpeechRecognitionService() }
+    single<TextToSpeechService> { createTextToSpeechService() }
     single<DemoScenarioCatalog> { StaticDemoScenarioCatalog() }
     single<DocumentIndexer> { SimpleDocumentIndexer() }
     single<DocumentContextRetriever> { KeywordDocumentContextRetriever() }
@@ -136,6 +143,17 @@ val astraRootModule = module {
             backendCatalog = get(),
             modelReadinessProvider = get(),
             modelDownloadManager = get(),
+        )
+    }
+    single {
+        VoiceAssistantViewModel(
+            speechRecognitionService = get(),
+            textToSpeechService = get(),
+            askLocalAssistant = get(),
+            aiConfigurationRepository = get(),
+            modelCatalog = get(),
+            backendCatalog = get(),
+            promptPipeline = get(),
         )
     }
 }
