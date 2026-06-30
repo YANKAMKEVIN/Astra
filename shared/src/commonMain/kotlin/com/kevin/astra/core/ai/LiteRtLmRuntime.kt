@@ -1,5 +1,8 @@
 package com.kevin.astra.core.ai
 
+import com.kevin.astra.domain.assistant.StreamEvent
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlin.time.TimeSource
 
 data class LiteRtLmModelBundle(
@@ -87,6 +90,16 @@ class LiteRtLmInferenceEngine(
                     totalExecutionTimeMillis = totalMark.elapsedNow().inWholeMilliseconds,
                 )
             }
+        }
+    }
+
+    override fun generateStream(request: PromptRequest): Flow<StreamEvent> = flow {
+        try {
+            val result = generate(request)
+            emit(StreamEvent.Token(result.text))
+            emit(StreamEvent.Complete(result))
+        } catch (e: Exception) {
+            emit(StreamEvent.Error(e.message ?: "Generation failed"))
         }
     }
 

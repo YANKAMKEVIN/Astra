@@ -111,7 +111,7 @@ private fun AssistantContent(
             onIndustrySelected = { onIntent(AssistantIntent.SelectIndustry(it)) },
         )
 
-        AnimatedVisibility(visible = state.isGenerating) {
+        AnimatedVisibility(visible = state.isGenerating && !state.isStreaming) {
             LoadingCard()
         }
 
@@ -125,13 +125,21 @@ private fun AssistantContent(
             onClear = { onIntent(AssistantIntent.ClearConversation) },
         )
 
-        state.response?.let { response ->
-            AssistantResponseCard(
-                response = response,
-                timestamp = state.generationTimestamp.orEmpty(),
-                metrics = state.metrics,
-            )
-            MetricsPanel(metrics = state.metrics)
+        AnimatedVisibility(visible = state.isStreaming) {
+            StreamingResponseCard(text = state.streamingText)
+        }
+
+        AnimatedVisibility(visible = state.response != null && !state.isGenerating) {
+            state.response?.let { response ->
+                Column {
+                    AssistantResponseCard(
+                        response = response,
+                        timestamp = state.generationTimestamp.orEmpty(),
+                        metrics = state.metrics,
+                    )
+                    MetricsPanel(metrics = state.metrics)
+                }
+            }
         }
     }
 }
@@ -492,6 +500,34 @@ private fun AstraPulseIndicator() {
             .alpha(alpha)
             .background(AstraColors.Secondary, RoundedCornerShape(50)),
     )
+}
+
+@Composable
+private fun StreamingResponseCard(text: String) {
+    val transition = rememberInfiniteTransition(label = "cursor")
+    val cursorAlpha by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(tween(500), RepeatMode.Reverse),
+        label = "cursor-alpha",
+    )
+    AstraCard(title = "ASTRA is responding…", status = "STREAMING") {
+        Spacer(Modifier.height(AstraSpacing.M))
+        Row {
+            Text(
+                text = text,
+                style = AstraTypography.Body,
+                color = AstraColors.TextPrimary,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = "▌",
+                style = AstraTypography.Body,
+                color = AstraColors.Secondary,
+                modifier = Modifier.alpha(cursorAlpha),
+            )
+        }
+    }
 }
 
 @Composable
