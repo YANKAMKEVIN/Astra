@@ -31,8 +31,7 @@ class MockInferenceEngine(
     override fun generateStream(request: PromptRequest): Flow<StreamEvent> = flow {
         val fullText = buildResponse(request)
         val words = fullText.split(" ")
-        val startMs = kotlinx.coroutines.currentCoroutineContext()
-            .let { System.currentTimeMillis() }
+        val startMs = Clock.System.now().toEpochMilliseconds()
 
         words.forEachIndexed { index, word ->
             delay(streamDelayMs)
@@ -40,7 +39,7 @@ class MockInferenceEngine(
             emit(StreamEvent.Token(token))
         }
 
-        val elapsed = System.currentTimeMillis() - startMs
+        val elapsed = Clock.System.now().toEpochMilliseconds() - startMs
         val metrics = buildMetrics(request.industry)
         emit(
             StreamEvent.Complete(
