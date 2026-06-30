@@ -173,12 +173,41 @@ class AndroidLiteRtRuntimeSession(
 
 private const val DefaultLiteRtModelAssetPath = "models/astra-slm.tflite"
 private const val DefaultLiteRtLmModelAssetRoot = "models/litert-lm"
+private const val AstraModelsDir = "astra-models"
 
 class AndroidAssetLiteRtLmModelLoader(
     private val context: Context,
     private val assetRoot: String = DefaultLiteRtLmModelAssetRoot,
 ) : LiteRtLmModelLoader {
-    override suspend fun loadModel(request: PromptRequest): LiteRtLmModelLoadResult =
+    override suspend fun loadModel(request: PromptRequest): LiteRtLmModelLoadResult {
+        // Priorité 1 : modèle téléchargé dans filesDir (par modelId)
+        val filesDirResult = loadFromFilesDir(request)
+        if (filesDirResult is LiteRtLmModelLoadResult.Loaded) return filesDirResult
+
+        // Priorité 2 : modèle bundlé dans les assets
+        return loadFromAssets(request)
+    }
+
+    private fun loadFromFilesDir(request: PromptRequest): LiteRtLmModelLoadResult {
+        val modelDir = File(context.filesDir, "$AstraModelsDir/${request.model.filesystemId}")
+        if (!modelDir.exists()) return LiteRtLmModelLoadResult.Missing("No downloaded model for ${request.model.filesystemId}.")
+        val files = modelDir.listFiles() ?: return LiteRtLmModelLoadResult.Missing("Empty model directory.")
+        val modelFile = files.firstOrNull { it.name.endsWith(".litertlm") || it.name.endsWith(".task") }
+            ?: files.firstOrNull { it.name.endsWith(".tflite") || it.name.endsWith(".bin") }
+            ?: return LiteRtLmModelLoadResult.Missing("No model file found in ${modelDir.path}.")
+        return LiteRtLmModelLoadResult.Loaded(
+            LiteRtLmModelBundle(
+                id = request.model.filesystemId,
+                displayName = request.model.label,
+                rootPath = modelDir.absolutePath,
+                modelPath = modelFile.absolutePath,
+                sourceModelPath = modelFile.absolutePath,
+                sizeBytes = modelFile.length(),
+            ),
+        )
+    }
+
+    private fun loadFromAssets(request: PromptRequest): LiteRtLmModelLoadResult =
         try {
             val files = context.assets.list(assetRoot).orEmpty().toSet()
             val bundleFile = files.firstOrNull { it.endsWith(".task") || it.endsWith(".litertlm") }
@@ -189,23 +218,20 @@ class AndroidAssetLiteRtLmModelLoader(
 
             when {
                 files.isEmpty() -> LiteRtLmModelLoadResult.Missing(
-                    "No LiteRT-LM assets found under '$assetRoot'. Add a generative model bundle before selecting LiteRT-LM.",
+                    "No LiteRT-LM assets found under '$assetRoot'. Download a model or add a bundle via developer setup.",
                 )
-
                 modelFile == null -> LiteRtLmModelLoadResult.Missing(
                     "LiteRT-LM bundle under '$assetRoot' is missing a .task or .litertlm model bundle.",
                 )
-
                 bundleFile == null && tokenizerFile == null -> LiteRtLmModelLoadResult.Missing(
                     "LiteRT-LM bundle under '$assetRoot' is missing a tokenizer file.",
                 )
-
                 else -> {
                     val assetModelPath = "$assetRoot/$modelFile"
                     val localModelFile = copyAssetToCache(assetModelPath)
                     LiteRtLmModelLoadResult.Loaded(
                         LiteRtLmModelBundle(
-                            id = request.model.name.lowercase(),
+                            id = request.model.filesystemId,
                             displayName = request.model.label,
                             rootPath = assetRoot,
                             modelPath = localModelFile.absolutePath,

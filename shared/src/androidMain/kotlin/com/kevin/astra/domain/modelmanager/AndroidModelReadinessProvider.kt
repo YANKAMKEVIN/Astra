@@ -23,6 +23,7 @@ class AndroidModelReadinessProvider(
                 model.status == ModelStatus.Installed -> model.installedReadiness()
                 InferenceBackend.LiteRtLm in model.supportedBackends -> model.liteRtLmReadiness()
                 InferenceBackend.LiteRt in model.supportedBackends -> model.liteRtReadiness()
+                model.status == ModelStatus.DownloadRequired -> model.downloadableReadiness()
                 else -> model.comingSoonReadiness()
             }
         }
@@ -36,30 +37,59 @@ class AndroidModelReadinessProvider(
         )
 
     private fun LocalModel.liteRtLmReadiness(): ModelReadiness {
+        // Check filesDir first (downloaded models)
+        val filesDirModel = context?.let { ctx ->
+            val modelDir = java.io.File(ctx.filesDir, "astra-models/${runtimeModel.filesystemId}")
+            if (modelDir.exists()) {
+                modelDir.listFiles()?.firstOrNull { f ->
+                    f.name.endsWith(".litertlm") || f.name.endsWith(".task") || f.name.endsWith(".tflite")
+                }
+            } else null
+        }
+        if (filesDirModel != null) {
+            return baseReadiness(
+                requiredFiles = listOf(
+                    RequiredModelFile(filesDirModel.absolutePath, true, "Downloaded LiteRT-LM model bundle"),
+                ),
+                localPath = filesDirModel.parent ?: filesDirModel.absolutePath,
+                status = ModelReadinessStatus.Installed,
+                readinessMessage = "Downloaded model ready. Real on-device inference active when LiteRT-LM is selected.",
+            )
+        }
+
+        // Fall back to assets (bundled models, e.g. Gemma 3 1B)
         val root = "models/litert-lm"
         val files = context?.assets?.list(root).orEmpty().toSet()
         val bundlePresent = files.any { it.endsWith(".task") || it.endsWith(".litertlm") }
         val splitModelPresent = files.any { it.endsWith(".tflite") || it.endsWith(".bin") }
         val tokenizerPresent = files.any { it.endsWith(".model") || it.endsWith(".spm") || it.contains("tokenizer", ignoreCase = true) }
         val configPresent = files.any { it.endsWith(".json") }
+        val hasSupportedBundle = bundlePresent || (splitModelPresent && tokenizerPresent)
         val requiredFiles = listOf(
             RequiredModelFile("$root/gemma.task or $root/gemma.litertlm", bundlePresent, "LiteRT-LM generative model bundle"),
             RequiredModelFile("$root/model.tflite + tokenizer.model", splitModelPresent && tokenizerPresent, "Legacy split model/tokenizer fallback"),
             RequiredModelFile("$root/config.json", configPresent, "Optional runtime configuration"),
         )
-        val hasSupportedBundle = bundlePresent || (splitModelPresent && tokenizerPresent)
 
         return baseReadiness(
             requiredFiles = requiredFiles,
-            localPath = "shared/src/androidMain/assets/$root/",
-            status = if (hasSupportedBundle) ModelReadinessStatus.Installed else ModelReadinessStatus.MissingFiles,
+            localPath = "assets/$root/",
+            status = if (hasSupportedBundle) ModelReadinessStatus.Installed else ModelReadinessStatus.ModelRequired,
             readinessMessage = if (hasSupportedBundle) {
-                "LiteRT-LM bundle detected. Assistant can execute the real Android GenAI runtime when LiteRT-LM is selected."
+                "LiteRT-LM bundle detected in assets. Real on-device inference active when LiteRT-LM is selected."
             } else {
-                "Missing LiteRT-LM bundle. Add gemma.task or gemma.litertlm under $root, or use Mock fallback."
+                "No bundle in assets. Download this model or add the bundle manually."
             },
         )
     }
+
+    private fun LocalModel.downloadableReadiness(): ModelReadiness =
+        baseReadiness(
+            requiredFiles = emptyList(),
+            localPath = "Not downloaded",
+            status = ModelReadinessStatus.ModelRequired,
+            readinessMessage = "Download required. Tap Download in the Model Manager to install on-device.",
+        )
 
     private fun LocalModel.liteRtReadiness(): ModelReadiness {
         val path = "models/astra-slm.tflite"

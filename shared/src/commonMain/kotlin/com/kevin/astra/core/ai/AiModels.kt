@@ -1,11 +1,16 @@
 package com.kevin.astra.core.ai
 
-enum class AiModel(val label: String) {
-    Mock("Mock Model"),
-    Gemma("Gemma"),
-    Phi("Phi"),
-    Llama("Llama"),
-    Qwen("Qwen"),
+enum class AiModel(val label: String, val filesystemId: String) {
+    Mock("Mock Model", "mock-model"),
+    Gemma("Gemma", "gemma-3-1b"),
+    Gemma3_4B("Gemma 3 4B", "gemma-3-4b"),
+    Phi("Phi", "phi-3-mini"),
+    Phi4Mini("Phi-4 Mini", "phi-4-mini"),
+    Llama("Llama", "llama-3-2-3b"),
+    Llama3_2("Llama 3.2 1B", "llama-3-2-1b"),
+    Qwen("Qwen", "qwen-2-5-1-5b"),
+    Qwen3("Qwen3", "qwen3-1-7b"),
+    SmolLM("SmolLM2", "smollm2-360m"),
 }
 
 enum class ModelStatus(val label: String) {
@@ -20,6 +25,7 @@ enum class ModelProvider(val label: String) {
     Microsoft("Microsoft"),
     Meta("Meta"),
     Alibaba("Alibaba"),
+    HuggingFace("HuggingFace"),
     MistralAi("Mistral AI"),
     Mock("Mock"),
 }
@@ -35,6 +41,7 @@ data class LocalModel(
     val minimumMemoryMb: Int,
     val status: ModelStatus,
     val runtimeModel: AiModel,
+    val downloadUrl: String? = null,
 )
 
 interface ModelCatalog {
@@ -43,6 +50,7 @@ interface ModelCatalog {
     fun currentModel(): LocalModel
     fun selectModel(modelId: String): Boolean
     fun modelById(modelId: String): LocalModel?
+    fun updateModelStatus(modelId: String, status: ModelStatus): Boolean
 }
 
 enum class BackendStatus(val label: String) {

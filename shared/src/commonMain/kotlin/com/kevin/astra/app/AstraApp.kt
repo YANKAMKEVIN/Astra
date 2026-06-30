@@ -28,6 +28,8 @@ import com.kevin.astra.presentation.demo.DemoScreen
 import com.kevin.astra.presentation.demo.DemoViewModel
 import com.kevin.astra.presentation.documents.DocumentsScreen
 import com.kevin.astra.presentation.documents.DocumentsViewModel
+import com.kevin.astra.presentation.history.ConversationHistoryScreen
+import com.kevin.astra.presentation.history.ConversationHistoryViewModel
 import com.kevin.astra.presentation.overview.ProjectOverviewScreen
 import com.kevin.astra.presentation.overview.ProjectOverviewViewModel
 import com.kevin.astra.presentation.settings.SettingsScreen
@@ -44,6 +46,7 @@ fun AstraApp(
     benchmarkViewModel: BenchmarkViewModel,
     documentsViewModel: DocumentsViewModel,
     settingsViewModel: SettingsViewModel,
+    historyViewModel: ConversationHistoryViewModel,
 ) {
     val currentDestination by navigator.currentDestination.collectAsStateWithLifecycle()
 
@@ -103,6 +106,10 @@ fun AstraApp(
                         AstraDestination.Settings -> SettingsScreen(
                             contentPadding = contentPadding,
                             viewModel = settingsViewModel,
+                        )
+                        AstraDestination.History -> ConversationHistoryScreen(
+                            contentPadding = contentPadding,
+                            viewModel = historyViewModel,
                         )
                     }
                 }

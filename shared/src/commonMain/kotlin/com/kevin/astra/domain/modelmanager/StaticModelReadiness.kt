@@ -46,9 +46,14 @@ class StaticModelReadinessProvider(
 fun expectedSizeFor(modelId: String): String =
     when (modelId) {
         "mock-model" -> "Built-in"
-        "gemma-3-1b" -> "~0.8–2 GB quantized"
-        "phi-3-mini" -> "~2–4 GB quantized"
-        "llama-3-2-3b" -> "~2–4 GB quantized"
-        "qwen-2-5-1-5b" -> "~1–3 GB quantized"
+        "gemma-3-1b" -> "~0.8 GB"
+        "gemma-3-4b" -> "~2.5 GB"
+        "phi-4-mini" -> "~2.2 GB"
+        "phi-3-mini" -> "~2–4 GB"
+        "qwen3-1-7b" -> "~1.1 GB"
+        "qwen-2-5-1-5b" -> "~1–3 GB"
+        "smollm2-360m" -> "~230 MB"
+        "llama-3-2-1b" -> "~0.7 GB"
+        "llama-3-2-3b" -> "~2–4 GB"
         else -> "Unknown"
     }
