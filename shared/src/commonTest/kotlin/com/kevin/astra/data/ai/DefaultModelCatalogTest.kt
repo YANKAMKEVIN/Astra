@@ -14,13 +14,13 @@ class DefaultModelCatalogTest {
 
         val models = catalog.availableModels()
 
-        assertEquals(
-            listOf("Mock Model", "Gemma 3 1B", "Phi-3 Mini", "Llama 3.2 3B", "Qwen 2.5 1.5B"),
-            models.map { it.displayName },
-        )
+        assertEquals(10, models.size)
+        assertTrue(models.map { it.displayName }.containsAll(
+            listOf("Mock Model", "Gemma 3 1B", "Phi-3 Mini", "Llama 3.2 3B", "Qwen 2.5 1.5B")
+        ))
         assertEquals(listOf("mock-model"), catalog.installedModels().map { it.id })
         assertEquals(ModelProvider.Google, catalog.modelById("gemma-3-1b")?.provider)
-        assertTrue(models.drop(1).all { it.status == ModelStatus.Available })
+        assertTrue(models.drop(1).none { it.status == ModelStatus.Installed })
     }
 
     @Test

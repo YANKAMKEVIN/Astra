@@ -98,6 +98,10 @@ private fun SettingsContent(
             state = state,
             onIntent = onIntent,
         )
+        DemoModeCard(
+            enabled = state.demoModeEnabled,
+            onToggle = { onIntent(SettingsIntent.ToggleDemoMode(it)) },
+        )
         ExperimentalFeaturesCard(
             enabled = state.experimentalFeaturesEnabled,
             onToggle = { onIntent(SettingsIntent.ToggleExperimentalFeatures(it)) },
@@ -478,6 +482,36 @@ private fun InferenceParametersCard(
                     onClick = { onIntent(SettingsIntent.UpdateQuantization(quantization)) },
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun DemoModeCard(
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    AstraCard(
+        title = "Offline Demo Mode",
+        subtitle = "Forces all inference through the built-in mock engine — no model file required. Ideal for demos without a loaded model.",
+        status = if (enabled) "ACTIVE" else "OFF",
+    ) {
+        Spacer(Modifier.height(AstraSpacing.M))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AstraButton(
+                text = if (enabled) "Disable demo mode" else "Enable demo mode",
+                onClick = { onToggle(!enabled) },
+                modifier = Modifier.weight(1f),
+                style = if (enabled) AstraButtonStyle.Danger else AstraButtonStyle.Primary,
+            )
+            AstraChip(
+                label = if (enabled) "MOCK" else "REAL",
+                color = if (enabled) AstraColors.Warning else AstraColors.Success,
+            )
         }
     }
 }

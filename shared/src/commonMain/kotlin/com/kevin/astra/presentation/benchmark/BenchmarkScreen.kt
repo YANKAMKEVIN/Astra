@@ -47,6 +47,7 @@ import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
 import com.kevin.astra.domain.benchmark.BenchmarkResult
+import com.kevin.astra.domain.benchmark.Co2Estimator
 import com.kevin.astra.domain.demo.DemoScenario
 import com.kevin.astra.domain.evaluation.TaskEvaluationCriterion
 
@@ -133,6 +134,10 @@ private fun BenchmarkContent(
 
         if (state.results.size >= 2) {
             BenchmarkChartCard(results = state.results)
+        }
+
+        if (state.results.isNotEmpty()) {
+            Co2SummaryCard(results = state.results)
         }
 
         ResultsCard(
@@ -413,6 +418,14 @@ private fun BenchmarkResultRow(result: BenchmarkResult, recommended: Boolean) {
                     )
                 }
             }
+            // CO₂ metrics
+            val co2OnDevice = result.onDeviceCo2Mg
+            val co2Cloud = result.cloudEquivalentCo2Mg
+            val co2Savings = result.co2SavingsPercent
+            if (co2OnDevice != null || co2Cloud != null) {
+                Co2MetricsRow(onDeviceMg = co2OnDevice, cloudMg = co2Cloud, savingsPercent = co2Savings)
+            }
+
             TaskEvaluationBreakdown(result = result)
             result.runtimeInfo.fallbackReason?.let { reason ->
                 AstraErrorView(
@@ -420,6 +433,78 @@ private fun BenchmarkResultRow(result: BenchmarkResult, recommended: Boolean) {
                     message = "Selected: ${result.selectedBackend.label} → Used: ${result.usedBackend.label}\n$reason",
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun Co2SummaryCard(results: List<BenchmarkResult>) {
+    val totalOnDeviceMg = results.mapNotNull { it.onDeviceCo2Mg }.sum()
+    val totalCloudMg = results.mapNotNull { it.cloudEquivalentCo2Mg }.sum()
+    if (totalOnDeviceMg == 0.0 && totalCloudMg == 0.0) return
+
+    val savingsPercent = Co2Estimator.savingsPercent(totalOnDeviceMg, totalCloudMg)
+
+    AstraCard(
+        title = "Carbon Impact",
+        subtitle = "Estimated CO₂ for this benchmark session vs equivalent cloud inference.",
+        status = if (savingsPercent > 0) "−$savingsPercent% CO₂" else "N/A",
+    ) {
+        Spacer(Modifier.height(AstraSpacing.M))
+        Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+            AstraMetricCard(
+                value = Co2Estimator.display(totalOnDeviceMg).substringBefore(" "),
+                unit = if (totalOnDeviceMg < 1_000) "mg CO₂" else "g CO₂",
+                label = "On-device total",
+                modifier = Modifier.weight(1f),
+            )
+            AstraMetricCard(
+                value = Co2Estimator.display(totalCloudMg).substringBefore(" "),
+                unit = if (totalCloudMg < 1_000) "mg CO₂" else "g CO₂",
+                label = "Cloud equiv.",
+                modifier = Modifier.weight(1f),
+            )
+        }
+        if (savingsPercent > 0) {
+            Spacer(Modifier.height(AstraSpacing.S))
+            Text(
+                text = "Running ASTRA on-device saved an estimated $savingsPercent% of the CO₂ that equivalent cloud inference would have produced.",
+                style = AstraTypography.Caption,
+                color = AstraColors.TextSecondary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun Co2MetricsRow(
+    onDeviceMg: Double?,
+    cloudMg: Double?,
+    savingsPercent: Int?,
+) {
+    Spacer(Modifier.height(AstraSpacing.S))
+    Text("Carbon Footprint", style = AstraTypography.Caption, color = AstraColors.TextSecondary)
+    Spacer(Modifier.height(AstraSpacing.S))
+    Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+        AstraMetricCard(
+            value = onDeviceMg?.let { Co2Estimator.display(it).substringBefore(" ") } ?: "N/A",
+            unit = onDeviceMg?.let { if (it < 1_000) "mg CO₂" else "g CO₂" } ?: "",
+            label = "On-device",
+            modifier = Modifier.weight(1f),
+        )
+        AstraMetricCard(
+            value = cloudMg?.let { Co2Estimator.display(it).substringBefore(" ") } ?: "N/A",
+            unit = cloudMg?.let { if (it < 1_000) "mg CO₂" else "g CO₂" } ?: "",
+            label = "Cloud equiv.",
+            modifier = Modifier.weight(1f),
+        )
+        if (savingsPercent != null) {
+            AstraMetricCard(
+                value = "$savingsPercent",
+                unit = "%",
+                label = "CO₂ saved",
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }

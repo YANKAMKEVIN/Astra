@@ -67,6 +67,20 @@ class PersistentAiConfigurationRepositoryTest {
     }
 
     @Test
+    fun persistsDemoModeEnabledFlag() = runBlocking {
+        val keyValueStore = TestAiConfigurationKeyValueStore()
+        val repository = testAiConfigurationRepository(keyValueStore)
+
+        assertFalse(repository.getConfiguration().demoModeEnabled)
+
+        repository.updateDemoModeEnabled(true)
+        assertTrue(repository.getConfiguration().demoModeEnabled)
+
+        val recreated = testAiConfigurationRepository(keyValueStore)
+        assertTrue(recreated.getConfiguration().demoModeEnabled)
+    }
+
+    @Test
     fun clampsInferenceParametersBeforePersisting() = runBlocking {
         val repository = testAiConfigurationRepository()
 

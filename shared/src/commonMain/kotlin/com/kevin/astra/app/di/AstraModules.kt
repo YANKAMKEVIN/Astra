@@ -16,8 +16,11 @@ import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.ai.createBackendCatalog
 import com.kevin.astra.data.benchmark.RuntimeBenchmarkRunner
 import com.kevin.astra.data.demo.StaticDemoScenarioCatalog
+import com.kevin.astra.data.documents.HybridContextRetriever
 import com.kevin.astra.data.documents.SmartTextChunker
 import com.kevin.astra.data.documents.TfIdfContextRetriever
+import com.kevin.astra.domain.documents.EmbeddingEngine
+import com.kevin.astra.domain.documents.createEmbeddingEngine
 import com.kevin.astra.data.history.DefaultConversationRepository
 import com.kevin.astra.data.history.createConversationFileStore
 import com.kevin.astra.data.settings.AiConfigurationLocalDataSource
@@ -49,10 +52,10 @@ import com.kevin.astra.domain.modelmanager.createModelReadinessProvider
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import com.kevin.astra.presentation.assistant.AssistantViewModel
 import com.kevin.astra.presentation.benchmark.BenchmarkViewModel
-import com.kevin.astra.presentation.dashboard.DashboardViewModel
 import com.kevin.astra.presentation.demo.DemoViewModel
 import com.kevin.astra.presentation.documents.DocumentsViewModel
 import com.kevin.astra.presentation.history.ConversationHistoryViewModel
+import com.kevin.astra.domain.onboarding.OnboardingRepository
 import com.kevin.astra.presentation.overview.ProjectOverviewViewModel
 import com.kevin.astra.presentation.settings.SettingsViewModel
 import org.koin.core.KoinApplication
@@ -61,11 +64,16 @@ import org.koin.dsl.module
 
 val astraRootModule = module {
     single { AstraNavigator() }
-    single<ModelCatalog> { DefaultModelCatalog() }
+    single<ModelCatalog> {
+        val preInstalled = get<ModelDownloadManager>().getInstalledModelPaths().keys
+        DefaultModelCatalog(preInstalledIds = preInstalled)
+    }
     single<BackendCatalog> { createBackendCatalog() }
     single<DeviceCapabilityProvider> { createDeviceCapabilityProvider() }
     single { createNotificationService() }
-    single { AiConfigurationLocalDataSource(keyValueStore = createAiConfigurationKeyValueStore()) }
+    single { createAiConfigurationKeyValueStore() }
+    single { AiConfigurationLocalDataSource(keyValueStore = get()) }
+    single { OnboardingRepository(store = get()) }
     single<PromptBuilder> { DefaultPromptBuilder() }
     single<PromptPipeline> { DefaultPromptPipeline(promptBuilder = get()) }
     single<AiConfigurationRepository> { PersistentAiConfigurationRepository(localDataSource = get()) }
@@ -76,15 +84,15 @@ val astraRootModule = module {
     single<ModelDownloadManager> { createModelDownloadManager() }
     single<ImageClassifier> { createImageClassifier() }
     single<PdfExtractor> { createPdfExtractor() }
+    single<EmbeddingEngine> { createEmbeddingEngine() }
     single { SmartTextChunker() }
-    single<DocumentContextRetriever> { TfIdfContextRetriever() }
+    single<DocumentContextRetriever> { HybridContextRetriever(embeddingEngine = get()) }
     single<ConversationRepository> { DefaultConversationRepository(fileStore = createConversationFileStore()) }
     single<ConversationShareHelper> { createConversationShareHelper() }
     single<SpeechRecognitionService> { createSpeechRecognitionService() }
     single<TextToSpeechService> { createTextToSpeechService() }
     single<DemoScenarioCatalog> { StaticDemoScenarioCatalog() }
     single { AskLocalAssistantUseCase(inferenceEngine = get()) }
-    single { DashboardViewModel(deviceCapabilityProvider = get()) }
     single {
         DemoViewModel(
             deviceCapabilityProvider = get(),
@@ -165,6 +173,7 @@ val astraRootModule = module {
             modelCatalog = get(),
             backendCatalog = get(),
             promptPipeline = get(),
+            conversationRepository = get(),
         )
     }
     single {
@@ -175,6 +184,8 @@ val astraRootModule = module {
             modelCatalog = get(),
             backendCatalog = get(),
             promptPipeline = get(),
+            conversationRepository = get(),
+            shareHelper = get(),
         )
     }
 }

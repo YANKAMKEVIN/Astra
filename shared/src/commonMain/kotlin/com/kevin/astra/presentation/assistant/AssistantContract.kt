@@ -54,6 +54,7 @@ data class AssistantResponse(
 data class AssistantState(
     val selectedIndustry: AssistantIndustry = AssistantIndustry.IndustrialMaintenance,
     val question: String = "",
+    val streamingText: String = "",
     val response: AssistantResponse? = null,
     val isGenerating: Boolean = false,
     val generationTimestamp: String? = null,
@@ -67,6 +68,9 @@ data class AssistantState(
 ) : AstraState {
     val canAsk: Boolean
         get() = question.isNotBlank() && !isGenerating
+
+    val isStreaming: Boolean
+        get() = isGenerating && streamingText.isNotEmpty()
 }
 
 sealed interface AssistantIntent : AstraIntent {

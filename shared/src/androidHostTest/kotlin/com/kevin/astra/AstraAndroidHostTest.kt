@@ -8,8 +8,8 @@ import kotlin.test.assertEquals
 class AstraAndroidHostTest {
     @Test
     fun navigatorStateIsAvailableOnAndroid() {
-        val navigator = AstraNavigator(AstraDestination.Dashboard)
+        val navigator = AstraNavigator(AstraDestination.ProjectOverview)
 
-        assertEquals(AstraDestination.Dashboard, navigator.currentDestination.value)
+        assertEquals(AstraDestination.ProjectOverview, navigator.currentDestination.value)
     }
 }

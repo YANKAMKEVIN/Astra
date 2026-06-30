@@ -41,7 +41,7 @@ class ProjectOverviewViewModelTest {
             assertEquals("Mock Model", state.selectedModel?.displayName)
             assertEquals("Mock Engine", state.currentRuntime)
             assertEquals(1, state.installedModels.size)
-            assertEquals(5, state.availableModels.size)
+            assertEquals(10, state.availableModels.size)
             assertTrue(state.architectureItems.any { it.title == "RoutingInferenceEngine" })
             assertTrue("Model Manager" in state.aiFeatures)
             assertTrue(state.documentationLinks.any { it.path == "docs/03_Platform_Architecture.md" })

@@ -22,8 +22,6 @@ import com.kevin.astra.presentation.assistant.AssistantScreen
 import com.kevin.astra.presentation.assistant.AssistantViewModel
 import com.kevin.astra.presentation.benchmark.BenchmarkScreen
 import com.kevin.astra.presentation.benchmark.BenchmarkViewModel
-import com.kevin.astra.presentation.dashboard.DashboardScreen
-import com.kevin.astra.presentation.dashboard.DashboardViewModel
 import com.kevin.astra.presentation.demo.DemoScreen
 import com.kevin.astra.presentation.demo.DemoViewModel
 import com.kevin.astra.presentation.documents.DocumentsScreen
@@ -38,12 +36,14 @@ import com.kevin.astra.presentation.overview.ProjectOverviewScreen
 import com.kevin.astra.presentation.overview.ProjectOverviewViewModel
 import com.kevin.astra.presentation.settings.SettingsScreen
 import com.kevin.astra.presentation.settings.SettingsViewModel
+import com.kevin.astra.domain.onboarding.OnboardingRepository
+import com.kevin.astra.presentation.onboarding.OnboardingScreen
 import com.kevin.astra.presentation.splash.SplashScreen
 
 @Composable
 fun AstraApp(
     navigator: AstraNavigator,
-    dashboardViewModel: DashboardViewModel,
+    onboardingRepository: OnboardingRepository,
     demoViewModel: DemoViewModel,
     projectOverviewViewModel: ProjectOverviewViewModel,
     assistantViewModel: AssistantViewModel,
@@ -82,13 +82,23 @@ fun AstraApp(
                     when (destination) {
                         AstraDestination.Splash -> SplashScreen(
                             contentPadding = contentPadding,
-                            onFinished = { navigator.navigateTo(AstraDestination.Dashboard) },
+                            onFinished = {
+                                if (onboardingRepository.isOnboardingCompleted()) {
+                                    navigator.navigateTo(AstraDestination.ProjectOverview)
+                                } else {
+                                    navigator.navigateTo(AstraDestination.Onboarding)
+                                }
+                            },
                         )
 
-                        AstraDestination.Dashboard -> DashboardScreen(
+                        AstraDestination.Onboarding -> OnboardingScreen(
                             contentPadding = contentPadding,
-                            viewModel = dashboardViewModel,
+                            onFinished = {
+                                onboardingRepository.markOnboardingCompleted()
+                                navigator.navigateTo(AstraDestination.ProjectOverview)
+                            },
                         )
+
                         AstraDestination.Demo -> DemoScreen(
                             contentPadding = contentPadding,
                             viewModel = demoViewModel,

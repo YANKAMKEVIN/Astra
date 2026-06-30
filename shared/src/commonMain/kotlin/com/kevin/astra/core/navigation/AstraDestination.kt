@@ -13,10 +13,11 @@ sealed class AstraDestination(
         showsNavigationBar = false
     )
 
-    data object Dashboard : AstraDestination(
-        id = "dashboard",
-        label = "Dashboard",
-        shortLabel = "Home"
+    data object Onboarding : AstraDestination(
+        id = "onboarding",
+        label = "Onboarding",
+        shortLabel = "Welcome",
+        showsNavigationBar = false
     )
 
     data object Demo : AstraDestination(
@@ -27,8 +28,8 @@ sealed class AstraDestination(
 
     data object ProjectOverview : AstraDestination(
         id = "overview",
-        label = "Project Overview",
-        shortLabel = "Overview"
+        label = "Home",
+        shortLabel = "Home"
     )
 
     data object Assistant : AstraDestination(
@@ -74,13 +75,15 @@ sealed class AstraDestination(
     )
 
     companion object {
-        val all = listOf(
-            Splash, Dashboard, Demo, ProjectOverview,
-            Assistant, Documents, Benchmark, Settings, History, VoiceAssistant, VisionAssistant
-        )
-        
-        val primaryDestinations = all.filter(AstraDestination::showsNavigationBar)
-        
+        val all: List<AstraDestination>
+            get() = listOf(
+                Splash, Onboarding, Demo, ProjectOverview,
+                Assistant, Documents, Benchmark, Settings, History, VoiceAssistant, VisionAssistant
+            )
+
+        val primaryDestinations: List<AstraDestination>
+            get() = all.filter { it.showsNavigationBar }
+
         fun fromId(id: String?): AstraDestination? = all.find { it.id == id }
     }
 }

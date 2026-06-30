@@ -7,7 +7,7 @@ import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.ai.ModelProvider
 import com.kevin.astra.core.ai.ModelStatus
 
-class DefaultModelCatalog : ModelCatalog {
+class DefaultModelCatalog(preInstalledIds: Set<String> = emptySet()) : ModelCatalog {
     private val baseModels = listOf(
         LocalModel(
             id = "mock-model",
@@ -137,7 +137,11 @@ class DefaultModelCatalog : ModelCatalog {
         ),
     )
 
-    private val statusOverrides = mutableMapOf<String, ModelStatus>()
+    private val statusOverrides = mutableMapOf<String, ModelStatus>().apply {
+        preInstalledIds
+            .filter { id -> baseModels.any { it.id == id && it.status != ModelStatus.Installed } }
+            .forEach { id -> put(id, ModelStatus.Installed) }
+    }
     private var currentModelId: String = baseModels.first { it.status == ModelStatus.Installed }.id
 
     override fun availableModels(): List<LocalModel> =

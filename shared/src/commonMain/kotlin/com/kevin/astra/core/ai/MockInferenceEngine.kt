@@ -1,11 +1,15 @@
 package com.kevin.astra.core.ai
 
+import com.kevin.astra.domain.assistant.StreamEvent
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 class MockInferenceEngine(
     private val timestampProvider: () -> String = ::currentGenerationTimestamp,
+    private val streamDelayMs: Long = 40L,
 ) : InferenceEngine {
     override suspend fun generate(request: PromptRequest): GenerationResult {
         delay(1_000)
@@ -20,6 +24,37 @@ class MockInferenceEngine(
                 mode = RuntimeMode.Simulated,
                 inferenceLatencyMillis = 1_200,
                 totalExecutionTimeMillis = 1_200,
+            ),
+        )
+    }
+
+    override fun generateStream(request: PromptRequest): Flow<StreamEvent> = flow {
+        val fullText = buildResponse(request)
+        val words = fullText.split(" ")
+        val startMs = Clock.System.now().toEpochMilliseconds()
+
+        words.forEachIndexed { index, word ->
+            delay(streamDelayMs)
+            val token = if (index == 0) word else " $word"
+            emit(StreamEvent.Token(token))
+        }
+
+        val elapsed = Clock.System.now().toEpochMilliseconds() - startMs
+        val metrics = buildMetrics(request.industry)
+        emit(
+            StreamEvent.Complete(
+                GenerationResult(
+                    text = fullText,
+                    metrics = metrics.copy(latencyMillis = elapsed),
+                    model = request.model,
+                    backend = request.backend,
+                    generatedAt = timestampProvider(),
+                    runtimeInfo = GenerationRuntimeInfo(
+                        mode = RuntimeMode.Simulated,
+                        inferenceLatencyMillis = elapsed,
+                        totalExecutionTimeMillis = elapsed,
+                    ),
+                ),
             ),
         )
     }

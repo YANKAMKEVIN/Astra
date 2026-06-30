@@ -12,12 +12,20 @@ import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
+import com.kevin.astra.core.navigation.AstraDestination
+import com.kevin.astra.core.notification.NotificationService
 import com.kevin.astra.data.demo.StaticDemoScenarioCatalog
 import com.kevin.astra.data.settings.testAiConfigurationRepository
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
+import com.kevin.astra.domain.assistant.StreamEvent
+import com.kevin.astra.domain.history.ChatConversation
+import com.kevin.astra.domain.history.ConversationRepository
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import kotlin.test.Test
@@ -37,16 +45,17 @@ class AssistantViewModelTest {
             backendCatalog = DefaultBackendCatalog(),
             promptPipeline = testPromptPipeline(),
             demoScenarioCatalog = StaticDemoScenarioCatalog(),
+            notificationService = NoOpNotificationService(),
+            conversationRepository = NoOpConversationRepository(),
         )
 
         val state = viewModel.state.value
 
         assertEquals(AssistantIndustry.IndustrialMaintenance, state.selectedIndustry)
-        assertEquals("Mock Model", state.metrics.model)
-        assertEquals("Mock Engine", state.metrics.backend)
-        assertEquals("Simulated Local Inference", state.metrics.runtimeMode)
-        assertEquals("1.2 s", state.metrics.latency)
-        assertEquals("18", state.metrics.tokensPerSecond)
+        assertEquals("—", state.metrics.model)
+        assertEquals("—", state.metrics.latency)
+        assertEquals("—", state.metrics.tokensPerSecond)
+        assertTrue(state.availableScenarios.isNotEmpty())
         assertFalse(state.canAsk)
     }
 
@@ -59,6 +68,8 @@ class AssistantViewModelTest {
             backendCatalog = DefaultBackendCatalog(),
             promptPipeline = testPromptPipeline(),
             demoScenarioCatalog = StaticDemoScenarioCatalog(),
+            notificationService = NoOpNotificationService(),
+            conversationRepository = NoOpConversationRepository(),
         )
 
         viewModel.dispatch(AssistantIntent.SelectIndustry(AssistantIndustry.Energy))
@@ -81,6 +92,8 @@ class AssistantViewModelTest {
             backendCatalog = DefaultBackendCatalog(),
             promptPipeline = testPromptPipeline(),
             demoScenarioCatalog = catalog,
+            notificationService = NoOpNotificationService(),
+            conversationRepository = NoOpConversationRepository(),
         )
 
         viewModel.dispatch(AssistantIntent.SelectScenario(scenario))
@@ -102,6 +115,8 @@ class AssistantViewModelTest {
             backendCatalog = DefaultBackendCatalog(),
             promptPipeline = testPromptPipeline(),
             demoScenarioCatalog = StaticDemoScenarioCatalog(),
+            notificationService = NoOpNotificationService(),
+            conversationRepository = NoOpConversationRepository(),
             generationScope = CoroutineScope(coroutineContext),
         )
 
@@ -135,12 +150,15 @@ class AssistantViewModelTest {
             backendCatalog = DefaultBackendCatalog(),
             promptPipeline = testPromptPipeline(),
             demoScenarioCatalog = StaticDemoScenarioCatalog(),
+            notificationService = NoOpNotificationService(),
+            conversationRepository = NoOpConversationRepository(),
             generationScope = CoroutineScope(coroutineContext),
         )
 
         viewModel.dispatch(AssistantIntent.UpdateQuestion("Restart Pump A"))
         viewModel.dispatch(AssistantIntent.AskQuestion)
-        delay(20)
+        yield()
+        delay(200)
 
         assertNotNull(viewModel.state.value.response)
 
@@ -165,10 +183,11 @@ class AssistantViewModelTest {
         }
         val useCase = AskLocalAssistantUseCase(
             inferenceEngine = object : InferenceEngine {
-                override suspend fun generate(request: PromptRequest): GenerationResult {
+                override fun generateStream(request: PromptRequest): Flow<StreamEvent> = flow {
                     capturedRequest = request
-                    return testGenerationResult(request)
+                    emit(StreamEvent.Complete(testGenerationResult(request)))
                 }
+                override suspend fun generate(request: PromptRequest): GenerationResult = testGenerationResult(request)
             },
         )
         val viewModel = AssistantViewModel(
@@ -178,6 +197,8 @@ class AssistantViewModelTest {
             backendCatalog = DefaultBackendCatalog(),
             promptPipeline = testPromptPipeline(),
             demoScenarioCatalog = StaticDemoScenarioCatalog(),
+            notificationService = NoOpNotificationService(),
+            conversationRepository = NoOpConversationRepository(),
             generationScope = CoroutineScope(coroutineContext),
         )
 
@@ -198,6 +219,10 @@ class AssistantViewModelTest {
     private fun testUseCase(): AskLocalAssistantUseCase =
         AskLocalAssistantUseCase(
             inferenceEngine = object : InferenceEngine {
+                override fun generateStream(request: PromptRequest): Flow<StreamEvent> = flow {
+                    delay(10)
+                    emit(StreamEvent.Complete(testGenerationResult(request)))
+                }
                 override suspend fun generate(request: PromptRequest): GenerationResult {
                     delay(10)
                     return testGenerationResult(request)
@@ -225,4 +250,16 @@ class AssistantViewModelTest {
             backend = request.backend,
             generatedAt = "2026-06-26T10:15:30Z",
         )
+}
+
+private class NoOpNotificationService : NotificationService {
+    override fun showNotification(title: String, message: String, targetDestination: AstraDestination?) = Unit
+}
+
+private class NoOpConversationRepository : ConversationRepository {
+    override fun save(conversation: ChatConversation) = Unit
+    override fun getAll(): List<ChatConversation> = emptyList()
+    override fun getById(id: String): ChatConversation? = null
+    override fun delete(id: String): Boolean = false
+    override fun search(query: String): List<ChatConversation> = emptyList()
 }

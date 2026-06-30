@@ -9,7 +9,10 @@ import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.core.ai.RuntimeMode
 import com.kevin.astra.data.ai.DefaultModelCatalog
+import com.kevin.astra.domain.assistant.StreamEvent
 import com.kevin.astra.domain.benchmark.BenchmarkRequest
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -32,7 +35,7 @@ class RuntimeBenchmarkRunnerTest {
         )
 
         assertEquals(3, report.results.size)
-        assertEquals(listOf("mock-model", "gemma-3-1b", "phi-3-mini"), report.results.map { it.model.id })
+        assertEquals(listOf("mock-model", "gemma-3-1b", "gemma-3-4b"), report.results.map { it.model.id })
         assertTrue(report.results.all { it.selectedBackend == InferenceBackend.Mock })
         assertTrue(report.results.all { it.usedBackend == InferenceBackend.Mock })
         assertTrue(report.results.all { it.latencyMillis == 900L })
@@ -61,6 +64,7 @@ class RuntimeBenchmarkRunnerTest {
 
     private fun testInferenceEngine(): InferenceEngine =
         object : InferenceEngine {
+            override fun generateStream(request: PromptRequest): Flow<StreamEvent> = emptyFlow()
             override suspend fun generate(request: PromptRequest): GenerationResult =
                 GenerationResult(
                     text = """

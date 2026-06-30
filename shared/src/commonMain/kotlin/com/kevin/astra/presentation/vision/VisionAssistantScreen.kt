@@ -38,6 +38,8 @@ import com.kevin.astra.core.design.AstraColors
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
+import com.kevin.astra.core.design.DemoModeBanner
+import com.kevin.astra.domain.settings.DemoModeHolder
 import com.kevin.astra.domain.vision.ImageClassificationResult
 
 @Composable
@@ -46,6 +48,7 @@ fun VisionAssistantScreen(
     contentPadding: PaddingValues,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val isDemoMode by DemoModeHolder.enabled.collectAsStateWithLifecycle()
     val captureLauncher = rememberImageCaptureLauncher { bytes ->
         viewModel.dispatch(VisionAssistantIntent.PhotoCaptured(bytes))
     }
@@ -56,6 +59,7 @@ fun VisionAssistantScreen(
         contentPadding = contentPadding,
         showDemoIndicator = false,
     ) {
+        if (isDemoMode) DemoModeBanner()
         // Mock classifier warning
         if (!state.classifierAvailable) {
             MockWarningBanner()
@@ -130,6 +134,11 @@ fun VisionAssistantScreen(
                     color = AstraColors.TextPrimary,
                 )
             }
+            AstraButton(
+                text = "Export",
+                onClick = { viewModel.dispatch(VisionAssistantIntent.ExportResponse) },
+                style = AstraButtonStyle.Ghost,
+            )
         }
 
         // Error

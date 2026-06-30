@@ -47,10 +47,10 @@ class AndroidModelDownloadManager(
         _downloadState.value = ModelDownloadState.Downloading(request.modelId, 0, 0f, 0f)
 
         activeJob = scope.launch {
+            val destDir = File(context.filesDir, "astra-models/${request.modelId}").apply { mkdirs() }
+            val destFile = File(destDir, request.fileName)
+            val tmpFile = File(destDir, "${request.fileName}.tmp")
             try {
-                val destDir = File(context.filesDir, "astra-models/${request.modelId}").apply { mkdirs() }
-                val destFile = File(destDir, request.fileName)
-
                 val connection = URL(request.url).openConnection() as HttpURLConnection
                 connection.connectTimeout = 15_000
                 connection.readTimeout = 60_000
@@ -60,7 +60,7 @@ class AndroidModelDownloadManager(
                 var downloadedBytes = 0L
 
                 connection.inputStream.buffered(65_536).use { input ->
-                    destFile.outputStream().use { output ->
+                    tmpFile.outputStream().use { output ->
                         val buffer = ByteArray(65_536)
                         var read: Int
                         while (input.read(buffer).also { read = it } != -1) {
@@ -77,12 +77,15 @@ class AndroidModelDownloadManager(
                     }
                 }
 
+                tmpFile.renameTo(destFile)
                 _downloadState.value = ModelDownloadState.Completed(request.modelId, destFile.absolutePath)
                 activeModelId = null
             } catch (e: CancellationException) {
+                tmpFile.delete()
                 _downloadState.value = ModelDownloadState.Idle
                 throw e
             } catch (e: Exception) {
+                tmpFile.delete()
                 _downloadState.value = ModelDownloadState.Failed(
                     modelId = request.modelId,
                     reason = e.message ?: "Download failed",

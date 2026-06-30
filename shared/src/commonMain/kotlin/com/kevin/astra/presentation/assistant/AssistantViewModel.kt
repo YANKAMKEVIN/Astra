@@ -11,6 +11,7 @@ import com.kevin.astra.core.mvi.AstraViewModel
 import com.kevin.astra.core.navigation.AstraDestination
 import com.kevin.astra.core.notification.NotificationService
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
+import com.kevin.astra.domain.assistant.StreamEvent
 import com.kevin.astra.domain.assistant.StaticPromptTemplateCatalog
 import com.kevin.astra.domain.demo.DemoScenarioCatalog
 import com.kevin.astra.domain.history.ChatConversation
@@ -19,8 +20,8 @@ import com.kevin.astra.domain.history.ConversationRepository
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class AssistantViewModel(
     private val askLocalAssistant: AskLocalAssistantUseCase,
@@ -142,28 +143,38 @@ class AssistantViewModel(
             updateState {
                 copy(
                     isGenerating = true,
+                    streamingText = "",
                     response = null,
                     generationTimestamp = null,
                     installedModels = modelCatalog.installedModels(),
                 )
             }
 
-            val result = withContext(Dispatchers.Default) {
-                askLocalAssistant(
-                    PromptRequest(
-                        prompt = preparedPrompt,
-                        industry = industry,
-                        model = selectedModel.runtimeModel,
-                        backend = selectedBackend.runtimeBackend,
-                        maxTokens = configuration.maxTokens,
-                        temperature = configuration.temperature,
-                    ),
-                )
-            }
+            val promptRequest = PromptRequest(
+                prompt = preparedPrompt,
+                industry = industry,
+                model = selectedModel.runtimeModel,
+                backend = selectedBackend.runtimeBackend,
+                maxTokens = configuration.maxTokens,
+                temperature = configuration.temperature,
+            )
 
+            var finalResult: com.kevin.astra.core.ai.GenerationResult? = null
+            askLocalAssistant.stream(promptRequest)
+                .flowOn(Dispatchers.Default)
+                .collect { event ->
+                    when (event) {
+                        is StreamEvent.Token -> updateState { copy(streamingText = streamingText + event.text) }
+                        is StreamEvent.Complete -> finalResult = event.result
+                        is StreamEvent.Error -> updateState { copy(isGenerating = false, error = event.message, streamingText = "") }
+                    }
+                }
+
+            val result = finalResult ?: return@launch
             updateState {
                 copy(
                     isGenerating = false,
+                    streamingText = "",
                     response = result.toAssistantResponse(),
                     generationTimestamp = result.generatedAt,
                     metrics = result.toAssistantMetrics(),
