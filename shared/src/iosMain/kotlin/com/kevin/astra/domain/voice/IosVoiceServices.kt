@@ -3,6 +3,10 @@ package com.kevin.astra.domain.voice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import platform.AVFAudio.AVAudioEngine
+import platform.AVFAudio.AVAudioSession
+import platform.AVFAudio.AVAudioSessionCategoryRecord
+import platform.AVFAudio.AVAudioSessionModeMeasurement
 import platform.AVFAudio.AVSpeechSynthesizer
 import platform.AVFAudio.AVSpeechUtterance
 import platform.AVFAudio.AVSpeechUtteranceMinimumSpeechRate
@@ -22,6 +26,7 @@ private class IosSpeechRecognitionService : SpeechRecognitionService {
     override val state: StateFlow<SpeechRecognitionState> = _state.asStateFlow()
 
     private val recognizer = SFSpeechRecognizer(locale = NSLocale.currentLocale)
+    private val audioEngine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest? = null
     private var isListening = false
 
@@ -43,20 +48,38 @@ private class IosSpeechRecognitionService : SpeechRecognitionService {
         isListening = true
         _state.value = SpeechRecognitionState.Listening
 
+        val session = AVAudioSession.sharedInstance()
+        session.setCategory(AVAudioSessionCategoryRecord, error = null)
+        session.setMode(AVAudioSessionModeMeasurement, error = null)
+        session.setActive(true, error = null)
+
         val req = SFSpeechAudioBufferRecognitionRequest()
         req.shouldReportPartialResults = true
         request = req
 
+        val inputNode = audioEngine.inputNode
+        val recordingFormat = inputNode.outputFormatForBus(0u)
+        inputNode.installTapOnBus(
+            bus = 0u,
+            bufferSize = 1024u,
+            format = recordingFormat,
+        ) { buffer, _ ->
+            buffer?.let { req.appendAudioPCMBuffer(it) }
+        }
+
+        audioEngine.prepare()
+        audioEngine.startAndReturnError(null)
+
         recognizer?.recognitionTaskWithRequest(req) { result, error ->
             when {
                 error != null -> {
-                    isListening = false
+                    stopListening()
                     _state.value = SpeechRecognitionState.Error(error.localizedDescription)
                 }
                 result != null -> {
                     val text = result.bestTranscription.formattedString
                     if (result.isFinal()) {
-                        isListening = false
+                        stopListening()
                         _state.value = SpeechRecognitionState.Result(text)
                     } else {
                         _state.value = SpeechRecognitionState.Partial(text)
@@ -67,9 +90,12 @@ private class IosSpeechRecognitionService : SpeechRecognitionService {
     }
 
     override fun stopListening() {
+        audioEngine.inputNode.removeTapOnBus(0u)
+        audioEngine.stop()
         request?.endAudio()
         request = null
         isListening = false
+        AVAudioSession.sharedInstance().setActive(false, error = null)
         _state.value = SpeechRecognitionState.Idle
     }
 

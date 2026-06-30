@@ -3,6 +3,7 @@ package com.kevin.astra.domain.documents
 import android.content.Context
 import com.kevin.astra.data.documents.BowEmbeddingEngine
 import org.tensorflow.lite.Interpreter
+import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.sqrt
@@ -19,16 +20,19 @@ actual fun createEmbeddingEngine(): EmbeddingEngine =
     } else BowEmbeddingEngine()
 
 private fun tryLoadTfLiteEngine(context: Context): TfLiteEmbeddingEngine? = runCatching {
-    // Expects assets/models/embedding/minilm-l6.tflite or filesDir equivalent
-    val modelFile = context.filesDir
-        .resolve("astra-models/minilm-l6/model.tflite")
-    val interpreter = if (modelFile.exists()) {
-        Interpreter(modelFile)
-    } else {
-        val bytes = context.assets.open("models/embedding/minilm-l6.tflite").readBytes()
-        Interpreter(ByteBuffer.wrap(bytes))
-    }
-    TfLiteEmbeddingEngine(interpreter)
+    val downloadedFile = context.filesDir.resolve("astra-models/minilm-l6/model.tflite")
+    val modelFile = when {
+        downloadedFile.exists() -> downloadedFile
+        else -> extractAssetToFile(context, "models/embedding/minilm-l6.tflite")
+    } ?: return@runCatching null
+    TfLiteEmbeddingEngine(Interpreter(modelFile))
+}.getOrNull()
+
+private fun extractAssetToFile(context: Context, assetPath: String): File? = runCatching {
+    val bytes = context.assets.open(assetPath).readBytes()
+    val tmp = File(context.cacheDir, "embedding_model.tflite")
+    tmp.writeBytes(bytes)
+    tmp
 }.getOrNull()
 
 /**
