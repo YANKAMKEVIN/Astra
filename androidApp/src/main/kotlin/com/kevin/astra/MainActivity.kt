@@ -19,6 +19,8 @@ import com.kevin.astra.domain.export.initializeAndroidConversationShareHelper
 import com.kevin.astra.data.settings.initializeAndroidAiConfigurationStorage
 import com.kevin.astra.domain.modelmanager.initializeAndroidModelDownloadManager
 import com.kevin.astra.domain.modelmanager.initializeAndroidModelReadinessProvider
+import com.kevin.astra.domain.voice.initializeAndroidSpeechRecognitionService
+import com.kevin.astra.domain.voice.initializeAndroidTextToSpeechService
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -36,8 +38,11 @@ class MainActivity : ComponentActivity(), KoinComponent {
         initializeAndroidModelDownloadManager(this)
         initializeAndroidConversationFileStore(this)
         initializeAndroidConversationShareHelper(this)
+        initializeAndroidSpeechRecognitionService(this)
+        initializeAndroidTextToSpeechService(this)
 
         requestNotificationPermission()
+        requestMicrophonePermission()
 
         handleIntent(intent)
 
@@ -62,13 +67,14 @@ class MainActivity : ComponentActivity(), KoinComponent {
 
     private fun requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val requestPermissionLauncher = registerForActivityResult(
-                ActivityResultContracts.RequestPermission()
-            ) { isGranted: Boolean ->
-                // Permission granted or denied, we can log it if needed
-            }
-            requestPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+                .launch(android.Manifest.permission.POST_NOTIFICATIONS)
         }
+    }
+
+    private fun requestMicrophonePermission() {
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+            .launch(android.Manifest.permission.RECORD_AUDIO)
     }
 }
 
