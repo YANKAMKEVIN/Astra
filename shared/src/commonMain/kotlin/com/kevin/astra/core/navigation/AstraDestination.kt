@@ -67,10 +67,16 @@ sealed class AstraDestination(
         shortLabel = "Voice"
     )
 
+    data object VisionAssistant : AstraDestination(
+        id = "vision",
+        label = "Vision",
+        shortLabel = "Vision"
+    )
+
     companion object {
         val all = listOf(
             Splash, Dashboard, Demo, ProjectOverview,
-            Assistant, Documents, Benchmark, Settings, History, VoiceAssistant
+            Assistant, Documents, Benchmark, Settings, History, VoiceAssistant, VisionAssistant
         )
         
         val primaryDestinations = all.filter(AstraDestination::showsNavigationBar)
