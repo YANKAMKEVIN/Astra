@@ -7,6 +7,8 @@ import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.RuntimeMode
+import com.kevin.astra.core.navigation.AstraDestination
+import com.kevin.astra.core.notification.NotificationService
 import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.demo.StaticDemoScenarioCatalog
@@ -17,6 +19,8 @@ import com.kevin.astra.domain.benchmark.BenchmarkRequest
 import com.kevin.astra.domain.benchmark.BenchmarkResult
 import com.kevin.astra.domain.benchmark.BenchmarkRunner
 import com.kevin.astra.domain.benchmark.BenchmarkStatus
+import com.kevin.astra.domain.benchmark.HardwareSensorReader
+import com.kevin.astra.domain.benchmark.HardwareSnapshot
 import com.kevin.astra.domain.evaluation.RuleBasedTaskEvaluationEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -57,36 +61,34 @@ class BenchmarkViewModelTest {
     }
 
     @Test
+    fun selectAllAndClearAll() {
+        val viewModel = testViewModel()
+
+        viewModel.dispatch(BenchmarkIntent.SelectAllModels)
+        assertEquals(5, viewModel.state.value.selectedModelIds.size)
+
+        viewModel.dispatch(BenchmarkIntent.ClearModelSelection)
+        assertTrue(viewModel.state.value.selectedModelIds.isEmpty())
+    }
+
+    @Test
     fun selectingScenarioPopulatesBenchmarkPrompt() {
         val catalog = StaticDemoScenarioCatalog()
         val scenario = catalog.scenarioById("aero-02") ?: error("Missing aerospace demo scenario")
-        val viewModel = BenchmarkViewModel(
-            benchmarkRunner = testRunner(),
-            modelCatalog = DefaultModelCatalog(),
-            backendCatalog = DefaultBackendCatalog(),
-            aiConfigurationRepository = testAiConfigurationRepository(),
-            promptPipeline = testPromptPipeline(),
-            demoScenarioCatalog = catalog,
-        )
+        val viewModel = testViewModel(catalog = catalog)
 
         viewModel.dispatch(BenchmarkIntent.SelectScenario(scenario))
 
-        val state = viewModel.state.value
-        assertEquals(scenario.prompt, state.prompt)
-        assertTrue(state.canRun)
+        assertEquals(scenario.prompt, viewModel.state.value.prompt)
+        assertTrue(viewModel.state.value.canRun)
     }
 
     @Test
     fun runsBenchmarkAndStoresResults() = runBlocking {
         var capturedPrompt: String? = null
-        val viewModel = BenchmarkViewModel(
-            benchmarkRunner = testRunner(onRequest = { capturedPrompt = it.prompt }),
-            modelCatalog = DefaultModelCatalog(),
-            backendCatalog = DefaultBackendCatalog(),
-            aiConfigurationRepository = testAiConfigurationRepository(),
-            promptPipeline = testPromptPipeline(),
-            demoScenarioCatalog = StaticDemoScenarioCatalog(),
-            benchmarkScope = CoroutineScope(coroutineContext),
+        val viewModel = testViewModel(
+            runner = testRunner(onRequest = { capturedPrompt = it.prompt }),
+            scope = CoroutineScope(coroutineContext),
         )
 
         viewModel.dispatch(BenchmarkIntent.ToggleModel("gemma-3-1b"))
@@ -96,7 +98,7 @@ class BenchmarkViewModelTest {
 
         assertTrue(viewModel.state.value.isRunning)
 
-        delay(20)
+        delay(100)
 
         val state = viewModel.state.value
         assertFalse(state.isRunning)
@@ -104,6 +106,27 @@ class BenchmarkViewModelTest {
         assertEquals("gemma-3-1b", state.recommendedModel?.model?.id)
         assertTrue(capturedPrompt.orEmpty().contains("System role"))
         assertTrue(capturedPrompt.orEmpty().contains(DefaultBenchmarkPrompt))
+    }
+
+    @Test
+    fun hardwareSnapshotsAttachedToResults() = runBlocking {
+        var snapshotCount = 0
+        val viewModel = testViewModel(
+            hardwareSensorReader = object : HardwareSensorReader {
+                override fun read(): HardwareSnapshot {
+                    snapshotCount++
+                    return HardwareSnapshot(batteryPercent = 80 - snapshotCount, temperatureCelsius = 35f + snapshotCount, timestampMs = 0L)
+                }
+            },
+            scope = CoroutineScope(coroutineContext),
+        )
+
+        viewModel.dispatch(BenchmarkIntent.RunBenchmark)
+        delay(100)
+
+        val result = viewModel.state.value.results.firstOrNull()
+        assertTrue(result?.hardwareBefore != null)
+        assertTrue(result?.hardwareAfter != null)
     }
 
     @Test
@@ -117,7 +140,7 @@ class BenchmarkViewModelTest {
         }
         viewModel.dispatch(BenchmarkIntent.RunBenchmark)
 
-        assertEquals("Select at least one model before running ASTRA.", viewModel.state.value.error)
+        assertEquals("Select at least one model.", viewModel.state.value.error)
     }
 
     @Test
@@ -127,22 +150,26 @@ class BenchmarkViewModelTest {
             selectedModelIds = setOf("mock-model"),
             selectedBackend = null,
         )
-
         assertFalse(state.canRun)
     }
 
-    private fun testViewModel(): BenchmarkViewModel =
+    private fun testViewModel(
+        runner: BenchmarkRunner = testRunner(),
+        hardwareSensorReader: HardwareSensorReader = FakeHardwareSensorReader(),
+        catalog: StaticDemoScenarioCatalog = StaticDemoScenarioCatalog(),
+        scope: CoroutineScope? = null,
+    ): BenchmarkViewModel =
         BenchmarkViewModel(
-            benchmarkRunner = testRunner(),
+            benchmarkRunner = runner,
+            hardwareSensorReader = hardwareSensorReader,
             modelCatalog = DefaultModelCatalog(),
             backendCatalog = DefaultBackendCatalog(),
             aiConfigurationRepository = testAiConfigurationRepository(),
-            promptPipeline = testPromptPipeline(),
-            demoScenarioCatalog = StaticDemoScenarioCatalog(),
+            promptPipeline = DefaultPromptPipeline(DefaultPromptBuilder()),
+            demoScenarioCatalog = catalog,
+            notificationService = NoOpNotificationService(),
+            benchmarkScope = scope,
         )
-
-    private fun testPromptPipeline(): PromptPipeline =
-        DefaultPromptPipeline(DefaultPromptBuilder())
 
     private fun testRunner(onRequest: (BenchmarkRequest) -> Unit = {}): BenchmarkRunner =
         object : BenchmarkRunner {
@@ -187,5 +214,12 @@ class BenchmarkViewModelTest {
         }
 }
 
-private fun List<LocalModel>.modelById(id: String): LocalModel =
-    first { it.id == id }
+private class FakeHardwareSensorReader : HardwareSensorReader {
+    override fun read(): HardwareSnapshot = HardwareSnapshot(batteryPercent = 80, temperatureCelsius = 35f, timestampMs = 0L)
+}
+
+private class NoOpNotificationService : NotificationService {
+    override fun showNotification(title: String, message: String, targetDestination: AstraDestination) = Unit
+}
+
+private fun List<LocalModel>.modelById(id: String): LocalModel = first { it.id == id }

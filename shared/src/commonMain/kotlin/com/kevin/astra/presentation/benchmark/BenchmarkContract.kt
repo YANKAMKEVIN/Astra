@@ -16,6 +16,8 @@ data class BenchmarkState(
     val availableBackends: List<InferenceBackendInfo> = emptyList(),
     val selectedBackend: InferenceBackendInfo? = null,
     val isRunning: Boolean = false,
+    val currentlyBenchmarkingModel: String? = null,
+    val completedCount: Int = 0,
     val results: List<BenchmarkResult> = emptyList(),
     val recommendedModel: BenchmarkRecommendation? = null,
     val error: String? = null,
@@ -23,6 +25,8 @@ data class BenchmarkState(
 ) : AstraState {
     val canRun: Boolean
         get() = prompt.isNotBlank() && selectedModelIds.isNotEmpty() && selectedBackend != null && !isRunning
+
+    val totalToRun: Int get() = selectedModelIds.size
 }
 
 sealed interface BenchmarkIntent : AstraIntent {
@@ -30,6 +34,8 @@ sealed interface BenchmarkIntent : AstraIntent {
     data class ToggleModel(val modelId: String) : BenchmarkIntent
     data class SelectBackend(val backendId: String) : BenchmarkIntent
     data class SelectScenario(val scenario: DemoScenario) : BenchmarkIntent
+    data object SelectAllModels : BenchmarkIntent
+    data object ClearModelSelection : BenchmarkIntent
     data object RunBenchmark : BenchmarkIntent
 }
 

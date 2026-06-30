@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,6 +36,7 @@ import com.kevin.astra.core.ai.BackendStatus
 import com.kevin.astra.core.ai.InferenceBackendInfo
 import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.design.AstraButton
+import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraCard
 import com.kevin.astra.core.design.AstraChip
 import com.kevin.astra.core.design.AstraColors
@@ -77,14 +79,13 @@ private fun BenchmarkContent(
 ) {
     AstraScreen(
         title = "Benchmark Lab",
-        description = "Compare simulated on-device AI models with measurable Edge AI telemetry.",
+        description = "Compare on-device AI models — tokens/s, latency, RAM, battery, temperature.",
         contentPadding = contentPadding,
     ) {
         ScenarioSelector(
             scenarios = state.availableScenarios,
             onScenarioSelected = { onIntent(BenchmarkIntent.SelectScenario(it)) },
         )
-
         BenchmarkPromptCard(
             prompt = state.prompt,
             isRunning = state.isRunning,
@@ -95,6 +96,8 @@ private fun BenchmarkContent(
             selectedModelIds = state.selectedModelIds,
             isRunning = state.isRunning,
             onToggleModel = { onIntent(BenchmarkIntent.ToggleModel(it)) },
+            onSelectAll = { onIntent(BenchmarkIntent.SelectAllModels) },
+            onClearAll = { onIntent(BenchmarkIntent.ClearModelSelection) },
         )
         BackendSelectionCard(
             backends = state.availableBackends,
@@ -103,27 +106,18 @@ private fun BenchmarkContent(
             onSelectBackend = { onIntent(BenchmarkIntent.SelectBackend(it)) },
         )
 
-        AnimatedVisibility(visible = state.error != null) {
-            state.error?.let {
-                Spacer(Modifier.height(AstraSpacing.M))
-                AstraErrorView(
-                    title = "Benchmark Error",
-                    message = it,
-                )
-            }
+        state.error?.let {
+            AstraErrorView(title = "Benchmark Error", message = it)
         }
 
         RunBenchmarkCard(state = state, onRun = { onIntent(BenchmarkIntent.RunBenchmark) })
 
         AnimatedVisibility(visible = state.isRunning) {
-            AstraCard(
-                title = "Running benchmark...",
-                subtitle = "ASTRA is simulating model execution using deterministic local profiles.",
-                status = "RUNNING",
-            ) {
-                Spacer(Modifier.height(AstraSpacing.M))
-                AstraChip(label = "Runtime execution", color = AstraColors.Secondary)
-            }
+            BenchmarkProgressCard(
+                currentModel = state.currentlyBenchmarkingModel,
+                completed = state.completedCount,
+                total = state.totalToRun,
+            )
         }
 
         state.recommendedModel?.let { recommendation ->
@@ -133,13 +127,44 @@ private fun BenchmarkContent(
                 status = recommendation.model.displayName,
             ) {
                 Spacer(Modifier.height(AstraSpacing.M))
-                AstraChip(label = "BEST SIMULATED FIT", color = AstraColors.Success)
+                AstraChip(label = "BEST FIT", color = AstraColors.Success)
             }
+        }
+
+        if (state.results.size >= 2) {
+            BenchmarkChartCard(results = state.results)
         }
 
         ResultsCard(
             results = state.results,
             recommendedModelId = state.recommendedModel?.model?.id,
+        )
+    }
+}
+
+@Composable
+private fun BenchmarkProgressCard(
+    currentModel: String?,
+    completed: Int,
+    total: Int,
+) {
+    AstraCard(
+        title = "Running…",
+        subtitle = "Testing: ${currentModel ?: "—"}",
+        status = "$completed / $total",
+    ) {
+        Spacer(Modifier.height(AstraSpacing.M))
+        LinearProgressIndicator(
+            progress = { if (total > 0) completed.toFloat() / total else 0f },
+            modifier = Modifier.fillMaxWidth(),
+            color = AstraColors.Secondary,
+            trackColor = AstraColors.Border,
+        )
+        Spacer(Modifier.height(AstraSpacing.S))
+        Text(
+            text = "Capturing tokens/s, latency, battery, temperature…",
+            style = AstraTypography.Caption,
+            color = AstraColors.TextSecondary,
         )
     }
 }
@@ -155,26 +180,18 @@ private fun ScenarioSelector(
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
         ) {
             scenarios.forEach { scenario ->
-                ScenarioChip(
-                    scenario = scenario,
-                    onClick = { onScenarioSelected(scenario) },
-                )
+                ScenarioChip(scenario = scenario, onClick = { onScenarioSelected(scenario) })
             }
         }
     }
 }
 
 @Composable
-private fun ScenarioChip(
-    scenario: DemoScenario,
-    onClick: () -> Unit,
-) {
+private fun ScenarioChip(scenario: DemoScenario, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .heightIn(min = 64.dp)
@@ -185,58 +202,33 @@ private fun ScenarioChip(
         contentAlignment = Alignment.Center,
     ) {
         Column {
-            Text(
-                text = scenario.title,
-                style = AstraTypography.Caption,
-                color = AstraColors.TextPrimary,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = scenario.industry.label,
-                style = AstraTypography.Caption,
-                color = AstraColors.TextSecondary,
-            )
+            Text(scenario.title, style = AstraTypography.Caption, color = AstraColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+            Text(scenario.industry.label, style = AstraTypography.Caption, color = AstraColors.TextSecondary)
         }
     }
 }
 
 @Composable
-private fun BenchmarkPromptCard(
-    prompt: String,
-    isRunning: Boolean,
-    onPromptChanged: (String) -> Unit,
-) {
-    AstraCard(
-        title = "Benchmark Prompt",
-        subtitle = "Every selected model is evaluated against the same operational prompt.",
-        status = "EDITABLE",
-    ) {
+private fun BenchmarkPromptCard(prompt: String, isRunning: Boolean, onPromptChanged: (String) -> Unit) {
+    AstraCard(title = "Benchmark Prompt", subtitle = "All selected models are evaluated against the same prompt.", status = "EDITABLE") {
         Spacer(Modifier.height(AstraSpacing.M))
         BasicTextField(
             value = prompt,
             onValueChange = onPromptChanged,
             enabled = !isRunning,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 120.dp)
-                .alpha(if (isRunning) 0.64f else 1f),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp).alpha(if (isRunning) 0.64f else 1f),
             textStyle = AstraTypography.Body.copy(color = AstraColors.TextPrimary),
             cursorBrush = SolidColor(AstraColors.Secondary),
             decorationBox = { innerTextField ->
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 120.dp)
+                        .fillMaxWidth().heightIn(min = 120.dp)
                         .background(AstraColors.SurfaceElevated, RoundedCornerShape(20.dp))
                         .border(1.dp, AstraColors.Border, RoundedCornerShape(20.dp))
                         .padding(AstraSpacing.M),
                 ) {
                     if (prompt.isBlank()) {
-                        Text(
-                            text = DefaultBenchmarkPrompt,
-                            style = AstraTypography.Body,
-                            color = AstraColors.TextDisabled,
-                        )
+                        Text(DefaultBenchmarkPrompt, style = AstraTypography.Body, color = AstraColors.TextDisabled)
                     }
                     innerTextField()
                 }
@@ -251,14 +243,34 @@ private fun ModelSelectionCard(
     selectedModelIds: Set<String>,
     isRunning: Boolean,
     onToggleModel: (String) -> Unit,
+    onSelectAll: () -> Unit,
+    onClearAll: () -> Unit,
 ) {
     AstraCard(
         title = "Model Selection",
-        subtitle = "All model profiles are selectable in this mocked lab.",
+        subtitle = "Select models to benchmark. All run sequentially on-device.",
         status = "${selectedModelIds.size} SELECTED",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
-        HorizontalOptions {
+        Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+            AstraButton(
+                text = "Select All",
+                onClick = onSelectAll,
+                enabled = !isRunning && selectedModelIds.size < availableModels.size,
+                style = AstraButtonStyle.Ghost,
+            )
+            AstraButton(
+                text = "Clear",
+                onClick = onClearAll,
+                enabled = !isRunning && selectedModelIds.isNotEmpty(),
+                style = AstraButtonStyle.Ghost,
+            )
+        }
+        Spacer(Modifier.height(AstraSpacing.S))
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+        ) {
             availableModels.forEach { model ->
                 val selected = model.id in selectedModelIds
                 SelectablePill(
@@ -281,20 +293,22 @@ private fun BackendSelectionCard(
     onSelectBackend: (String) -> Unit,
 ) {
     AstraCard(
-        title = "Backend Selection",
-        subtitle = "Benchmark backends are provided by the catalog. Only installed runtimes can execute.",
-        status = selectedBackend?.displayName ?: "No backend",
+        title = "Backend",
+        subtitle = "Runtime backend for all models in this benchmark session.",
+        status = selectedBackend?.displayName ?: "None",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
-        HorizontalOptions {
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+        ) {
             backends.forEach { backend ->
                 val selected = backend.id == selectedBackend?.id
-                val installed = backend.status == BackendStatus.Installed
                 SelectablePill(
                     label = backend.displayName,
                     status = if (selected) "ACTIVE" else backend.status.label.uppercase(),
                     selected = selected,
-                    enabled = installed && !isRunning,
+                    enabled = backend.status == BackendStatus.Installed && !isRunning,
                     onClick = { onSelectBackend(backend.id) },
                 )
             }
@@ -303,33 +317,20 @@ private fun BackendSelectionCard(
 }
 
 @Composable
-private fun RunBenchmarkCard(
-    state: BenchmarkState,
-    onRun: () -> Unit,
-) {
+private fun RunBenchmarkCard(state: BenchmarkState, onRun: () -> Unit) {
     AstraCard(
         title = "Execution",
-        subtitle = "Run a deterministic mock benchmark and compute the best model recommendation.",
+        subtitle = "Models are tested sequentially. Hardware metrics captured per run.",
         status = if (state.isRunning) "RUNNING" else "READY",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
         Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-            AstraMetricCard(
-                value = state.selectedModelIds.size.toString(),
-                unit = "",
-                label = "Models",
-                modifier = Modifier.weight(1f),
-            )
-            AstraMetricCard(
-                value = state.results.size.toString(),
-                unit = "",
-                label = "Results",
-                modifier = Modifier.weight(1f),
-            )
+            AstraMetricCard(state.selectedModelIds.size.toString(), "", "Models", Modifier.weight(1f))
+            AstraMetricCard(state.results.size.toString(), "", "Completed", Modifier.weight(1f))
         }
         Spacer(Modifier.height(AstraSpacing.M))
         AstraButton(
-            text = "Run Benchmark",
+            text = if (state.isRunning) "Running…" else "Run Benchmark",
             onClick = onRun,
             enabled = state.canRun,
             modifier = Modifier.fillMaxWidth(),
@@ -338,31 +339,18 @@ private fun RunBenchmarkCard(
 }
 
 @Composable
-private fun ResultsCard(
-    results: List<BenchmarkResult>,
-    recommendedModelId: String?,
-) {
+private fun ResultsCard(results: List<BenchmarkResult>, recommendedModelId: String?) {
     AstraCard(
-        title = "Comparison Results",
-        subtitle = if (results.isEmpty()) {
-            "Run the benchmark to display model rankings and telemetry."
-        } else {
-            "Measures how well each response satisfies the selected operational task."
-        },
+        title = "Results",
+        subtitle = if (results.isEmpty()) "Run the benchmark to see model rankings." else "${results.size} model(s) evaluated.",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
         if (results.isEmpty()) {
-            AstraEmptyView(
-                title = "No results",
-                message = "Select models and tap 'Run Benchmark' to generate local performance telemetry.",
-            )
+            AstraEmptyView(title = "No results", message = "Select models and tap 'Run Benchmark'.")
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.M)) {
                 results.forEach { result ->
-                    BenchmarkResultRow(
-                        result = result,
-                        recommended = result.model.id == recommendedModelId,
-                    )
+                    BenchmarkResultRow(result = result, recommended = result.model.id == recommendedModelId)
                 }
             }
         }
@@ -370,72 +358,66 @@ private fun ResultsCard(
 }
 
 @Composable
-private fun BenchmarkResultRow(
-    result: BenchmarkResult,
-    recommended: Boolean,
-) {
+private fun BenchmarkResultRow(result: BenchmarkResult, recommended: Boolean) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                color = if (recommended) {
-                    AstraColors.Primary.copy(alpha = 0.14f)
-                } else {
-                    AstraColors.SurfaceElevated
-                },
-                shape = RoundedCornerShape(20.dp),
+                if (recommended) AstraColors.Primary.copy(alpha = 0.14f) else AstraColors.SurfaceElevated,
+                RoundedCornerShape(20.dp),
             )
-            .border(
-                width = 1.dp,
-                color = if (recommended) AstraColors.Secondary else AstraColors.Border,
-                shape = RoundedCornerShape(20.dp),
-            )
+            .border(1.dp, if (recommended) AstraColors.Secondary else AstraColors.Border, RoundedCornerShape(20.dp))
             .padding(AstraSpacing.M),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
+                Text(result.model.displayName, style = AstraTypography.Title, color = AstraColors.TextPrimary)
                 Text(
-                    text = result.model.displayName,
-                    style = AstraTypography.Title,
-                    color = AstraColors.TextPrimary,
-                )
-                Text(
-                    text = "${result.model.provider.label} • Selected: ${result.selectedBackend.label} • Used: ${result.usedBackend.label}",
-                    style = AstraTypography.Caption,
-                    color = AstraColors.TextSecondary,
+                    "${result.model.provider.label} • ${result.usedBackend.label} • ${result.status.label}",
+                    style = AstraTypography.Caption, color = AstraColors.TextSecondary,
                 )
             }
-            if (recommended) {
-                AstraChip(label = "RECOMMENDED", color = AstraColors.Success)
-            }
+            if (recommended) AstraChip(label = "BEST", color = AstraColors.Success)
         }
         Spacer(Modifier.height(AstraSpacing.M))
         Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
             Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-                AstraMetricCard(result.latencyMillis.displayNumber(), result.latencyMillis.displayUnit("ms"), "Latency", Modifier.weight(1f))
-                AstraMetricCard(result.runtimeInfo.modelLoadTimeMillis.displayLong(), result.runtimeInfo.modelLoadTimeMillis.displayLongUnit("ms"), "Load Time", Modifier.weight(1f))
+                AstraMetricCard(result.tokensPerSecond.displayNum(), "tok/s", "Tokens/s", Modifier.weight(1f))
+                AstraMetricCard(result.latencyMillis.displayNum(), result.latencyMillis.displayUnit("ms"), "Latency", Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-                AstraMetricCard(result.runtimeInfo.totalExecutionTimeMillis.displayLong(), result.runtimeInfo.totalExecutionTimeMillis.displayLongUnit("ms"), "Total Time", Modifier.weight(1f))
-                AstraMetricCard(result.timeToFirstTokenMillis.displayNumber(), result.timeToFirstTokenMillis.displayUnit("ms"), "TTFT", Modifier.weight(1f))
+                AstraMetricCard(result.timeToFirstTokenMillis.displayNum(), result.timeToFirstTokenMillis.displayUnit("ms"), "TTFT", Modifier.weight(1f))
+                AstraMetricCard(result.memoryUsageMb.displayNum(), result.memoryUsageMb.displayUnit("MB"), "RAM", Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
                 AstraMetricCard("${result.taskEvaluation.overallScore}", "/100", "Task Score", Modifier.weight(1f))
-                AstraMetricCard(result.tokensPerSecond.displayNumber(), "", "Tokens/sec", Modifier.weight(1f))
+                AstraMetricCard(result.runtimeInfo.mode.label, "", "Runtime", Modifier.weight(1f))
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-                AstraMetricCard(result.memoryUsageMb.displayNumber(), result.memoryUsageMb.displayUnit("MB"), "Memory", Modifier.weight(1f))
-                AstraMetricCard(result.runtimeInfo.mode.label, "", "Runtime Mode", Modifier.weight(1f))
+            // Hardware metrics
+            val battery = result.batteryDrainPercent
+            val temp = result.peakTemperatureCelsius
+            val tempDelta = result.temperatureDeltaCelsius
+            if (battery != null || temp != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+                    AstraMetricCard(
+                        battery?.let { "$it" } ?: "N/A",
+                        battery?.let { "%" } ?: "",
+                        "Battery drain",
+                        Modifier.weight(1f),
+                    )
+                    AstraMetricCard(
+                        temp?.let { "${(it * 10).toInt() / 10f}" } ?: "N/A",
+                        temp?.let { "°C" } ?: "",
+                        "Peak temp" + (tempDelta?.let { d -> " (+${(d * 10).toInt() / 10f})" } ?: ""),
+                        Modifier.weight(1f),
+                    )
+                }
             }
             TaskEvaluationBreakdown(result = result)
             result.runtimeInfo.fallbackReason?.let { reason ->
                 AstraErrorView(
-                    title = "Fallback transparency",
-                    message = "Selected: ${result.selectedBackend.label}\nUsed: ${result.usedBackend.label}\nReason: $reason",
+                    title = "Fallback",
+                    message = "Selected: ${result.selectedBackend.label} → Used: ${result.usedBackend.label}\n$reason",
                 )
             }
         }
@@ -445,17 +427,9 @@ private fun BenchmarkResultRow(
 @Composable
 private fun TaskEvaluationBreakdown(result: BenchmarkResult) {
     Spacer(Modifier.height(AstraSpacing.S))
-    Text(
-        text = "Task Evaluation",
-        style = AstraTypography.Caption,
-        color = AstraColors.TextSecondary,
-    )
+    Text("Task Evaluation", style = AstraTypography.Caption, color = AstraColors.TextSecondary)
     Spacer(Modifier.height(AstraSpacing.S))
-    Text(
-        text = result.taskEvaluation.recommendationSummary,
-        style = AstraTypography.Caption,
-        color = AstraColors.TextPrimary,
-    )
+    Text(result.taskEvaluation.recommendationSummary, style = AstraTypography.Caption, color = AstraColors.TextPrimary)
     Spacer(Modifier.height(AstraSpacing.S))
     Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
         EvaluationCriterionRow(result, TaskEvaluationCriterion.Safety)
@@ -467,97 +441,44 @@ private fun TaskEvaluationBreakdown(result: BenchmarkResult) {
 }
 
 @Composable
-private fun EvaluationCriterionRow(
-    result: BenchmarkResult,
-    criterion: TaskEvaluationCriterion,
-) {
+private fun EvaluationCriterionRow(result: BenchmarkResult, criterion: TaskEvaluationCriterion) {
     val score = result.taskEvaluation.breakdown.scoreFor(criterion)
     Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-        AstraMetricCard(
-            value = score.score.toString(),
-            unit = "/100",
-            label = criterion.label,
-            modifier = Modifier.weight(1f),
-        )
-        AstraMetricCard(
-            value = criterion.weight.toString(),
-            unit = "%",
-            label = "Weight",
-            modifier = Modifier.weight(1f),
-        )
+        AstraMetricCard("${score.score}", "/100", criterion.label, Modifier.weight(1f))
+        AstraMetricCard("${criterion.weight}", "%", "Weight", Modifier.weight(1f))
     }
 }
 
-private fun Int?.displayNumber(): String =
-    this?.toString() ?: "N/A"
-
-private fun Int?.displayUnit(unit: String): String =
-    if (this == null) "" else unit
-
-private fun Long?.displayNumber(): String =
-    this?.toString() ?: "N/A"
-
-private fun Long?.displayUnit(unit: String): String =
-    if (this == null) "" else unit
-
-private fun Long.displayLong(): String =
-    if (this > 0L) toString() else "N/A"
-
-private fun Long.displayLongUnit(unit: String): String =
-    if (this > 0L) unit else ""
+private fun Int?.displayNum(): String = this?.toString() ?: "N/A"
+private fun Int?.displayUnit(unit: String): String = if (this == null) "" else unit
+private fun Long?.displayNum(): String = this?.toString() ?: "N/A"
+private fun Long?.displayUnit(unit: String): String = if (this == null) "" else unit
 
 @Composable
 private fun HorizontalOptions(content: @Composable () -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
-    ) {
-        content()
-    }
+    ) { content() }
 }
 
 @Composable
-private fun SelectablePill(
-    label: String,
-    status: String,
-    selected: Boolean,
-    enabled: Boolean,
-    onClick: () -> Unit,
-) {
+private fun SelectablePill(label: String, status: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .heightIn(min = 72.dp)
             .alpha(if (enabled) 1f else 0.58f)
             .background(
-                color = if (selected) {
-                    AstraColors.Secondary.copy(alpha = 0.14f)
-                } else {
-                    AstraColors.SurfaceElevated
-                },
-                shape = RoundedCornerShape(18.dp),
+                if (selected) AstraColors.Secondary.copy(alpha = 0.14f) else AstraColors.SurfaceElevated,
+                RoundedCornerShape(18.dp),
             )
-            .border(
-                width = 1.dp,
-                color = if (selected) AstraColors.Secondary else AstraColors.Border,
-                shape = RoundedCornerShape(18.dp),
-            )
+            .border(1.dp, if (selected) AstraColors.Secondary else AstraColors.Border, RoundedCornerShape(18.dp))
             .clickable(enabled = enabled, onClick = onClick)
             .padding(AstraSpacing.M),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(
-            text = label,
-            style = AstraTypography.Body,
-            color = if (enabled || selected) AstraColors.TextPrimary else AstraColors.TextDisabled,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-        )
+        Text(label, style = AstraTypography.Body, color = if (enabled || selected) AstraColors.TextPrimary else AstraColors.TextDisabled, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
         Spacer(Modifier.height(AstraSpacing.XS))
-        Text(
-            text = status,
-            style = AstraTypography.Caption,
-            color = if (enabled || selected) AstraColors.Secondary else AstraColors.TextDisabled,
-        )
+        Text(status, style = AstraTypography.Caption, color = if (enabled || selected) AstraColors.Secondary else AstraColors.TextDisabled)
     }
 }

@@ -25,6 +25,8 @@ import com.kevin.astra.data.settings.PersistentAiConfigurationRepository
 import com.kevin.astra.data.settings.createAiConfigurationKeyValueStore
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import com.kevin.astra.domain.benchmark.BenchmarkRunner
+import com.kevin.astra.domain.benchmark.HardwareSensorReader
+import com.kevin.astra.domain.benchmark.createHardwareSensorReader
 import com.kevin.astra.domain.demo.DemoScenarioCatalog
 import com.kevin.astra.domain.documents.DocumentContextRetriever
 import com.kevin.astra.domain.export.ConversationShareHelper
@@ -69,6 +71,7 @@ val astraRootModule = module {
     single<AiConfigurationRepository> { PersistentAiConfigurationRepository(localDataSource = get()) }
     single<InferenceEngine> { createInferenceEngine() }
     single<BenchmarkRunner> { RuntimeBenchmarkRunner(inferenceEngine = get()) }
+    single<HardwareSensorReader> { createHardwareSensorReader() }
     single<ModelReadinessProvider> { createModelReadinessProvider() }
     single<ModelDownloadManager> { createModelDownloadManager() }
     single<ImageClassifier> { createImageClassifier() }
@@ -122,6 +125,7 @@ val astraRootModule = module {
     single {
         BenchmarkViewModel(
             benchmarkRunner = get(),
+            hardwareSensorReader = get(),
             modelCatalog = get(),
             backendCatalog = get(),
             aiConfigurationRepository = get(),
