@@ -29,9 +29,28 @@ data class BenchmarkResult(
     val memoryUsageMb: Int?,
     val taskEvaluation: TaskEvaluationReport,
     val status: BenchmarkStatus,
+    val hardwareBefore: HardwareSnapshot? = null,
+    val hardwareAfter: HardwareSnapshot? = null,
 ) {
     val backend: InferenceBackend
         get() = usedBackend
+
+    val batteryDrainPercent: Int?
+        get() {
+            val before = hardwareBefore?.batteryPercent?.takeIf { it >= 0 } ?: return null
+            val after = hardwareAfter?.batteryPercent?.takeIf { it >= 0 } ?: return null
+            return (before - after).coerceAtLeast(0)
+        }
+
+    val temperatureDeltaCelsius: Float?
+        get() {
+            val before = hardwareBefore?.temperatureCelsius?.takeIf { it >= 0f } ?: return null
+            val after = hardwareAfter?.temperatureCelsius?.takeIf { it >= 0f } ?: return null
+            return after - before
+        }
+
+    val peakTemperatureCelsius: Float?
+        get() = hardwareAfter?.temperatureCelsius?.takeIf { it >= 0f }
 }
 
 enum class BenchmarkStatus(val label: String) {
