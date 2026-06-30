@@ -30,6 +30,8 @@ import com.kevin.astra.presentation.documents.DocumentsScreen
 import com.kevin.astra.presentation.documents.DocumentsViewModel
 import com.kevin.astra.presentation.history.ConversationHistoryScreen
 import com.kevin.astra.presentation.history.ConversationHistoryViewModel
+import com.kevin.astra.presentation.vision.VisionAssistantScreen
+import com.kevin.astra.presentation.vision.VisionAssistantViewModel
 import com.kevin.astra.presentation.voice.VoiceAssistantScreen
 import com.kevin.astra.presentation.voice.VoiceAssistantViewModel
 import com.kevin.astra.presentation.overview.ProjectOverviewScreen
@@ -50,6 +52,7 @@ fun AstraApp(
     settingsViewModel: SettingsViewModel,
     historyViewModel: ConversationHistoryViewModel,
     voiceViewModel: VoiceAssistantViewModel,
+    visionViewModel: VisionAssistantViewModel,
 ) {
     val currentDestination by navigator.currentDestination.collectAsStateWithLifecycle()
 
@@ -117,6 +120,10 @@ fun AstraApp(
                         AstraDestination.VoiceAssistant -> VoiceAssistantScreen(
                             contentPadding = contentPadding,
                             viewModel = voiceViewModel,
+                        )
+                        AstraDestination.VisionAssistant -> VisionAssistantScreen(
+                            contentPadding = contentPadding,
+                            viewModel = visionViewModel,
                         )
                     }
                 }

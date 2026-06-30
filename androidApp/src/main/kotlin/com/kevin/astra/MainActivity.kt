@@ -19,6 +19,7 @@ import com.kevin.astra.domain.export.initializeAndroidConversationShareHelper
 import com.kevin.astra.data.settings.initializeAndroidAiConfigurationStorage
 import com.kevin.astra.domain.modelmanager.initializeAndroidModelDownloadManager
 import com.kevin.astra.domain.modelmanager.initializeAndroidModelReadinessProvider
+import com.kevin.astra.domain.vision.initializeAndroidImageClassifier
 import com.kevin.astra.domain.voice.initializeAndroidSpeechRecognitionService
 import com.kevin.astra.domain.voice.initializeAndroidTextToSpeechService
 import org.koin.core.component.KoinComponent
@@ -40,6 +41,7 @@ class MainActivity : ComponentActivity(), KoinComponent {
         initializeAndroidConversationShareHelper(this)
         initializeAndroidSpeechRecognitionService(this)
         initializeAndroidTextToSpeechService(this)
+        initializeAndroidImageClassifier(this)
 
         requestNotificationPermission()
         requestMicrophonePermission()

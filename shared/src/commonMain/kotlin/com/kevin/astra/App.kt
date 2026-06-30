@@ -20,5 +20,6 @@ fun App() {
         settingsViewModel = koin.get(),
         historyViewModel = koin.get(),
         voiceViewModel = koin.get(),
+        visionViewModel = koin.get(),
     )
 }

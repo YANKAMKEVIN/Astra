@@ -42,6 +42,7 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.litert)
             implementation(libs.mediapipe.tasks.genai)
+            implementation(libs.androidx.activity.compose)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
