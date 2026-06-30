@@ -11,7 +11,11 @@ import com.kevin.astra.core.mvi.AstraViewModel
 import com.kevin.astra.core.navigation.AstraDestination
 import com.kevin.astra.core.notification.NotificationService
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
+import com.kevin.astra.domain.assistant.StaticPromptTemplateCatalog
 import com.kevin.astra.domain.demo.DemoScenarioCatalog
+import com.kevin.astra.domain.history.ChatConversation
+import com.kevin.astra.domain.history.ChatMessage
+import com.kevin.astra.domain.history.ConversationRepository
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,16 +30,20 @@ class AssistantViewModel(
     private val promptPipeline: PromptPipeline,
     private val demoScenarioCatalog: DemoScenarioCatalog,
     private val notificationService: NotificationService,
+    private val conversationRepository: ConversationRepository,
     private val generationScope: CoroutineScope? = null,
 ) : AstraViewModel<AssistantState, AssistantIntent, AssistantEffect>(
     initialState = AssistantState(
-        availableScenarios = demoScenarioCatalog.scenarios()
+        availableScenarios = demoScenarioCatalog.scenarios(),
+        promptTemplates = StaticPromptTemplateCatalog.all,
+        installedModels = modelCatalog.installedModels(),
+        sessionModel = modelCatalog.currentModel(),
     ),
 ) {
     override fun handleIntent(intent: AssistantIntent) {
         when (intent) {
             is AssistantIntent.UpdateQuestion -> updateState {
-                copy(question = intent.question, error = null)
+                copy(question = intent.question, error = null, activeTemplate = null)
             }
 
             is AssistantIntent.SelectIndustry -> updateState {
@@ -51,11 +59,26 @@ class AssistantViewModel(
                     question = intent.scenario.prompt,
                     selectedIndustry = intent.scenario.industry.toAssistantIndustry(),
                     availableScenarios = demoScenarioCatalog.scenariosForIndustry(intent.scenario.industry),
+                    activeTemplate = null,
                     error = null,
                 )
             }
 
+            is AssistantIntent.SelectTemplate -> updateState {
+                copy(
+                    question = intent.template.promptText,
+                    activeTemplate = intent.template,
+                    error = null,
+                )
+            }
+
+            is AssistantIntent.SelectSessionModel -> {
+                val model = modelCatalog.modelById(intent.modelId) ?: return
+                updateState { copy(sessionModel = model) }
+            }
+
             AssistantIntent.AskQuestion -> askQuestion()
+
             AssistantIntent.ClearConversation -> updateState {
                 copy(
                     question = "",
@@ -63,9 +86,27 @@ class AssistantViewModel(
                     isGenerating = false,
                     generationTimestamp = null,
                     metrics = AssistantMetrics(),
+                    activeTemplate = null,
                 )
             }
         }
+    }
+
+    private fun saveConversation(question: String, result: GenerationResult) {
+        val snap = state.value
+        val conversation = ChatConversation(
+            id = result.generatedAt.replace(Regex("[^0-9]"), ""),
+            title = question.take(60).ifBlank { "Conversation" },
+            modelName = result.model.label,
+            backendName = result.backend.label,
+            industry = snap.selectedIndustry.label,
+            messages = listOf(
+                ChatMessage(role = "user", content = question, timestamp = result.generatedAt),
+                ChatMessage(role = "assistant", content = result.text, timestamp = result.generatedAt),
+            ),
+            createdAt = result.generatedAt,
+        )
+        conversationRepository.save(conversation)
     }
 
     private fun askQuestion() {
@@ -79,16 +120,16 @@ class AssistantViewModel(
 
         (generationScope ?: viewModelScope).launch {
             val configuration = aiConfigurationRepository.getConfiguration()
-            val selectedModelId = configuration.selectedModelId
-            val selectedBackendId = configuration.selectedBackendId
 
-            val selectedModel = modelCatalog.modelById(selectedModelId)
-            val selectedBackend = backendCatalog.backendById(selectedBackendId)
+            val selectedModel = snapshot.sessionModel
+                ?: modelCatalog.modelById(configuration.selectedModelId)
+            val selectedBackend = backendCatalog.backendById(configuration.selectedBackendId)
 
             if (selectedModel == null || selectedBackend == null) {
                 updateState { copy(error = "Invalid AI configuration. Please check Settings.") }
                 return@launch
             }
+
             val industry = snapshot.selectedIndustry.toPromptIndustry()
             val preparedPrompt = promptPipeline.preparePrompt(
                 PromptBuildRequest(
@@ -103,6 +144,7 @@ class AssistantViewModel(
                     isGenerating = true,
                     response = null,
                     generationTimestamp = null,
+                    installedModels = modelCatalog.installedModels(),
                 )
             }
 
@@ -128,10 +170,12 @@ class AssistantViewModel(
                 )
             }
 
+            saveConversation(snapshot.question, result)
+
             notificationService.showNotification(
                 title = "AI Analysis Ready",
                 message = "ASTRA has completed the mission-critical analysis.",
-                targetDestination = AstraDestination.Assistant
+                targetDestination = AstraDestination.Assistant,
             )
         }
     }

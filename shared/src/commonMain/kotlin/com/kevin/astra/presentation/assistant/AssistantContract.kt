@@ -1,9 +1,11 @@
 package com.kevin.astra.presentation.assistant
 
+import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.core.mvi.AstraEffect
 import com.kevin.astra.core.mvi.AstraIntent
 import com.kevin.astra.core.mvi.AstraState
+import com.kevin.astra.domain.assistant.PromptTemplate
 import com.kevin.astra.domain.demo.DemoScenario
 
 enum class AssistantIndustry(val label: String) {
@@ -57,6 +59,10 @@ data class AssistantState(
     val generationTimestamp: String? = null,
     val metrics: AssistantMetrics = AssistantMetrics(),
     val availableScenarios: List<DemoScenario> = emptyList(),
+    val promptTemplates: List<PromptTemplate> = emptyList(),
+    val activeTemplate: PromptTemplate? = null,
+    val installedModels: List<LocalModel> = emptyList(),
+    val sessionModel: LocalModel? = null,
     val error: String? = null,
 ) : AstraState {
     val canAsk: Boolean
@@ -67,6 +73,8 @@ sealed interface AssistantIntent : AstraIntent {
     data class UpdateQuestion(val question: String) : AssistantIntent
     data class SelectIndustry(val industry: AssistantIndustry) : AssistantIntent
     data class SelectScenario(val scenario: DemoScenario) : AssistantIntent
+    data class SelectTemplate(val template: PromptTemplate) : AssistantIntent
+    data class SelectSessionModel(val modelId: String) : AssistantIntent
     data object AskQuestion : AssistantIntent
     data object ClearConversation : AssistantIntent
 }

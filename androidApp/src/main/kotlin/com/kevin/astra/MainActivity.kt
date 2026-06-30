@@ -14,7 +14,10 @@ import com.kevin.astra.core.navigation.AstraDestination
 import com.kevin.astra.core.navigation.AstraNavigator
 import com.kevin.astra.core.notification.NotificationKeys
 import com.kevin.astra.core.notification.initializeNotificationService
+import com.kevin.astra.data.history.initializeAndroidConversationFileStore
+import com.kevin.astra.domain.export.initializeAndroidConversationShareHelper
 import com.kevin.astra.data.settings.initializeAndroidAiConfigurationStorage
+import com.kevin.astra.domain.modelmanager.initializeAndroidModelDownloadManager
 import com.kevin.astra.domain.modelmanager.initializeAndroidModelReadinessProvider
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -30,6 +33,9 @@ class MainActivity : ComponentActivity(), KoinComponent {
         initializeNotificationService(this)
         initializeAndroidEdgeAiRuntime(this)
         initializeAndroidModelReadinessProvider(this)
+        initializeAndroidModelDownloadManager(this)
+        initializeAndroidConversationFileStore(this)
+        initializeAndroidConversationShareHelper(this)
 
         requestNotificationPermission()
 

@@ -55,10 +55,16 @@ sealed class AstraDestination(
         shortLabel = "Settings"
     )
 
+    data object History : AstraDestination(
+        id = "history",
+        label = "History",
+        shortLabel = "History"
+    )
+
     companion object {
         val all = listOf(
             Splash, Dashboard, Demo, ProjectOverview,
-            Assistant, Documents, Benchmark, Settings
+            Assistant, Documents, Benchmark, Settings, History
         )
         
         val primaryDestinations = all.filter(AstraDestination::showsNavigationBar)

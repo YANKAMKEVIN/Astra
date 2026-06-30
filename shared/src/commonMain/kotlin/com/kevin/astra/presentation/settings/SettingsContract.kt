@@ -6,6 +6,7 @@ import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.core.mvi.AstraEffect
 import com.kevin.astra.core.mvi.AstraIntent
 import com.kevin.astra.core.mvi.AstraState
+import com.kevin.astra.domain.modelmanager.ModelDownloadState
 import com.kevin.astra.domain.modelmanager.ModelReadiness
 
 data class SettingsState(
@@ -20,6 +21,8 @@ data class SettingsState(
     val contextWindow: Int = 4_096,
     val quantization: String = "4-bit",
     val experimentalFeaturesEnabled: Boolean = false,
+    val downloadState: ModelDownloadState = ModelDownloadState.Idle,
+    val storageUsageMb: Float = 0f,
 ) : AstraState
 
 sealed interface SettingsIntent : AstraIntent {
@@ -31,6 +34,12 @@ sealed interface SettingsIntent : AstraIntent {
     data class UpdateContextWindow(val contextWindow: Int) : SettingsIntent
     data class UpdateQuantization(val quantization: String) : SettingsIntent
     data class ToggleExperimentalFeatures(val enabled: Boolean) : SettingsIntent
+    data class DownloadModel(val modelId: String) : SettingsIntent
+    data class DeleteModel(val modelId: String) : SettingsIntent
+    data class CancelDownload(val modelId: String) : SettingsIntent
 }
 
-sealed interface SettingsEffect : AstraEffect
+sealed interface SettingsEffect : AstraEffect {
+    data class DownloadCompleted(val modelName: String) : SettingsEffect
+    data class ShowError(val message: String) : SettingsEffect
+}

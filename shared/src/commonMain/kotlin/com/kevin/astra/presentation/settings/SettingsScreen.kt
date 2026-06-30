@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,6 +32,7 @@ import com.kevin.astra.core.ai.InferenceBackendInfo
 import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.ai.ModelStatus
 import com.kevin.astra.core.ai.PromptIndustry
+import com.kevin.astra.domain.modelmanager.ModelDownloadState
 import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraCard
@@ -79,7 +81,15 @@ private fun SettingsContent(
             selectedBackend = state.selectedBackend,
             onSelectBackend = { onIntent(SettingsIntent.SelectBackend(it)) },
         )
-        ModelManagerCard(modelReadiness = state.modelReadiness)
+        ModelManagerCard(
+            modelReadiness = state.modelReadiness,
+            models = state.availableModels,
+            downloadState = state.downloadState,
+            storageUsageMb = state.storageUsageMb,
+            onDownload = { onIntent(SettingsIntent.DownloadModel(it)) },
+            onDelete = { onIntent(SettingsIntent.DeleteModel(it)) },
+            onCancel = { onIntent(SettingsIntent.CancelDownload(it)) },
+        )
         IndustryConfigurationCard(
             selectedIndustry = state.selectedIndustry,
             onSelectIndustry = { onIntent(SettingsIntent.SelectIndustry(it)) },
@@ -152,30 +162,57 @@ private fun BackendConfigurationCard(
 }
 
 @Composable
-private fun ModelManagerCard(modelReadiness: List<ModelReadiness>) {
+private fun ModelManagerCard(
+    modelReadiness: List<ModelReadiness>,
+    models: List<LocalModel>,
+    downloadState: ModelDownloadState,
+    storageUsageMb: Float,
+    onDownload: (String) -> Unit,
+    onDelete: (String) -> Unit,
+    onCancel: (String) -> Unit,
+) {
     val readyCount = modelReadiness.count { it.status == ModelReadinessStatus.Installed }
+    val storageLabel = if (storageUsageMb < 1024f) {
+        "${storageUsageMb.toInt()} MB used"
+    } else {
+        val gb = storageUsageMb / 1024f
+        "${(gb * 10).toInt() / 10}.${(gb * 10).toInt() % 10} GB used"
+    }
     AstraCard(
         title = "Model Manager",
-        subtitle = "Local model readiness, required files and fallback guidance. Setup: docs/REAL_INFERENCE_SETUP.md",
+        subtitle = "Download and manage on-device AI models. $storageLabel.",
         status = "$readyCount/${modelReadiness.size} READY",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
-        Text(
-            text = "Downloads are intentionally disabled. Add a local LiteRT-LM bundle through the developer setup path, or ASTRA keeps the Mock fallback active.",
-            style = AstraTypography.Caption,
-            color = AstraColors.TextSecondary,
-        )
-        Spacer(Modifier.height(AstraSpacing.M))
         Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
             modelReadiness.forEach { readiness ->
-                ModelReadinessRow(readiness = readiness)
+                val model = models.firstOrNull { it.id == readiness.modelId }
+                ModelReadinessRow(
+                    readiness = readiness,
+                    model = model,
+                    downloadState = downloadState,
+                    onDownload = onDownload,
+                    onDelete = onDelete,
+                    onCancel = onCancel,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun ModelReadinessRow(readiness: ModelReadiness) {
+private fun ModelReadinessRow(
+    readiness: ModelReadiness,
+    model: LocalModel?,
+    downloadState: ModelDownloadState,
+    onDownload: (String) -> Unit,
+    onDelete: (String) -> Unit,
+    onCancel: (String) -> Unit,
+) {
+    val isThisDownloading = downloadState is ModelDownloadState.Downloading &&
+        downloadState.modelId == readiness.modelId
+    val downloading = downloadState as? ModelDownloadState.Downloading
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -203,52 +240,81 @@ private fun ModelReadinessRow(readiness: ModelReadiness) {
                 )
             }
             AstraChip(
-                label = readiness.status.label.uppercase(),
-                color = readiness.status.statusColor(),
+                label = if (isThisDownloading) "DOWNLOADING" else readiness.status.label.uppercase(),
+                color = if (isThisDownloading) AstraColors.Primary else readiness.status.statusColor(),
             )
         }
-        Spacer(Modifier.height(AstraSpacing.S))
-        Text(
-            text = readiness.readinessMessage,
-            style = AstraTypography.Caption,
-            color = AstraColors.TextSecondary,
-        )
-        Spacer(Modifier.height(AstraSpacing.S))
-        MetadataLine(label = "Backends", value = readiness.supportedBackends.joinToString { it.label })
-        MetadataLine(label = "Local path", value = readiness.localPath)
-        if (readiness.requiredFiles.isNotEmpty()) {
+
+        if (isThisDownloading && downloading != null) {
             Spacer(Modifier.height(AstraSpacing.S))
-            Text(
-                text = "Required files",
-                style = AstraTypography.Caption,
-                color = AstraColors.TextSecondary,
-                fontWeight = FontWeight.SemiBold,
+            LinearProgressIndicator(
+                progress = { downloading.progressPercent / 100f },
+                modifier = Modifier.fillMaxWidth(),
+                color = AstraColors.Primary,
+                trackColor = AstraColors.Border,
             )
             Spacer(Modifier.height(AstraSpacing.XS))
-            Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.XS)) {
-                readiness.requiredFiles.forEach { file ->
-                    RequiredFileRow(file = file)
+            Text(
+                text = if (downloading.totalMb > 0f) {
+                    "${downloading.downloadedMb.toInt()} / ${downloading.totalMb.toInt()} MB — ${downloading.progressPercent}%"
+                } else {
+                    "${downloading.downloadedMb.toInt()} MB downloaded…"
+                },
+                style = AstraTypography.Caption,
+                color = AstraColors.Primary,
+            )
+        } else {
+            Spacer(Modifier.height(AstraSpacing.S))
+            Text(
+                text = readiness.readinessMessage,
+                style = AstraTypography.Caption,
+                color = AstraColors.TextSecondary,
+            )
+            Spacer(Modifier.height(AstraSpacing.S))
+            MetadataLine(label = "Backends", value = readiness.supportedBackends.joinToString { it.label })
+            if (readiness.requiredFiles.isNotEmpty()) {
+                Spacer(Modifier.height(AstraSpacing.S))
+                Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.XS)) {
+                    readiness.requiredFiles.forEach { file ->
+                        RequiredFileRow(file = file)
+                    }
                 }
             }
         }
+
         Spacer(Modifier.height(AstraSpacing.S))
         SelectableOptionRow {
-            AstraButton(
-                text = "View setup guide",
-                onClick = {},
-                style = AstraButtonStyle.Ghost,
-            )
-            AstraButton(
-                text = "Model download coming soon",
-                onClick = {},
-                style = AstraButtonStyle.Secondary,
-                enabled = false,
-            )
-            AstraButton(
-                text = "Use Mock fallback",
-                onClick = {},
-                style = AstraButtonStyle.Secondary,
-            )
+            when {
+                isThisDownloading -> {
+                    AstraButton(
+                        text = "Cancel",
+                        onClick = { onCancel(readiness.modelId) },
+                        style = AstraButtonStyle.Danger,
+                    )
+                }
+                readiness.status == ModelReadinessStatus.Installed && model?.status != ModelStatus.Installed -> {
+                    AstraButton(
+                        text = "Delete",
+                        onClick = { onDelete(readiness.modelId) },
+                        style = AstraButtonStyle.Danger,
+                    )
+                }
+                model?.downloadUrl != null && readiness.status != ModelReadinessStatus.Installed -> {
+                    AstraButton(
+                        text = "Download",
+                        onClick = { onDownload(readiness.modelId) },
+                        style = AstraButtonStyle.Primary,
+                    )
+                }
+                else -> {
+                    AstraButton(
+                        text = "Installed",
+                        onClick = {},
+                        style = AstraButtonStyle.Secondary,
+                        enabled = false,
+                    )
+                }
+            }
         }
     }
 }

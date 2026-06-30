@@ -18,6 +18,8 @@ import com.kevin.astra.data.benchmark.RuntimeBenchmarkRunner
 import com.kevin.astra.data.demo.StaticDemoScenarioCatalog
 import com.kevin.astra.data.documents.KeywordDocumentContextRetriever
 import com.kevin.astra.data.documents.SimpleDocumentIndexer
+import com.kevin.astra.data.history.DefaultConversationRepository
+import com.kevin.astra.data.history.createConversationFileStore
 import com.kevin.astra.data.settings.AiConfigurationLocalDataSource
 import com.kevin.astra.data.settings.PersistentAiConfigurationRepository
 import com.kevin.astra.data.settings.createAiConfigurationKeyValueStore
@@ -26,7 +28,12 @@ import com.kevin.astra.domain.benchmark.BenchmarkRunner
 import com.kevin.astra.domain.demo.DemoScenarioCatalog
 import com.kevin.astra.domain.documents.DocumentContextRetriever
 import com.kevin.astra.domain.documents.DocumentIndexer
+import com.kevin.astra.domain.export.ConversationShareHelper
+import com.kevin.astra.domain.export.createConversationShareHelper
+import com.kevin.astra.domain.history.ConversationRepository
+import com.kevin.astra.domain.modelmanager.ModelDownloadManager
 import com.kevin.astra.domain.modelmanager.ModelReadinessProvider
+import com.kevin.astra.domain.modelmanager.createModelDownloadManager
 import com.kevin.astra.domain.modelmanager.createModelReadinessProvider
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import com.kevin.astra.presentation.assistant.AssistantViewModel
@@ -34,6 +41,7 @@ import com.kevin.astra.presentation.benchmark.BenchmarkViewModel
 import com.kevin.astra.presentation.dashboard.DashboardViewModel
 import com.kevin.astra.presentation.demo.DemoViewModel
 import com.kevin.astra.presentation.documents.DocumentsViewModel
+import com.kevin.astra.presentation.history.ConversationHistoryViewModel
 import com.kevin.astra.presentation.overview.ProjectOverviewViewModel
 import com.kevin.astra.presentation.settings.SettingsViewModel
 import org.koin.core.KoinApplication
@@ -53,6 +61,9 @@ val astraRootModule = module {
     single<InferenceEngine> { createInferenceEngine() }
     single<BenchmarkRunner> { RuntimeBenchmarkRunner(inferenceEngine = get()) }
     single<ModelReadinessProvider> { createModelReadinessProvider() }
+    single<ModelDownloadManager> { createModelDownloadManager() }
+    single<ConversationRepository> { DefaultConversationRepository(fileStore = createConversationFileStore()) }
+    single<ConversationShareHelper> { createConversationShareHelper() }
     single<DemoScenarioCatalog> { StaticDemoScenarioCatalog() }
     single<DocumentIndexer> { SimpleDocumentIndexer() }
     single<DocumentContextRetriever> { KeywordDocumentContextRetriever() }
@@ -86,6 +97,13 @@ val astraRootModule = module {
             promptPipeline = get(),
             demoScenarioCatalog = get(),
             notificationService = get(),
+            conversationRepository = get(),
+        )
+    }
+    single {
+        ConversationHistoryViewModel(
+            conversationRepository = get(),
+            shareHelper = get(),
         )
     }
     single {
@@ -117,6 +135,7 @@ val astraRootModule = module {
             modelCatalog = get(),
             backendCatalog = get(),
             modelReadinessProvider = get(),
+            modelDownloadManager = get(),
         )
     }
 }

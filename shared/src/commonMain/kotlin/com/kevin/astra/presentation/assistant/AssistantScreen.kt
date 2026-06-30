@@ -37,6 +37,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kevin.astra.core.ai.LocalModel
+import com.kevin.astra.core.ai.ModelStatus
 import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraCard
@@ -47,6 +49,7 @@ import com.kevin.astra.core.design.AstraMetricCard
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
+import com.kevin.astra.domain.assistant.PromptTemplate
 import com.kevin.astra.domain.demo.DemoScenario
 
 @Composable
@@ -81,6 +84,22 @@ private fun AssistantContent(
         description = "Secure Local AI for Critical Operations",
         contentPadding = contentPadding,
     ) {
+        if (state.installedModels.size > 1) {
+            ModelSelector(
+                models = state.installedModels,
+                selectedModel = state.sessionModel,
+                enabled = !state.isGenerating,
+                onSelectModel = { onIntent(AssistantIntent.SelectSessionModel(it)) },
+            )
+        }
+
+        PromptTemplateCard(
+            templates = state.promptTemplates,
+            activeTemplate = state.activeTemplate,
+            enabled = !state.isGenerating,
+            onTemplateSelected = { onIntent(AssistantIntent.SelectTemplate(it)) },
+        )
+
         ScenarioSelector(
             scenarios = state.availableScenarios,
             onScenarioSelected = { onIntent(AssistantIntent.SelectScenario(it)) },
@@ -169,6 +188,114 @@ private fun ScenarioChip(
                 style = AstraTypography.Caption,
                 color = AstraColors.TextSecondary,
             )
+        }
+    }
+}
+
+@Composable
+private fun ModelSelector(
+    models: List<LocalModel>,
+    selectedModel: LocalModel?,
+    enabled: Boolean,
+    onSelectModel: (String) -> Unit,
+) {
+    AstraCard(
+        title = "Model",
+        subtitle = "Active model for this session. Switch without changing your saved settings.",
+        status = selectedModel?.displayName ?: "—",
+    ) {
+        Spacer(Modifier.height(AstraSpacing.M))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+        ) {
+            models.forEach { model ->
+                val selected = model.id == selectedModel?.id
+                val accent = if (selected) AstraColors.Primary else AstraColors.Border
+                Box(
+                    modifier = Modifier
+                        .heightIn(min = 64.dp)
+                        .alpha(if (enabled) 1f else 0.54f)
+                        .background(
+                            color = if (selected) AstraColors.Primary.copy(alpha = 0.14f) else AstraColors.SurfaceElevated,
+                            shape = RoundedCornerShape(16.dp),
+                        )
+                        .border(1.dp, accent, RoundedCornerShape(16.dp))
+                        .clickable(enabled = enabled) { onSelectModel(model.id) }
+                        .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column {
+                        Text(
+                            text = model.displayName,
+                            style = AstraTypography.Caption,
+                            color = if (selected) AstraColors.TextPrimary else AstraColors.TextSecondary,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                        )
+                        Text(
+                            text = "${model.parameterCount} • ${model.quantization}",
+                            style = AstraTypography.Caption,
+                            color = AstraColors.TextDisabled,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PromptTemplateCard(
+    templates: List<PromptTemplate>,
+    activeTemplate: PromptTemplate?,
+    enabled: Boolean,
+    onTemplateSelected: (PromptTemplate) -> Unit,
+) {
+    AstraCard(
+        title = "Prompt Templates",
+        subtitle = "One tap to pre-fill the prompt with a structured starting point.",
+    ) {
+        Spacer(Modifier.height(AstraSpacing.M))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+        ) {
+            templates.forEach { template ->
+                val selected = template.id == activeTemplate?.id
+                val accent = if (selected) AstraColors.Secondary else AstraColors.Border
+                Box(
+                    modifier = Modifier
+                        .heightIn(min = 64.dp)
+                        .alpha(if (enabled) 1f else 0.54f)
+                        .background(
+                            color = if (selected) AstraColors.Secondary.copy(alpha = 0.14f) else AstraColors.SurfaceElevated,
+                            shape = RoundedCornerShape(16.dp),
+                        )
+                        .border(1.dp, accent, RoundedCornerShape(16.dp))
+                        .clickable(enabled = enabled) { onTemplateSelected(template) }
+                        .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = template.icon,
+                            style = AstraTypography.Title,
+                            color = if (selected) AstraColors.Secondary else AstraColors.TextSecondary,
+                        )
+                        Spacer(Modifier.height(AstraSpacing.XS))
+                        Text(
+                            text = template.label,
+                            style = AstraTypography.Caption,
+                            color = if (selected) AstraColors.TextPrimary else AstraColors.TextSecondary,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                        )
+                    }
+                }
+            }
         }
     }
 }
