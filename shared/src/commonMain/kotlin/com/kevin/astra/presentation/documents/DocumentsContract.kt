@@ -3,7 +3,6 @@ package com.kevin.astra.presentation.documents
 import com.kevin.astra.core.mvi.AstraEffect
 import com.kevin.astra.core.mvi.AstraIntent
 import com.kevin.astra.core.mvi.AstraState
-import com.kevin.astra.domain.documents.AstraDocument
 import com.kevin.astra.domain.documents.DocumentStatus
 import com.kevin.astra.domain.documents.IndexedDocumentChunk
 import com.kevin.astra.domain.documents.RetrievedDocumentContext
@@ -21,34 +20,36 @@ data class DocumentsAnswer(
 )
 
 data class DocumentsState(
-    val availableDocuments: List<AstraDocument> = emptyList(),
-    val selectedDocument: AstraDocument? = null,
+    val loadedFileName: String? = null,
+    val pageCount: Int = 0,
     val documentStatus: DocumentStatus = DocumentStatus.NotIndexed,
     val indexedChunks: List<IndexedDocumentChunk> = emptyList(),
     val question: String = "",
     val extractedContext: RetrievedDocumentContext? = null,
     val answer: DocumentsAnswer? = null,
+    val isLoading: Boolean = false,
     val isIndexing: Boolean = false,
     val isGenerating: Boolean = false,
     val metrics: DocumentsMetrics = DocumentsMetrics(),
     val error: String? = null,
 ) : AstraState {
     val canIndex: Boolean
-        get() = selectedDocument != null && !isIndexing && documentStatus != DocumentStatus.Indexed
+        get() = loadedFileName != null && !isIndexing && !isLoading &&
+            documentStatus == DocumentStatus.NotIndexed
 
     val canAsk: Boolean
         get() = question.isNotBlank() &&
-            selectedDocument != null &&
             documentStatus == DocumentStatus.Indexed &&
-            !isGenerating &&
-            !isIndexing
+            !isGenerating && !isIndexing
 }
 
 sealed interface DocumentsIntent : AstraIntent {
-    data object IndexSelectedDocument : DocumentsIntent
+    data class PdfLoaded(val bytes: ByteArray, val fileName: String) : DocumentsIntent
+    data object IndexDocument : DocumentsIntent
     data class UpdateQuestion(val question: String) : DocumentsIntent
     data object AskDocument : DocumentsIntent
-    data object ClearConversation : DocumentsIntent
+    data object ClearDocument : DocumentsIntent
+    data object ClearAnswer : DocumentsIntent
 }
 
 sealed interface DocumentsEffect : AstraEffect

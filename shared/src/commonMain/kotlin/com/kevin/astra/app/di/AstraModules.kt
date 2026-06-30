@@ -16,8 +16,8 @@ import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.ai.createBackendCatalog
 import com.kevin.astra.data.benchmark.RuntimeBenchmarkRunner
 import com.kevin.astra.data.demo.StaticDemoScenarioCatalog
-import com.kevin.astra.data.documents.KeywordDocumentContextRetriever
-import com.kevin.astra.data.documents.SimpleDocumentIndexer
+import com.kevin.astra.data.documents.SmartTextChunker
+import com.kevin.astra.data.documents.TfIdfContextRetriever
 import com.kevin.astra.data.history.DefaultConversationRepository
 import com.kevin.astra.data.history.createConversationFileStore
 import com.kevin.astra.data.settings.AiConfigurationLocalDataSource
@@ -27,11 +27,12 @@ import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import com.kevin.astra.domain.benchmark.BenchmarkRunner
 import com.kevin.astra.domain.demo.DemoScenarioCatalog
 import com.kevin.astra.domain.documents.DocumentContextRetriever
-import com.kevin.astra.domain.documents.DocumentIndexer
 import com.kevin.astra.domain.export.ConversationShareHelper
 import com.kevin.astra.domain.export.createConversationShareHelper
 import com.kevin.astra.domain.history.ConversationRepository
 import com.kevin.astra.domain.modelmanager.ModelDownloadManager
+import com.kevin.astra.domain.documents.PdfExtractor
+import com.kevin.astra.domain.documents.createPdfExtractor
 import com.kevin.astra.domain.vision.ImageClassifier
 import com.kevin.astra.domain.vision.createImageClassifier
 import com.kevin.astra.domain.voice.SpeechRecognitionService
@@ -71,13 +72,14 @@ val astraRootModule = module {
     single<ModelReadinessProvider> { createModelReadinessProvider() }
     single<ModelDownloadManager> { createModelDownloadManager() }
     single<ImageClassifier> { createImageClassifier() }
+    single<PdfExtractor> { createPdfExtractor() }
+    single { SmartTextChunker() }
+    single<DocumentContextRetriever> { TfIdfContextRetriever() }
     single<ConversationRepository> { DefaultConversationRepository(fileStore = createConversationFileStore()) }
     single<ConversationShareHelper> { createConversationShareHelper() }
     single<SpeechRecognitionService> { createSpeechRecognitionService() }
     single<TextToSpeechService> { createTextToSpeechService() }
     single<DemoScenarioCatalog> { StaticDemoScenarioCatalog() }
-    single<DocumentIndexer> { SimpleDocumentIndexer() }
-    single<DocumentContextRetriever> { KeywordDocumentContextRetriever() }
     single { AskLocalAssistantUseCase(inferenceEngine = get()) }
     single { DashboardViewModel(deviceCapabilityProvider = get()) }
     single {
@@ -130,7 +132,8 @@ val astraRootModule = module {
     }
     single {
         DocumentsViewModel(
-            documentIndexer = get(),
+            pdfExtractor = get(),
+            chunker = get(),
             contextRetriever = get(),
             askLocalAssistant = get(),
             aiConfigurationRepository = get(),

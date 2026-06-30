@@ -16,6 +16,7 @@ koin = "4.2.2"
 kotlin = "2.4.0"
 litert = "2.1.0"
 mediapipeTasksGenai = "0.10.35"
+pdfbox-android = "2.0.27.0"
 material3 = "1.9.0"
 
 [libraries]
@@ -40,6 +41,7 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 litert = { module = "com.google.ai.edge.litert:litert", version.ref = "litert" }
 mediapipe-tasks-genai = { module = "com.google.mediapipe:tasks-genai", version.ref = "mediapipeTasksGenai" }
+pdfbox-android = { module = "com.tom_roush:pdfbox-android", version.ref = "pdfbox-android" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

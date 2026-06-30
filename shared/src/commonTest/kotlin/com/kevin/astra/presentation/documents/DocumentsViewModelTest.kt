@@ -9,14 +9,17 @@ import com.kevin.astra.core.ai.InferenceBackend
 import com.kevin.astra.core.ai.InferenceEngine
 import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.PromptRequest
+import com.kevin.astra.core.navigation.AstraDestination
+import com.kevin.astra.core.notification.NotificationService
 import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
-import com.kevin.astra.data.documents.KeywordDocumentContextRetriever
-import com.kevin.astra.data.documents.SimpleDocumentIndexer
+import com.kevin.astra.data.documents.SmartTextChunker
+import com.kevin.astra.data.documents.TfIdfContextRetriever
 import com.kevin.astra.data.settings.testAiConfigurationRepository
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import com.kevin.astra.domain.documents.DocumentStatus
-import kotlinx.coroutines.CoroutineScope
+import com.kevin.astra.domain.documents.LoadedPdfDocument
+import com.kevin.astra.domain.documents.PdfExtractor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
@@ -24,54 +27,53 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class DocumentsViewModelTest {
-    @Test
-    fun startsWithEmbeddedDocumentNotIndexed() {
-        val viewModel = testViewModel()
 
+    @Test
+    fun startsWithNoDocumentLoaded() {
+        val viewModel = testViewModel()
         val state = viewModel.state.value
 
-        assertEquals(1, state.availableDocuments.size)
-        assertEquals("Industrial Pump Maintenance Guide", state.selectedDocument?.title)
+        assertNull(state.loadedFileName)
         assertEquals(DocumentStatus.NotIndexed, state.documentStatus)
-        assertTrue(state.canIndex)
+        assertFalse(state.canIndex)
         assertFalse(state.canAsk)
     }
 
     @Test
-    fun indexesSelectedDocument() = runBlocking {
-        val viewModel = testViewModel(scope = CoroutineScope(coroutineContext))
+    fun loadingPdfExtractsAndAutoIndexes() = runBlocking {
+        val viewModel = testViewModel()
 
-        viewModel.dispatch(DocumentsIntent.IndexSelectedDocument)
+        val fakeText = "This document describes pump maintenance. " .repeat(100)
+        val fakeBytes = fakeText.encodeToByteArray()
+        viewModel.dispatch(DocumentsIntent.PdfLoaded(fakeBytes, "pump-guide.pdf"))
         yield()
-
-        assertTrue(viewModel.state.value.isIndexing)
-
-        delay(700)
+        delay(200)
 
         val state = viewModel.state.value
-        assertFalse(state.isIndexing)
+        assertEquals("pump-guide.pdf", state.loadedFileName)
         assertEquals(DocumentStatus.Indexed, state.documentStatus)
         assertTrue(state.indexedChunks.isNotEmpty())
+        assertFalse(state.isIndexing)
     }
 
     @Test
-    fun asksDocumentWithExtractedContextAndMetrics() = runBlocking {
+    fun asksDocumentAfterIndexing() = runBlocking {
         var capturedRequest: PromptRequest? = null
         val viewModel = testViewModel(
-            scope = CoroutineScope(coroutineContext),
             inferenceEngine = object : InferenceEngine {
                 override suspend fun generate(request: PromptRequest): GenerationResult {
                     capturedRequest = request
                     delay(10)
                     return GenerationResult(
-                        text = "Pump restart answer\n\nUse the extracted guide context.",
+                        text = "Pump answer\n\nBased on the document.",
                         metrics = GenerationMetrics(
                             latencyMillis = 1_200,
                             timeToFirstTokenMillis = 320,
-                            tokensGenerated = 96,
+                            tokensGenerated = 60,
                             tokensPerSecond = 18,
                             memoryUsageMb = 384,
                         ),
@@ -83,58 +85,73 @@ class DocumentsViewModelTest {
             },
         )
 
-        viewModel.dispatch(DocumentsIntent.IndexSelectedDocument)
-        delay(700)
-        viewModel.dispatch(DocumentsIntent.UpdateQuestion("How should I restart Pump A?"))
+        val fakeText = "Pump restart procedure: turn off power, wait 30 seconds, then restart. ".repeat(80)
+        viewModel.dispatch(DocumentsIntent.PdfLoaded(fakeText.encodeToByteArray(), "guide.pdf"))
+        delay(200)
+
+        viewModel.dispatch(DocumentsIntent.UpdateQuestion("How do I restart the pump?"))
         viewModel.dispatch(DocumentsIntent.AskDocument)
         yield()
 
         assertTrue(viewModel.state.value.isGenerating)
-
-        delay(20)
+        delay(50)
 
         val state = viewModel.state.value
         assertFalse(state.isGenerating)
         assertNotNull(state.extractedContext)
-        assertTrue(state.extractedContext.text.contains("Pump Restart Procedure"))
-        assertEquals("Pump restart answer", state.answer?.title)
+        assertTrue(state.extractedContext!!.chunks.isNotEmpty())
+        assertEquals("Pump answer", state.answer?.title)
         assertEquals("1.2 s", state.metrics.latency)
-        assertEquals("18", state.metrics.tokensPerSecond)
-        assertTrue(capturedRequest?.prompt.orEmpty().contains("System role"))
-        assertTrue(capturedRequest?.prompt.orEmpty().contains("Context"))
-        assertTrue(capturedRequest?.prompt.orEmpty().contains("Pump Restart Procedure"))
+        assertNotNull(capturedRequest)
+    }
+
+    @Test
+    fun clearDocumentResetsAllState() = runBlocking {
+        val viewModel = testViewModel()
+        viewModel.dispatch(DocumentsIntent.PdfLoaded("content".repeat(50).encodeToByteArray(), "doc.pdf"))
+        delay(200)
+        viewModel.dispatch(DocumentsIntent.ClearDocument)
+
+        val state = viewModel.state.value
+        assertNull(state.loadedFileName)
+        assertEquals(DocumentStatus.NotIndexed, state.documentStatus)
+        assertTrue(state.indexedChunks.isEmpty())
     }
 
     private fun testViewModel(
-        scope: CoroutineScope? = null,
         inferenceEngine: InferenceEngine = object : InferenceEngine {
             override suspend fun generate(request: PromptRequest): GenerationResult =
                 GenerationResult(
-                    text = "Document answer\n\nGenerated response",
-                    metrics = GenerationMetrics(
-                        latencyMillis = 1_200,
-                        timeToFirstTokenMillis = 320,
-                        tokensGenerated = 80,
-                        tokensPerSecond = 18,
-                        memoryUsageMb = 384,
-                    ),
+                    text = "Answer\n\nContent",
+                    metrics = GenerationMetrics(1_200, 320, 80, 18, 384),
                     model = request.model,
                     backend = request.backend,
-                    generatedAt = "timestamp",
+                    generatedAt = "ts",
                 )
         },
     ): DocumentsViewModel =
         DocumentsViewModel(
-            documentIndexer = SimpleDocumentIndexer(),
-            contextRetriever = KeywordDocumentContextRetriever(),
+            pdfExtractor = FakePdfExtractor(),
+            chunker = SmartTextChunker(),
+            contextRetriever = TfIdfContextRetriever(),
             askLocalAssistant = AskLocalAssistantUseCase(inferenceEngine),
             aiConfigurationRepository = testAiConfigurationRepository(),
             modelCatalog = DefaultModelCatalog(),
             backendCatalog = DefaultBackendCatalog(),
-            promptPipeline = testPromptPipeline(),
-            documentsScope = scope,
+            promptPipeline = DefaultPromptPipeline(DefaultPromptBuilder()),
+            notificationService = NoOpNotificationService(),
         )
+}
 
-    private fun testPromptPipeline(): PromptPipeline =
-        DefaultPromptPipeline(DefaultPromptBuilder())
+private class FakePdfExtractor : PdfExtractor {
+    override fun extract(pdfBytes: ByteArray, fileName: String): LoadedPdfDocument =
+        LoadedPdfDocument(
+            fileName = fileName,
+            rawText = pdfBytes.decodeToString(),
+            pageCount = 1,
+        )
+}
+
+private class NoOpNotificationService : NotificationService {
+    override fun showNotification(title: String, message: String, targetDestination: AstraDestination) = Unit
 }

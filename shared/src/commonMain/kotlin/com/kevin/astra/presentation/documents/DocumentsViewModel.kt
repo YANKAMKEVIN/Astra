@@ -10,19 +10,19 @@ import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.core.mvi.AstraViewModel
 import com.kevin.astra.core.navigation.AstraDestination
 import com.kevin.astra.core.notification.NotificationService
-import com.kevin.astra.data.documents.EmbeddedMaintenanceDocument
+import com.kevin.astra.data.documents.SmartTextChunker
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import com.kevin.astra.domain.documents.DocumentContextRetriever
-import com.kevin.astra.domain.documents.DocumentIndexer
 import com.kevin.astra.domain.documents.DocumentStatus
+import com.kevin.astra.domain.documents.PdfExtractor
 import com.kevin.astra.domain.settings.AiConfigurationRepository
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class DocumentsViewModel(
-    private val documentIndexer: DocumentIndexer,
+    private val pdfExtractor: PdfExtractor,
+    private val chunker: SmartTextChunker,
     private val contextRetriever: DocumentContextRetriever,
     private val askLocalAssistant: AskLocalAssistantUseCase,
     private val aiConfigurationRepository: AiConfigurationRepository,
@@ -30,51 +30,58 @@ class DocumentsViewModel(
     private val backendCatalog: BackendCatalog,
     private val promptPipeline: PromptPipeline,
     private val notificationService: NotificationService,
-    private val documentsScope: CoroutineScope? = null,
 ) : AstraViewModel<DocumentsState, DocumentsIntent, DocumentsEffect>(
-    initialState = DocumentsState(
-        availableDocuments = listOf(EmbeddedMaintenanceDocument.industrialPumpMaintenanceGuide),
-        selectedDocument = EmbeddedMaintenanceDocument.industrialPumpMaintenanceGuide,
-    ),
+    initialState = DocumentsState(),
 ) {
     override fun handleIntent(intent: DocumentsIntent) {
         when (intent) {
-            DocumentsIntent.IndexSelectedDocument -> indexSelectedDocument()
-
-            is DocumentsIntent.UpdateQuestion -> updateState {
-                copy(question = intent.question, error = null)
-            }
-
+            is DocumentsIntent.PdfLoaded -> loadPdf(intent.bytes, intent.fileName)
+            DocumentsIntent.IndexDocument -> indexDocument()
+            is DocumentsIntent.UpdateQuestion -> updateState { copy(question = intent.question, error = null) }
             DocumentsIntent.AskDocument -> askDocument()
-            DocumentsIntent.ClearConversation -> updateState {
-                copy(
-                    question = "",
-                    extractedContext = null,
-                    answer = null,
-                    error = null,
-                    metrics = DocumentsMetrics(),
-                )
+            DocumentsIntent.ClearDocument -> updateState { DocumentsState() }
+            DocumentsIntent.ClearAnswer -> updateState { copy(answer = null, extractedContext = null, metrics = DocumentsMetrics(), error = null) }
+        }
+    }
+
+    private fun loadPdf(bytes: ByteArray, fileName: String) {
+        viewModelScope.launch {
+            updateState { copy(isLoading = true, error = null, documentStatus = DocumentStatus.NotIndexed, indexedChunks = emptyList()) }
+            try {
+                val pdf = withContext(Dispatchers.Default) { pdfExtractor.extract(bytes, fileName) }
+                if (pdf.rawText.isBlank()) {
+                    updateState { copy(isLoading = false, error = "Could not extract text from this PDF. It may be image-based.") }
+                    return@launch
+                }
+                updateState {
+                    copy(
+                        isLoading = false,
+                        loadedFileName = pdf.fileName,
+                        pageCount = pdf.pageCount,
+                        documentStatus = DocumentStatus.NotIndexed,
+                    )
+                }
+                // Auto-index after loading
+                indexDocumentInternal(bytes, fileName)
+            } catch (e: Exception) {
+                updateState { copy(isLoading = false, error = "Failed to read PDF: ${e.message}") }
             }
         }
     }
 
-    private fun indexSelectedDocument() {
-        val document = state.value.selectedDocument ?: return
+    private fun indexDocument() {
         if (!state.value.canIndex) return
+        viewModelScope.launch { indexDocumentInternal(null, state.value.loadedFileName ?: return@launch) }
+    }
 
-        (documentsScope ?: viewModelScope).launch {
-            updateState {
-                copy(
-                    isIndexing = true,
-                    documentStatus = DocumentStatus.Processing,
-                    error = null,
-                )
-            }
+    private suspend fun indexDocumentInternal(bytes: ByteArray?, fileName: String) {
+        updateState { copy(isIndexing = true, documentStatus = DocumentStatus.Processing, error = null) }
+        try {
+            val pdf = if (bytes != null) {
+                withContext(Dispatchers.Default) { pdfExtractor.extract(bytes, fileName) }
+            } else return
 
-            val chunks = withContext(Dispatchers.Default) {
-                documentIndexer.index(document)
-            }
-
+            val chunks = withContext(Dispatchers.Default) { chunker.indexPdf(pdf) }
             updateState {
                 copy(
                     isIndexing = false,
@@ -82,30 +89,28 @@ class DocumentsViewModel(
                     indexedChunks = chunks,
                 )
             }
+        } catch (e: Exception) {
+            updateState { copy(isIndexing = false, documentStatus = DocumentStatus.Error, error = "Indexing failed: ${e.message}") }
         }
     }
 
     private fun askDocument() {
         val snapshot = state.value
-        if (!snapshot.canAsk) {
-            updateState {
-                copy(error = "Index the embedded document and enter a question before asking ASTRA.")
-            }
-            return
-        }
+        if (!snapshot.canAsk) return
 
-        (documentsScope ?: viewModelScope).launch {
+        viewModelScope.launch {
             val configuration = aiConfigurationRepository.getConfiguration()
             val selectedModel = modelCatalog.modelById(configuration.selectedModelId) ?: modelCatalog.currentModel()
             val selectedBackend = backendCatalog.backendById(configuration.selectedBackendId) ?: backendCatalog.currentBackend()
-            
+
             val context = withContext(Dispatchers.Default) {
                 contextRetriever.retrieve(
                     question = snapshot.question,
                     chunks = snapshot.indexedChunks,
+                    maxChunks = 4,
                 )
             }
-            
+
             val preparedPrompt = promptPipeline.preparePrompt(
                 PromptBuildRequest(
                     engineerQuestion = snapshot.question,
@@ -115,14 +120,7 @@ class DocumentsViewModel(
                 ),
             )
 
-            updateState {
-                copy(
-                    isGenerating = true,
-                    extractedContext = context,
-                    answer = null,
-                    error = null,
-                )
-            }
+            updateState { copy(isGenerating = true, extractedContext = context, answer = null, error = null) }
 
             val result = withContext(Dispatchers.Default) {
                 askLocalAssistant(
@@ -147,8 +145,8 @@ class DocumentsViewModel(
 
             notificationService.showNotification(
                 title = "Document Analysis Ready",
-                message = "The local document has been processed and analyzed.",
-                targetDestination = AstraDestination.Documents
+                message = "ASTRA answered your question from ${snapshot.loadedFileName}.",
+                targetDestination = AstraDestination.Documents,
             )
         }
     }
@@ -156,7 +154,7 @@ class DocumentsViewModel(
 
 private fun GenerationResult.toDocumentsAnswer(): DocumentsAnswer =
     DocumentsAnswer(
-        title = text.lineSequence().firstOrNull().orEmpty().ifBlank { "Document answer" },
+        title = text.lineSequence().firstOrNull().orEmpty().ifBlank { "Answer" },
         body = text,
     )
 

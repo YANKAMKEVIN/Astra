@@ -43,6 +43,7 @@ kotlin {
             implementation(libs.litert)
             implementation(libs.mediapipe.tasks.genai)
             implementation(libs.androidx.activity.compose)
+            implementation(libs.pdfbox.android)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
