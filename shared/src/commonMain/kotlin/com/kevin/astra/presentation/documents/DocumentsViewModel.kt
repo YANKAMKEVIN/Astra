@@ -18,6 +18,8 @@ import com.kevin.astra.domain.documents.PdfExtractor
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -38,14 +40,18 @@ class DocumentsViewModel(
         sessionModel = modelCatalog.currentModel(),
     ),
 ) {
+    private var generationJob: Job? = null
+
     override fun handleIntent(intent: DocumentsIntent) {
         when (intent) {
             is DocumentsIntent.PdfLoaded -> loadPdf(intent.bytes, intent.fileName)
             DocumentsIntent.IndexDocument -> indexDocument()
             is DocumentsIntent.UpdateQuestion -> updateState { copy(question = intent.question, error = null) }
             DocumentsIntent.AskDocument -> askDocument()
-            DocumentsIntent.ClearDocument -> updateState {
-                DocumentsState(availableModels = availableModels, sessionModel = sessionModel)
+            DocumentsIntent.ClearDocument -> {
+                generationJob?.cancel()
+                generationJob = null
+                updateState { DocumentsState(availableModels = availableModels, sessionModel = sessionModel) }
             }
             DocumentsIntent.ClearAnswer -> updateState { copy(answer = null, extractedContext = null, metrics = DocumentsMetrics(), error = null) }
             is DocumentsIntent.SelectSessionModel -> {
@@ -56,8 +62,22 @@ class DocumentsViewModel(
     }
 
     private fun loadPdf(bytes: ByteArray, fileName: String) {
+        generationJob?.cancel()
+        generationJob = null
         (workScope ?: viewModelScope).launch {
-            updateState { copy(isLoading = true, error = null, documentStatus = DocumentStatus.NotIndexed, indexedChunks = emptyList()) }
+            updateState {
+                copy(
+                    isLoading = true,
+                    error = null,
+                    loadedFileName = null,
+                    pageCount = 0,
+                    documentStatus = DocumentStatus.NotIndexed,
+                    indexedChunks = emptyList(),
+                    answer = null,
+                    extractedContext = null,
+                    metrics = DocumentsMetrics(),
+                )
+            }
             try {
                 val pdf = withContext(Dispatchers.Default) { pdfExtractor.extract(bytes, fileName) }
                 if (pdf.rawText.isBlank()) {
@@ -109,7 +129,7 @@ class DocumentsViewModel(
         val snapshot = state.value
         if (!snapshot.canAsk) return
 
-        (workScope ?: viewModelScope).launch {
+        generationJob = (workScope ?: viewModelScope).launch {
             val configuration = aiConfigurationRepository.getConfiguration()
             val selectedModel = snapshot.sessionModel
                 ?: modelCatalog.modelById(configuration.selectedModelId)
@@ -147,6 +167,8 @@ class DocumentsViewModel(
                     ),
                 )
             }
+
+            if (!isActive) return@launch
 
             updateState {
                 copy(

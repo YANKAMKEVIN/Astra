@@ -52,7 +52,6 @@ import com.kevin.astra.domain.modelmanager.createModelReadinessProvider
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import com.kevin.astra.presentation.assistant.AssistantViewModel
 import com.kevin.astra.presentation.benchmark.BenchmarkViewModel
-import com.kevin.astra.presentation.dashboard.DashboardViewModel
 import com.kevin.astra.presentation.demo.DemoViewModel
 import com.kevin.astra.presentation.documents.DocumentsViewModel
 import com.kevin.astra.presentation.history.ConversationHistoryViewModel
@@ -65,7 +64,10 @@ import org.koin.dsl.module
 
 val astraRootModule = module {
     single { AstraNavigator() }
-    single<ModelCatalog> { DefaultModelCatalog() }
+    single<ModelCatalog> {
+        val preInstalled = get<ModelDownloadManager>().getInstalledModelPaths().keys
+        DefaultModelCatalog(preInstalledIds = preInstalled)
+    }
     single<BackendCatalog> { createBackendCatalog() }
     single<DeviceCapabilityProvider> { createDeviceCapabilityProvider() }
     single { createNotificationService() }
@@ -91,7 +93,6 @@ val astraRootModule = module {
     single<TextToSpeechService> { createTextToSpeechService() }
     single<DemoScenarioCatalog> { StaticDemoScenarioCatalog() }
     single { AskLocalAssistantUseCase(inferenceEngine = get()) }
-    single { DashboardViewModel(deviceCapabilityProvider = get()) }
     single {
         DemoViewModel(
             deviceCapabilityProvider = get(),

@@ -103,7 +103,7 @@ class DocumentsViewModelTest {
         val state = viewModel.state.value
         assertFalse(state.isGenerating)
         assertNotNull(state.extractedContext)
-        assertTrue(state.extractedContext!!.chunks.isNotEmpty())
+        assertTrue(state.extractedContext?.chunks.orEmpty().isNotEmpty())
         assertEquals("Pump answer", state.answer?.title)
         assertEquals("1.2 s", state.metrics.latency)
         assertTrue(capturedRequest != null)
@@ -120,6 +120,66 @@ class DocumentsViewModelTest {
         assertNull(state.loadedFileName)
         assertEquals(DocumentStatus.NotIndexed, state.documentStatus)
         assertTrue(state.indexedChunks.isEmpty())
+    }
+
+    @Test
+    fun loadingNewPdfClearsPreviousDocumentState() = runBlocking {
+        val viewModel = testViewModel(workScope = CoroutineScope(coroutineContext))
+
+        viewModel.dispatch(DocumentsIntent.PdfLoaded("first doc content".repeat(50).encodeToByteArray(), "first.pdf"))
+        delay(200)
+        assertEquals("first.pdf", viewModel.state.value.loadedFileName)
+        assertEquals(DocumentStatus.Indexed, viewModel.state.value.documentStatus)
+
+        viewModel.dispatch(DocumentsIntent.PdfLoaded("second doc content".repeat(50).encodeToByteArray(), "second.pdf"))
+        yield()
+
+        // During loading transition: previous file metadata must be cleared immediately
+        val transitioning = viewModel.state.value
+        assertNull(transitioning.loadedFileName)
+        assertNull(transitioning.answer)
+        assertNull(transitioning.extractedContext)
+
+        delay(200)
+        assertEquals("second.pdf", viewModel.state.value.loadedFileName)
+    }
+
+    @Test
+    fun clearingDuringGenerationCancelsJobAndLeavesCleanState() = runBlocking {
+        val scope = CoroutineScope(coroutineContext)
+        val viewModel = testViewModel(
+            workScope = scope,
+            inferenceEngine = object : InferenceEngine {
+                override fun generateStream(request: PromptRequest): Flow<StreamEvent> = emptyFlow()
+                override suspend fun generate(request: PromptRequest): GenerationResult {
+                    delay(5_000) // simulate long-running generation
+                    return GenerationResult(
+                        text = "Stale answer\n\nShould never appear",
+                        metrics = GenerationMetrics(1_200, 320, 80, 18, 384),
+                        model = AiModel.Mock,
+                        backend = InferenceBackend.Mock,
+                        generatedAt = "ts",
+                    )
+                }
+            },
+        )
+
+        // Index a document so canAsk becomes true
+        viewModel.dispatch(DocumentsIntent.PdfLoaded("pump guide content".repeat(50).encodeToByteArray(), "pump.pdf"))
+        delay(200)
+
+        // Start generation then immediately clear — races the in-flight job
+        viewModel.dispatch(DocumentsIntent.UpdateQuestion("What is the restart procedure?"))
+        viewModel.dispatch(DocumentsIntent.AskDocument)
+        viewModel.dispatch(DocumentsIntent.ClearDocument)
+        // Give the cancelled coroutine time to settle
+        delay(200)
+
+        val state = viewModel.state.value
+        assertNull(state.loadedFileName)
+        assertNull(state.answer)
+        assertFalse(state.isGenerating)
+        assertEquals(DocumentStatus.NotIndexed, state.documentStatus)
     }
 
     private fun testViewModel(

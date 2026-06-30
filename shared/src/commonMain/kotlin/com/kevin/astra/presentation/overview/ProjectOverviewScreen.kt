@@ -53,8 +53,8 @@ private fun ProjectOverviewContent(
     onIntent: (ProjectOverviewIntent) -> Unit,
 ) {
     AstraScreen(
-        title = "Project Overview",
-        description = "A read-only architecture explorer for technical demonstrations.",
+        title = "Welcome Engineer",
+        description = "Your secure Edge AI operations overview.",
         contentPadding = contentPadding,
     ) {
         RuntimeOverviewCard(state = state, onRefresh = { onIntent(ProjectOverviewIntent.Refresh) })
@@ -197,8 +197,8 @@ private fun DeviceCard(state: ProjectOverviewState) {
     val capabilities = state.capabilities
     AstraCard(
         title = "Device",
-        subtitle = "Best-effort local platform capabilities.",
-        status = if (state.isLoadingCapabilities) "SCANNING" else capabilities?.platform ?: "UNKNOWN",
+        subtitle = "Best-effort local hardware and platform detection.",
+        status = if (state.isLoadingCapabilities) "SCANNING" else if (capabilities?.npuAvailable == true) "NPU READY" else "NPU NOT DETECTED",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
         Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
@@ -209,9 +209,9 @@ private fun DeviceCard(state: ProjectOverviewState) {
                 modifier = Modifier.weight(1f),
             )
             AstraMetricCard(
-                value = capabilities?.cpuName ?: "Unknown",
+                value = capabilities?.osVersion ?: "Unknown",
                 unit = "",
-                label = "CPU",
+                label = "OS",
                 modifier = Modifier.weight(1f),
             )
         }
@@ -224,17 +224,42 @@ private fun DeviceCard(state: ProjectOverviewState) {
                 modifier = Modifier.weight(1f),
             )
             AstraMetricCard(
-                value = if (capabilities?.npuAvailable == true) capabilities.npuName else "Not detected",
+                value = capabilities?.availableMemoryMb?.let { "$it MB" } ?: "Unknown",
                 unit = "",
-                label = "NPU",
+                label = "Available",
                 modifier = Modifier.weight(1f),
             )
         }
+        Spacer(Modifier.height(AstraSpacing.S))
+        DeviceInfoRow(label = "Device", value = capabilities?.deviceModel ?: "Unknown")
+        DeviceInfoRow(label = "CPU", value = capabilities?.cpuName ?: "Unknown")
+        DeviceInfoRow(label = "GPU", value = capabilities?.gpuName ?: "Not detected")
+        DeviceInfoRow(
+            label = "NPU",
+            value = if (capabilities?.npuAvailable == true) capabilities.npuName else "Not detected",
+        )
+        DeviceInfoRow(
+            label = "Storage available",
+            value = capabilities?.storageAvailableGb?.let { "${((it * 10).toInt() / 10.0)} GB" } ?: "Unknown",
+        )
         Spacer(Modifier.height(AstraSpacing.M))
         ChipScroller(
-            title = "Supported Backends",
+            title = "Supported backends",
             labels = capabilities?.supportedBackends?.map { it.label }.orEmpty(),
         )
+        Spacer(Modifier.height(AstraSpacing.M))
+        ChipScroller(
+            title = "Supported features",
+            labels = capabilities?.supportedFeatures?.map { it.label }.orEmpty(),
+        )
+    }
+}
+
+@Composable
+private fun DeviceInfoRow(label: String, value: String) {
+    Column {
+        Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextSecondary)
+        Text(text = value, style = AstraTypography.Body, color = AstraColors.TextPrimary)
     }
 }
 

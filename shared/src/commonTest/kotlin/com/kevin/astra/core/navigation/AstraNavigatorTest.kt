@@ -25,7 +25,7 @@ class AstraNavigatorTest {
     @Test
     fun exposesPrimaryDestinations() {
         val destinations = AstraDestination.primaryDestinations
-        assertTrue(destinations.contains(AstraDestination.Dashboard))
+        assertTrue(destinations.contains(AstraDestination.ProjectOverview))
         assertTrue(destinations.contains(AstraDestination.Assistant))
         assertTrue(destinations.contains(AstraDestination.Benchmark))
         assertTrue(destinations.contains(AstraDestination.Settings))

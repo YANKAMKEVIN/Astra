@@ -5,7 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import com.kevin.astra.domain.vision.ImagenetLabels.LABELS
 import org.tensorflow.lite.Interpreter
-import java.io.ByteArrayOutputStream
+import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -24,14 +24,22 @@ actual fun createImageClassifier(): ImageClassifier =
 
 private fun tryLoadModel(context: Context): Interpreter? = runCatching {
     // Try filesDir first (downloaded via Model Manager), then assets
-    val modelFile = context.filesDir
+    val downloadedFile = context.filesDir
         .resolve("astra-models/efficientnet-lite0/model.tflite")
-    if (modelFile.exists()) {
-        Interpreter(modelFile)
-    } else {
-        val assetModel = context.assets.open("models/vision/model.tflite").readBytes()
-        Interpreter(ByteBuffer.wrap(assetModel))
-    }
+    val modelFile = when {
+        downloadedFile.exists() -> downloadedFile
+        else -> extractAssetToFile(context, "models/vision/model.tflite")
+    } ?: return@runCatching null
+    Interpreter(modelFile)
+}.getOrNull()
+
+// TFLite Interpreter(ByteBuffer) requires a direct/mapped buffer; heap ByteBuffer.wrap()
+// silently produces wrong behavior. Extracting to a file lets the interpreter memory-map it.
+private fun extractAssetToFile(context: Context, assetPath: String): File? = runCatching {
+    val assetBytes = context.assets.open(assetPath).readBytes()
+    val tmp = File(context.cacheDir, "vision_model.tflite")
+    tmp.writeBytes(assetBytes)
+    tmp
 }.getOrNull()
 
 private class TfLiteImageClassifier(private val interpreter: Interpreter) : ImageClassifier {
@@ -42,7 +50,8 @@ private class TfLiteImageClassifier(private val interpreter: Interpreter) : Imag
         val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
             ?: return emptyResult()
         val input = preprocessBitmap(bitmap)
-        val output = Array(1) { FloatArray(LABELS.size) }
+        val numClasses = interpreter.getOutputTensor(0).shape()[1]
+        val output = Array(1) { FloatArray(numClasses) }
         interpreter.run(input, output)
         val probs = output[0]
         val top = probs.indices

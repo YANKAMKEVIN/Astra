@@ -22,8 +22,6 @@ import com.kevin.astra.presentation.assistant.AssistantScreen
 import com.kevin.astra.presentation.assistant.AssistantViewModel
 import com.kevin.astra.presentation.benchmark.BenchmarkScreen
 import com.kevin.astra.presentation.benchmark.BenchmarkViewModel
-import com.kevin.astra.presentation.dashboard.DashboardScreen
-import com.kevin.astra.presentation.dashboard.DashboardViewModel
 import com.kevin.astra.presentation.demo.DemoScreen
 import com.kevin.astra.presentation.demo.DemoViewModel
 import com.kevin.astra.presentation.documents.DocumentsScreen
@@ -46,7 +44,6 @@ import com.kevin.astra.presentation.splash.SplashScreen
 fun AstraApp(
     navigator: AstraNavigator,
     onboardingRepository: OnboardingRepository,
-    dashboardViewModel: DashboardViewModel,
     demoViewModel: DemoViewModel,
     projectOverviewViewModel: ProjectOverviewViewModel,
     assistantViewModel: AssistantViewModel,
@@ -87,7 +84,7 @@ fun AstraApp(
                             contentPadding = contentPadding,
                             onFinished = {
                                 if (onboardingRepository.isOnboardingCompleted()) {
-                                    navigator.navigateTo(AstraDestination.Dashboard)
+                                    navigator.navigateTo(AstraDestination.ProjectOverview)
                                 } else {
                                     navigator.navigateTo(AstraDestination.Onboarding)
                                 }
@@ -98,14 +95,10 @@ fun AstraApp(
                             contentPadding = contentPadding,
                             onFinished = {
                                 onboardingRepository.markOnboardingCompleted()
-                                navigator.navigateTo(AstraDestination.Dashboard)
+                                navigator.navigateTo(AstraDestination.ProjectOverview)
                             },
                         )
 
-                        AstraDestination.Dashboard -> DashboardScreen(
-                            contentPadding = contentPadding,
-                            viewModel = dashboardViewModel,
-                        )
                         AstraDestination.Demo -> DemoScreen(
                             contentPadding = contentPadding,
                             viewModel = demoViewModel,

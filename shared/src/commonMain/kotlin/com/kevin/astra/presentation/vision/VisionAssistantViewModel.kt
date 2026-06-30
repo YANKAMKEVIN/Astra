@@ -17,6 +17,8 @@ import com.kevin.astra.domain.history.ConversationRepository
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import com.kevin.astra.domain.vision.ImageClassifier
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -32,6 +34,8 @@ class VisionAssistantViewModel(
 ) : AstraViewModel<VisionAssistantState, VisionAssistantIntent, VisionAssistantEffect>(
     initialState = VisionAssistantState(classifierAvailable = false),
 ) {
+    private var analysisJob: Job? = null
+
     init {
         updateState { copy(classifierAvailable = imageClassifier.isAvailable) }
     }
@@ -39,6 +43,7 @@ class VisionAssistantViewModel(
     override fun handleIntent(intent: VisionAssistantIntent) {
         when (intent) {
             is VisionAssistantIntent.PhotoCaptured -> {
+                analysisJob?.cancel()
                 updateState { copy(capturedImageBytes = intent.bytes, phase = VisionPhase.Classifying, error = null) }
                 analyzeAndAsk(intent.bytes)
             }
@@ -46,6 +51,8 @@ class VisionAssistantViewModel(
                 updateState { copy(userQuestion = intent.question) }
             }
             VisionAssistantIntent.Reset -> {
+                analysisJob?.cancel()
+                analysisJob = null
                 updateState {
                     VisionAssistantState(classifierAvailable = imageClassifier.isAvailable)
                 }
@@ -56,7 +63,7 @@ class VisionAssistantViewModel(
     }
 
     private fun analyzeAndAsk(imageBytes: ByteArray) {
-        viewModelScope.launch {
+        analysisJob = viewModelScope.launch {
             // Step 1: classify
             val classification = runCatching {
                 withContext(Dispatchers.Default) { imageClassifier.classify(imageBytes) }
@@ -103,6 +110,8 @@ class VisionAssistantViewModel(
                     )
                 }
             }
+
+            if (!isActive) return@launch
 
             result.onSuccess { generation ->
                 updateState { copy(phase = VisionPhase.Done, response = generation.text) }

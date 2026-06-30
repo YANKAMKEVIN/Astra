@@ -12,7 +12,6 @@ fun App() {
     AstraApp(
         navigator = koin.get(),
         onboardingRepository = koin.get(),
-        dashboardViewModel = koin.get(),
         demoViewModel = koin.get(),
         projectOverviewViewModel = koin.get(),
         assistantViewModel = koin.get(),
