@@ -41,7 +41,7 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 litert = { module = "com.google.ai.edge.litert:litert", version.ref = "litert" }
 mediapipe-tasks-genai = { module = "com.google.mediapipe:tasks-genai", version.ref = "mediapipeTasksGenai" }
-pdfbox-android = { module = "com.tom_roush:pdfbox-android", version.ref = "pdfbox-android" }
+pdfbox-android = { module = "com.tom-roush:pdfbox-android", version.ref = "pdfbox-android" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

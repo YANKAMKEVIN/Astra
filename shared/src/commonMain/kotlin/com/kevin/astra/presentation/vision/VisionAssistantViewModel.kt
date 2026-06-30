@@ -9,6 +9,11 @@ import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.core.mvi.AstraViewModel
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
+import com.kevin.astra.domain.export.ConversationShareHelper
+import com.kevin.astra.domain.export.ExportFormat
+import com.kevin.astra.domain.history.ChatConversation
+import com.kevin.astra.domain.history.ChatMessage
+import com.kevin.astra.domain.history.ConversationRepository
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import com.kevin.astra.domain.vision.ImageClassifier
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +27,8 @@ class VisionAssistantViewModel(
     private val modelCatalog: ModelCatalog,
     private val backendCatalog: BackendCatalog,
     private val promptPipeline: PromptPipeline,
+    private val conversationRepository: ConversationRepository,
+    private val shareHelper: ConversationShareHelper,
 ) : AstraViewModel<VisionAssistantState, VisionAssistantIntent, VisionAssistantEffect>(
     initialState = VisionAssistantState(classifierAvailable = false),
 ) {
@@ -44,6 +51,7 @@ class VisionAssistantViewModel(
                 }
             }
             VisionAssistantIntent.ClearError -> updateState { copy(error = null) }
+            VisionAssistantIntent.ExportResponse -> exportResponse()
         }
     }
 
@@ -98,9 +106,43 @@ class VisionAssistantViewModel(
 
             result.onSuccess { generation ->
                 updateState { copy(phase = VisionPhase.Done, response = generation.text) }
+                conversationRepository.save(
+                    ChatConversation(
+                        id = generation.generatedAt.replace(Regex("[^0-9]"), ""),
+                        title = state.value.userQuestion.take(60).ifBlank { "Vision conversation" },
+                        modelName = generation.model.label,
+                        backendName = generation.backend.label,
+                        industry = "Vision",
+                        messages = listOf(
+                            ChatMessage(role = "user", content = state.value.userQuestion, timestamp = generation.generatedAt),
+                            ChatMessage(role = "assistant", content = generation.text, timestamp = generation.generatedAt),
+                        ),
+                        createdAt = generation.generatedAt,
+                    ),
+                )
             }.onFailure { e ->
                 updateState { copy(phase = VisionPhase.Idle, error = "Generation failed: ${e.message}") }
             }
         }
+    }
+
+    fun exportResponse() {
+        val s = state.value
+        if (s.response.isBlank()) return
+        shareHelper.share(
+            ChatConversation(
+                id = "vision_export",
+                title = s.userQuestion.take(60).ifBlank { "Vision analysis" },
+                modelName = "Vision",
+                backendName = "On-device",
+                industry = "Vision",
+                messages = listOf(
+                    ChatMessage(role = "user", content = s.userQuestion, timestamp = ""),
+                    ChatMessage(role = "assistant", content = s.response, timestamp = ""),
+                ),
+                createdAt = "",
+            ),
+            ExportFormat.PlainText,
+        )
     }
 }

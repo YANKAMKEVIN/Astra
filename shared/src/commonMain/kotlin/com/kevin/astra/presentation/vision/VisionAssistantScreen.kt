@@ -130,6 +130,11 @@ fun VisionAssistantScreen(
                     color = AstraColors.TextPrimary,
                 )
             }
+            AstraButton(
+                text = "Export",
+                onClick = { viewModel.dispatch(VisionAssistantIntent.ExportResponse) },
+                style = AstraButtonStyle.Ghost,
+            )
         }
 
         // Error

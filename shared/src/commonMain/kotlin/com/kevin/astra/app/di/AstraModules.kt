@@ -165,6 +165,7 @@ val astraRootModule = module {
             modelCatalog = get(),
             backendCatalog = get(),
             promptPipeline = get(),
+            conversationRepository = get(),
         )
     }
     single {
@@ -175,6 +176,8 @@ val astraRootModule = module {
             modelCatalog = get(),
             backendCatalog = get(),
             promptPipeline = get(),
+            conversationRepository = get(),
+            shareHelper = get(),
         )
     }
 }

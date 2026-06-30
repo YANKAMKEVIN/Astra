@@ -8,6 +8,9 @@ import com.kevin.astra.core.ai.PromptPipeline
 import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.core.mvi.AstraViewModel
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
+import com.kevin.astra.domain.history.ChatConversation
+import com.kevin.astra.domain.history.ChatMessage
+import com.kevin.astra.domain.history.ConversationRepository
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import com.kevin.astra.domain.voice.SpeechRecognitionService
 import com.kevin.astra.domain.voice.SpeechRecognitionState
@@ -26,6 +29,7 @@ class VoiceAssistantViewModel(
     private val modelCatalog: ModelCatalog,
     private val backendCatalog: BackendCatalog,
     private val promptPipeline: PromptPipeline,
+    private val conversationRepository: ConversationRepository,
 ) : AstraViewModel<VoiceAssistantState, VoiceAssistantIntent, VoiceAssistantEffect>(
     initialState = VoiceAssistantState(),
 ) {
@@ -143,6 +147,20 @@ class VoiceAssistantViewModel(
             result.onSuccess { generation ->
                 updateState { copy(phase = VoicePhase.Speaking, response = generation.text) }
                 textToSpeechService.speak(generation.text)
+                conversationRepository.save(
+                    ChatConversation(
+                        id = generation.generatedAt.replace(Regex("[^0-9]"), ""),
+                        title = question.take(60).ifBlank { "Voice conversation" },
+                        modelName = generation.model.label,
+                        backendName = generation.backend.label,
+                        industry = "Voice",
+                        messages = listOf(
+                            ChatMessage(role = "user", content = question, timestamp = generation.generatedAt),
+                            ChatMessage(role = "assistant", content = generation.text, timestamp = generation.generatedAt),
+                        ),
+                        createdAt = generation.generatedAt,
+                    ),
+                )
             }.onFailure { e ->
                 updateState { copy(phase = VoicePhase.Idle, error = "Generation failed: ${e.message}") }
             }

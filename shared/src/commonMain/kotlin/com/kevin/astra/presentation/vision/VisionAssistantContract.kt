@@ -27,6 +27,7 @@ sealed interface VisionAssistantIntent : AstraIntent {
     data class UpdateQuestion(val question: String) : VisionAssistantIntent
     data object Reset : VisionAssistantIntent
     data object ClearError : VisionAssistantIntent
+    data object ExportResponse : VisionAssistantIntent
 }
 
 sealed interface VisionAssistantEffect : AstraEffect
