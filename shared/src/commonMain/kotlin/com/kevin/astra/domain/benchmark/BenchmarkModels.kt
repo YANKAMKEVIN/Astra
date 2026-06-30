@@ -51,6 +51,19 @@ data class BenchmarkResult(
 
     val peakTemperatureCelsius: Float?
         get() = hardwareAfter?.temperatureCelsius?.takeIf { it >= 0f }
+
+    val onDeviceCo2Mg: Double?
+        get() = batteryDrainPercent?.let { Co2Estimator.onDeviceMg(it) }
+
+    val cloudEquivalentCo2Mg: Double?
+        get() = tokensPerSecond?.let { Co2Estimator.cloudEquivalentMg(it * 10) }
+
+    val co2SavingsPercent: Int?
+        get() {
+            val onDevice = onDeviceCo2Mg ?: return null
+            val cloud = cloudEquivalentCo2Mg ?: return null
+            return Co2Estimator.savingsPercent(onDevice, cloud)
+        }
 }
 
 enum class BenchmarkStatus(val label: String) {
