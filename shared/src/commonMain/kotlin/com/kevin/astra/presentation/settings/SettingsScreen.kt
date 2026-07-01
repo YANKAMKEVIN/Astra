@@ -318,13 +318,24 @@ private fun ModelReadinessRow(
                 }
                 Spacer(Modifier.height(AstraSpacing.S))
                 when {
-                    isInstalled && model?.status != ModelStatus.Installed -> {
+                    // Only offer delete for models downloaded to filesDir (not bundled in APK, not mock)
+                    isInstalled && readiness.isDownloadedToFilesDir -> {
                         AstraButton(
                             text = "Delete model",
                             onClick = { onDelete(readiness.modelId) },
                             style = AstraButtonStyle.Danger,
                         )
                     }
+                    // Bundled in assets — installed but cannot be removed
+                    isInstalled && !readiness.isDownloadedToFilesDir && model?.status != ModelStatus.Installed -> {
+                        AstraButton(
+                            text = "Bundled in app",
+                            onClick = {},
+                            style = AstraButtonStyle.Secondary,
+                            enabled = false,
+                        )
+                    }
+                    // Downloadable
                     model?.downloadUrl != null && !isInstalled -> {
                         AstraButton(
                             text = "Download model",
