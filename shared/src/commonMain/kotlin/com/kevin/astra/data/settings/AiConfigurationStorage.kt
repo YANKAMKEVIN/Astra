@@ -26,8 +26,8 @@ class AiConfigurationLocalDataSource(
             selectedModelId = keyValueStore.getString(SelectedModelIdKey) ?: DefaultSelectedModelId,
             selectedBackendId = keyValueStore.getString(SelectedBackendIdKey) ?: DefaultSelectedBackendId,
             selectedIndustry = keyValueStore.getString(SelectedIndustryKey)
-                ?.let { saved -> PromptIndustry.entries.firstOrNull { it.name == saved } }
-                ?: PromptIndustry.IndustrialMaintenance,
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { saved -> PromptIndustry.entries.firstOrNull { it.name == saved } },
             temperature = keyValueStore.getDouble(TemperatureKey) ?: 0.3,
             maxTokens = keyValueStore.getInt(MaxTokensKey) ?: 512,
             contextWindow = keyValueStore.getInt(ContextWindowKey) ?: 4_096,
@@ -40,7 +40,7 @@ class AiConfigurationLocalDataSource(
     fun saveConfiguration(configuration: AiConfiguration) {
         keyValueStore.putString(SelectedModelIdKey, configuration.selectedModelId)
         keyValueStore.putString(SelectedBackendIdKey, configuration.selectedBackendId)
-        keyValueStore.putString(SelectedIndustryKey, configuration.selectedIndustry.name)
+        keyValueStore.putString(SelectedIndustryKey, configuration.selectedIndustry?.name ?: "")
         keyValueStore.putDouble(TemperatureKey, configuration.temperature)
         keyValueStore.putInt(MaxTokensKey, configuration.maxTokens)
         keyValueStore.putInt(ContextWindowKey, configuration.contextWindow)

@@ -20,7 +20,7 @@ data class PromptTemplate(
 
 data class PromptBuildRequest(
     val engineerQuestion: String,
-    val selectedIndustry: PromptIndustry,
+    val selectedIndustry: PromptIndustry?,
     val selectedModel: LocalModel,
     val extractedDocumentContext: String? = null,
 )
@@ -84,10 +84,10 @@ class DefaultPromptPipeline(
     }
 
     private fun templateFor(request: PromptBuildRequest): PromptTemplate =
-        if (!request.extractedDocumentContext.isNullOrBlank()) {
-            PromptTemplates.documentQa
-        } else {
-            PromptTemplates.industryTemplate(request.selectedIndustry)
+        when {
+            !request.extractedDocumentContext.isNullOrBlank() -> PromptTemplates.documentQa
+            request.selectedIndustry != null -> PromptTemplates.industryTemplate(request.selectedIndustry)
+            else -> PromptTemplates.generalAssistant
         }
 }
 

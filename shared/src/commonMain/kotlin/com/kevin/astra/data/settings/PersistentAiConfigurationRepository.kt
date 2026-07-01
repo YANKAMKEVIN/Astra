@@ -39,7 +39,7 @@ class PersistentAiConfigurationRepository(
         updateConfiguration(mutableConfiguration.value.copy(selectedBackendId = backendId))
     }
 
-    override suspend fun updateIndustry(industry: PromptIndustry) {
+    override suspend fun updateIndustry(industry: PromptIndustry?) {
         updateConfiguration(mutableConfiguration.value.copy(selectedIndustry = industry))
     }
 

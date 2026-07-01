@@ -98,6 +98,7 @@ private fun SettingsContent(
             selectedIndustry = state.selectedIndustry,
             onSelectIndustry = { onIntent(SettingsIntent.SelectIndustry(it)) },
         )
+
         InferenceParametersCard(
             state = state,
             onIntent = onIntent,
@@ -436,23 +437,33 @@ private fun ModelReadinessStatus.statusColor(): Color =
 
 @Composable
 private fun IndustryConfigurationCard(
-    selectedIndustry: PromptIndustry,
-    onSelectIndustry: (PromptIndustry) -> Unit,
+    selectedIndustry: PromptIndustry?,
+    onSelectIndustry: (PromptIndustry?) -> Unit,
 ) {
     AstraCard(
         title = "Industry Persona",
-        subtitle = "Default operational context used by the local assistant configuration.",
-        status = selectedIndustry.label,
+        subtitle = "Contextualise les réponses de l'assistant. Désactivez pour un mode général sans persona.",
+        status = selectedIndustry?.label ?: "None",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
+        if (selectedIndustry == null) {
+            Text(
+                text = "✦ Mode général actif — pas de persona sectoriel. Sélectionnez un secteur ci-dessous pour spécialiser les réponses.",
+                style = AstraTypography.Caption,
+                color = AstraColors.TextSecondary,
+            )
+            Spacer(Modifier.height(AstraSpacing.S))
+        }
         SelectableOptionRow {
             PromptIndustry.entries.forEach { industry ->
+                val isSelected = industry == selectedIndustry
                 SelectableOption(
                     label = industry.label,
-                    selected = industry == selectedIndustry,
+                    selected = isSelected,
                     enabled = true,
-                    status = if (industry == selectedIndustry) "SELECTED" else null,
-                    onClick = { onSelectIndustry(industry) },
+                    status = if (isSelected) "SELECTED" else null,
+                    // tap selected → deselect (null), tap other → select it
+                    onClick = { onSelectIndustry(if (isSelected) null else industry) },
                 )
             }
         }

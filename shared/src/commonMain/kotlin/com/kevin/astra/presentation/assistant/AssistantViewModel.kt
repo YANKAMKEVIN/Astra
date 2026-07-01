@@ -88,7 +88,9 @@ class AssistantViewModel(
             is AssistantIntent.SelectIndustry -> updateState {
                 copy(
                     selectedIndustry = intent.industry,
-                    availableScenarios = demoScenarioCatalog.scenariosForIndustry(intent.industry.toPromptIndustry()),
+                    availableScenarios = intent.industry
+                        ?.let { demoScenarioCatalog.scenariosForIndustry(it.toPromptIndustry()) }
+                        ?: emptyList(),
                     error = null,
                 )
             }
@@ -204,7 +206,7 @@ class AssistantViewModel(
             title = question.take(60).ifBlank { "Conversation" },
             modelName = result.model.label,
             backendName = result.backend.label,
-            industry = snap.selectedIndustry.label,
+            industry = snap.selectedIndustry?.label ?: "General",
             messages = listOf(
                 ChatMessage(role = "user", content = question, timestamp = result.generatedAt),
                 ChatMessage(role = "assistant", content = result.text, timestamp = result.generatedAt),
@@ -223,7 +225,7 @@ class AssistantViewModel(
             title = bubble.text.take(60).ifBlank { "ASTRA Response" },
             modelName = bubble.metrics?.model ?: snap.sessionModel?.displayName ?: "ASTRA",
             backendName = bubble.metrics?.backend ?: "—",
-            industry = snap.selectedIndustry.label,
+            industry = snap.selectedIndustry?.label ?: "General",
             messages = listOf(ChatMessage(role = "assistant", content = bubble.text, timestamp = now)),
             createdAt = now,
         )
@@ -293,7 +295,7 @@ class AssistantViewModel(
                 return@launch
             }
 
-            val industry = snapshot.selectedIndustry.toPromptIndustry()
+            val industry = snapshot.selectedIndustry?.toPromptIndustry()
 
             // Inject prior turns so the AI can continue the conversation
             val enrichedQuestion = buildString {

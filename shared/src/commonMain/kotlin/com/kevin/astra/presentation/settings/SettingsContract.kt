@@ -15,7 +15,7 @@ data class SettingsState(
     val modelReadiness: List<ModelReadiness> = emptyList(),
     val availableBackends: List<InferenceBackendInfo> = emptyList(),
     val selectedBackend: InferenceBackendInfo? = null,
-    val selectedIndustry: PromptIndustry = PromptIndustry.IndustrialMaintenance,
+    val selectedIndustry: PromptIndustry? = null,
     val temperature: Double = 0.3,
     val maxTokens: Int = 512,
     val contextWindow: Int = 4_096,
@@ -30,7 +30,7 @@ data class SettingsState(
 sealed interface SettingsIntent : AstraIntent {
     data class SelectModel(val modelId: String) : SettingsIntent
     data class SelectBackend(val backendId: String) : SettingsIntent
-    data class SelectIndustry(val industry: PromptIndustry) : SettingsIntent
+    data class SelectIndustry(val industry: PromptIndustry?) : SettingsIntent
     data class UpdateTemperature(val temperature: Double) : SettingsIntent
     data class UpdateMaxTokens(val maxTokens: Int) : SettingsIntent
     data class UpdateContextWindow(val contextWindow: Int) : SettingsIntent

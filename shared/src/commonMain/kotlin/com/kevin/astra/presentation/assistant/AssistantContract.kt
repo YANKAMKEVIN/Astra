@@ -83,7 +83,7 @@ data class AttachedImage(
 }
 
 data class AssistantState(
-    val selectedIndustry: AssistantIndustry = AssistantIndustry.IndustrialMaintenance,
+    val selectedIndustry: AssistantIndustry? = null,
     val question: String = "",
     val streamingText: String = "",
     val isGenerating: Boolean = false,
@@ -121,7 +121,7 @@ data class AssistantState(
 
 sealed interface AssistantIntent : AstraIntent {
     data class UpdateQuestion(val question: String) : AssistantIntent
-    data class SelectIndustry(val industry: AssistantIndustry) : AssistantIntent
+    data class SelectIndustry(val industry: AssistantIndustry?) : AssistantIntent
     data class SelectScenario(val scenario: DemoScenario) : AssistantIntent
     data class SelectTemplate(val template: PromptTemplate) : AssistantIntent
     data class SelectSessionModel(val modelId: String) : AssistantIntent
