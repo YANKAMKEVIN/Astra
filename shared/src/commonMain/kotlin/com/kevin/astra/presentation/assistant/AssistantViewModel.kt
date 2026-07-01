@@ -27,6 +27,7 @@ import com.kevin.astra.domain.voice.SpeechRecognitionState
 import com.kevin.astra.domain.vision.ImageClassifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -58,8 +59,18 @@ class AssistantViewModel(
         sessionModel = modelCatalog.currentModel(),
     ),
 ) {
+    private var generationJob: Job? = null
+
     init {
         updateState { copy(recentHistory = conversationRepository.getAll().takeLast(20).reversed()) }
+        // Sync sessionModel with persisted configuration so that Settings changes are reflected
+        viewModelScope.launch {
+            val config = aiConfigurationRepository.getConfiguration()
+            val configModel = modelCatalog.modelById(config.selectedModelId)
+            if (configModel != null) {
+                updateState { copy(sessionModel = configModel) }
+            }
+        }
         speechRecognitionService.state
             .onEach { sttState ->
                 updateState { copy(voiceState = sttState) }
@@ -138,7 +149,15 @@ class AssistantViewModel(
 
             AssistantIntent.AskQuestion -> askQuestion()
 
+            AssistantIntent.CancelGeneration -> {
+                generationJob?.cancel()
+                generationJob = null
+                updateState { copy(isGenerating = false, streamingText = "") }
+            }
+
             AssistantIntent.ClearConversation -> {
+                generationJob?.cancel()
+                generationJob = null
                 speechRecognitionService.stopListening()
                 updateState {
                     copy(
@@ -284,7 +303,8 @@ class AssistantViewModel(
             )
         }
 
-        (generationScope ?: viewModelScope).launch {
+        generationJob?.cancel()
+        generationJob = (generationScope ?: viewModelScope).launch {
             val configuration = aiConfigurationRepository.getConfiguration()
             val selectedModel = snapshot.sessionModel
                 ?: modelCatalog.modelById(configuration.selectedModelId)
@@ -315,7 +335,7 @@ class AssistantViewModel(
                 }
             }
 
-            val preparedPrompt = promptPipeline.preparePrompt(
+            val preparedParts = promptPipeline.preparePrompt(
                 PromptBuildRequest(
                     engineerQuestion = enrichedQuestion,
                     selectedIndustry = industry,
@@ -325,7 +345,9 @@ class AssistantViewModel(
             )
 
             val promptRequest = PromptRequest(
-                prompt = preparedPrompt,
+                prompt = preparedParts.fullPrompt,
+                systemPrompt = preparedParts.systemPrompt,
+                userMessage = preparedParts.userMessage,
                 industry = industry,
                 model = selectedModel.runtimeModel,
                 backend = selectedBackend.runtimeBackend,

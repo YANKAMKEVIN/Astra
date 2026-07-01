@@ -134,6 +134,7 @@ sealed interface AssistantIntent : AstraIntent {
     data class ShareBubble(val bubbleId: String, val format: ExportFormat) : AssistantIntent
     data class RemoveMessage(val bubbleId: String) : AssistantIntent
     data object AskQuestion : AssistantIntent
+    data object CancelGeneration : AssistantIntent
     data object ClearConversation : AssistantIntent
 }
 

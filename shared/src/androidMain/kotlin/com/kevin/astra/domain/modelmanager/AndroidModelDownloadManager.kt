@@ -55,6 +55,9 @@ class AndroidModelDownloadManager(
                 connection.connectTimeout = 15_000
                 connection.readTimeout = 60_000
                 connection.instanceFollowRedirects = true
+                if (request.authToken != null) {
+                    connection.setRequestProperty("Authorization", "Bearer ${request.authToken}")
+                }
                 connection.connect()
 
                 val responseCode = connection.responseCode

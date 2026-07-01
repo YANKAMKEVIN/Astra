@@ -23,6 +23,8 @@ class RuntimeBenchmarkRunner(
             val generation = inferenceEngine.generate(
                 PromptRequest(
                     prompt = request.prompt,
+                    systemPrompt = request.systemPrompt,
+                    userMessage = request.userMessage,
                     industry = request.industry,
                     model = model.runtimeModel,
                     backend = request.backend,

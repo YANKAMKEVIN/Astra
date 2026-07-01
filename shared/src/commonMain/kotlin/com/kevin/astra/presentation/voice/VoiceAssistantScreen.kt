@@ -120,6 +120,34 @@ fun VoiceAssistantScreen(
 
         Spacer(Modifier.height(AstraSpacing.S))
 
+        // Idle hint — only show when nothing is happening yet
+        AnimatedVisibility(
+            visible = state.phase == VoicePhase.Idle && state.transcript.isBlank() && state.response.isBlank() && state.error == null,
+            enter = fadeIn(tween(400)),
+            exit = fadeOut(tween(200)),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = AstraSpacing.M),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+            ) {
+                Text(
+                    text = "Tap the mic and speak your question",
+                    style = AstraTypography.Body,
+                    color = AstraColors.TextSecondary,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    text = "Everything runs on-device — microphone access required",
+                    style = AstraTypography.Caption,
+                    color = AstraColors.TextDisabled,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+
         // Live transcript
         AnimatedVisibility(
             visible = state.transcript.isNotBlank(),

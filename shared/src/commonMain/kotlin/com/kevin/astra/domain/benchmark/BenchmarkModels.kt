@@ -8,6 +8,8 @@ import com.kevin.astra.domain.evaluation.TaskEvaluationReport
 
 data class BenchmarkRequest(
     val prompt: String,
+    val systemPrompt: String = "",
+    val userMessage: String = "",
     val models: List<LocalModel>,
     val backend: InferenceBackend,
     val industry: PromptIndustry? = null,

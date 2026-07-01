@@ -84,6 +84,7 @@ val astraRootModule = module {
     single<ModelDownloadManager> { createModelDownloadManager() }
     single<ImageClassifier> { createImageClassifier() }
     single<PdfExtractor> { createPdfExtractor() }
+    single<com.kevin.astra.domain.documents.EmailExtractor> { com.kevin.astra.domain.documents.createEmailExtractor() }
     single<EmbeddingEngine> { createEmbeddingEngine() }
     single { SmartTextChunker() }
     single<DocumentContextRetriever> { HybridContextRetriever(embeddingEngine = get()) }
@@ -151,6 +152,7 @@ val astraRootModule = module {
     single {
         DocumentsViewModel(
             pdfExtractor = get(),
+            emailExtractor = get(),
             chunker = get(),
             contextRetriever = get(),
             askLocalAssistant = get(),

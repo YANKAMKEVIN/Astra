@@ -35,6 +35,7 @@ class AiConfigurationLocalDataSource(
             experimentalFeaturesEnabled = keyValueStore.getBoolean(ExperimentalFeaturesEnabledKey) ?: false,
             demoModeEnabled = keyValueStore.getBoolean(DemoModeEnabledKey) ?: false,
             lightThemeEnabled = keyValueStore.getBoolean(LightThemeEnabledKey) ?: false,
+            huggingFaceToken = keyValueStore.getString(HuggingFaceTokenKey)?.takeIf { it.isNotEmpty() },
         )
 
     fun saveConfiguration(configuration: AiConfiguration) {
@@ -48,6 +49,7 @@ class AiConfigurationLocalDataSource(
         keyValueStore.putBoolean(ExperimentalFeaturesEnabledKey, configuration.experimentalFeaturesEnabled)
         keyValueStore.putBoolean(DemoModeEnabledKey, configuration.demoModeEnabled)
         keyValueStore.putBoolean(LightThemeEnabledKey, configuration.lightThemeEnabled)
+        keyValueStore.putString(HuggingFaceTokenKey, configuration.huggingFaceToken ?: "")
     }
 }
 
@@ -61,3 +63,4 @@ private const val QuantizationKey = "ai.quantization"
 private const val ExperimentalFeaturesEnabledKey = "ai.experimental_features_enabled"
 private const val DemoModeEnabledKey = "ai.demo_mode_enabled"
 private const val LightThemeEnabledKey = "ai.light_theme_enabled"
+private const val HuggingFaceTokenKey = "ai.hugging_face_token"

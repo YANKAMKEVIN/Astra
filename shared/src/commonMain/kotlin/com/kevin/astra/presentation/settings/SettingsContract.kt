@@ -23,6 +23,7 @@ data class SettingsState(
     val experimentalFeaturesEnabled: Boolean = false,
     val demoModeEnabled: Boolean = false,
     val lightThemeEnabled: Boolean = false,
+    val huggingFaceToken: String = "",
     val downloadState: ModelDownloadState = ModelDownloadState.Idle,
     val storageUsageMb: Float = 0f,
 ) : AstraState
@@ -38,6 +39,7 @@ sealed interface SettingsIntent : AstraIntent {
     data class ToggleExperimentalFeatures(val enabled: Boolean) : SettingsIntent
     data class ToggleDemoMode(val enabled: Boolean) : SettingsIntent
     data class ToggleLightTheme(val enabled: Boolean) : SettingsIntent
+    data class UpdateHuggingFaceToken(val token: String) : SettingsIntent
     data class DownloadModel(val modelId: String) : SettingsIntent
     data class DeleteModel(val modelId: String) : SettingsIntent
     data class CancelDownload(val modelId: String) : SettingsIntent

@@ -55,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -666,6 +667,7 @@ private fun AssistantContent(
             error = state.error,
             onQuestionChanged = { onIntent(AssistantIntent.UpdateQuestion(it)) },
             onAsk = { onIntent(AssistantIntent.AskQuestion) },
+            onStop = { onIntent(AssistantIntent.CancelGeneration) },
             onPdfAttached = { bytes, name -> onIntent(AssistantIntent.PdfAttached(bytes, name)) },
             onImageAttached = { bytes -> onIntent(AssistantIntent.ImageAttached(bytes)) },
             onRemovePdf = { onIntent(AssistantIntent.RemovePdf) },
@@ -848,7 +850,9 @@ private fun MessageBubble(
             Spacer(Modifier.width(AstraSpacing.S))
         }
         Column(
-            modifier = Modifier.widthIn(max = 300.dp),
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .widthIn(max = 300.dp),
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
         ) {
             val bubbleShape = RoundedCornerShape(
@@ -1061,6 +1065,7 @@ private fun InputBar(
     error: String?,
     onQuestionChanged: (String) -> Unit,
     onAsk: () -> Unit,
+    onStop: () -> Unit,
     onPdfAttached: (ByteArray, String) -> Unit,
     onImageAttached: (ByteArray) -> Unit,
     onRemovePdf: () -> Unit,
@@ -1069,19 +1074,21 @@ private fun InputBar(
 ) {
     val pdfLauncher = rememberPdfPickerLauncher(onPdfPicked = onPdfAttached)
     val imageLauncher = rememberImageCaptureLauncher(onImageCaptured = onImageAttached)
+    var showAttachmentOptions by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(AstraColors.Surface)
             .border(width = 1.dp, color = AstraColors.Border)
-            .padding(horizontal = AstraSpacing.L, vertical = AstraSpacing.M),
+            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.M),
         verticalArrangement = Arrangement.spacedBy(AstraSpacing.S),
     ) {
         AnimatedVisibility(visible = error != null) {
             error?.let { AstraErrorView(title = "Error", message = it) }
         }
 
+        // Attachment chips
         AnimatedVisibility(visible = attachedPdf != null || attachedImage != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
                 attachedPdf?.let { pdf ->
@@ -1109,6 +1116,38 @@ private fun InputBar(
             }
         }
 
+        // Attachment options panel
+        AnimatedVisibility(visible = showAttachmentOptions) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(AstraColors.SurfaceElevated, RoundedCornerShape(14.dp))
+                    .border(1.dp, AstraColors.Border, RoundedCornerShape(14.dp))
+                    .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
+                horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
+            ) {
+                AttachmentOption(
+                    icon = "📄",
+                    label = "PDF",
+                    active = attachedPdf != null,
+                    onClick = { pdfLauncher(); showAttachmentOptions = false },
+                )
+                AttachmentOption(
+                    icon = "📷",
+                    label = "Photo",
+                    active = attachedImage != null,
+                    onClick = { imageLauncher(); showAttachmentOptions = false },
+                )
+                AttachmentOption(
+                    icon = if (isListening) "⏹" else "🎤",
+                    label = if (isListening) "Stop" else "Voice",
+                    active = isListening,
+                    onClick = { onToggleVoice(); if (!isListening) showAttachmentOptions = false },
+                )
+            }
+        }
+
+        // Voice partial transcript
         AnimatedVisibility(visible = isListening) {
             val partial = (voiceState as? com.kevin.astra.domain.voice.SpeechRecognitionState.Partial)?.text
             if (!partial.isNullOrBlank()) {
@@ -1116,17 +1155,40 @@ private fun InputBar(
             }
         }
 
+        // Unified input box: [+] [text field] [send]
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(AstraColors.SurfaceElevated, RoundedCornerShape(20.dp))
+                .border(1.dp, AstraColors.Border, RoundedCornerShape(20.dp))
+                .padding(horizontal = AstraSpacing.S, vertical = AstraSpacing.XS),
             verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
         ) {
+            // + button
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(
+                        if (showAttachmentOptions) AstraColors.Primary.copy(alpha = 0.18f) else Color.Transparent,
+                        CircleShape,
+                    )
+                    .clickable { showAttachmentOptions = !showAttachmentOptions },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = if (showAttachmentOptions) "×" else "+",
+                    style = AstraTypography.Title,
+                    color = if (showAttachmentOptions) AstraColors.Primary else AstraColors.TextSecondary,
+                )
+            }
+
             BasicTextField(
                 value = question,
                 onValueChange = onQuestionChanged,
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = 44.dp, max = 140.dp)
+                    .padding(horizontal = AstraSpacing.XS)
                     .alpha(if (isListening) 0.5f else 1f),
                 enabled = !isListening && !isGenerating,
                 textStyle = AstraTypography.Body.copy(color = AstraColors.TextPrimary),
@@ -1135,9 +1197,7 @@ private fun InputBar(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(AstraColors.SurfaceElevated, RoundedCornerShape(16.dp))
-                            .border(1.dp, AstraColors.Border, RoundedCornerShape(16.dp))
-                            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
+                            .padding(vertical = AstraSpacing.S),
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         if (question.isBlank() && !isListening) {
@@ -1147,16 +1207,45 @@ private fun InputBar(
                     }
                 },
             )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconActionButton(label = "📄", active = attachedPdf != null, onClick = pdfLauncher)
-                IconActionButton(label = "📷", active = attachedImage != null, onClick = imageLauncher)
-                MicButton(isListening = isListening, onClick = onToggleVoice)
+
+            if (isGenerating) {
+                StopButton(onClick = onStop)
+            } else {
                 SendButton(canAsk = canAsk, onClick = onAsk)
             }
         }
+    }
+}
+
+@Composable
+private fun AttachmentOption(
+    icon: String,
+    label: String,
+    active: Boolean,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .background(
+                if (active) AstraColors.Primary.copy(alpha = 0.12f) else Color.Transparent,
+                RoundedCornerShape(10.dp),
+            )
+            .border(
+                1.dp,
+                if (active) AstraColors.Primary.copy(alpha = 0.4f) else Color.Transparent,
+                RoundedCornerShape(10.dp),
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.XS),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(text = icon, style = AstraTypography.Body)
+        Text(
+            text = label,
+            style = AstraTypography.Caption,
+            color = if (active) AstraColors.Primary else AstraColors.TextSecondary,
+        )
     }
 }
 
@@ -1176,6 +1265,24 @@ private fun SendButton(canAsk: Boolean, onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Text(text = "↑", style = AstraTypography.Title, color = AstraColors.TextPrimary)
+    }
+}
+
+@Composable
+private fun StopButton(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .background(AstraColors.Error.copy(alpha = 0.15f), RoundedCornerShape(14.dp))
+            .border(1.dp, AstraColors.Error.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(16.dp)
+                .background(AstraColors.Error, RoundedCornerShape(3.dp)),
+        )
     }
 }
 

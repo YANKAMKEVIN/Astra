@@ -43,9 +43,19 @@ import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import com.kevin.astra.domain.modelmanager.ModelReadiness
 import com.kevin.astra.domain.modelmanager.ModelReadinessStatus
 import com.kevin.astra.domain.modelmanager.RequiredModelFile
@@ -56,12 +66,36 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    SettingsContent(
-        state = state,
-        contentPadding = contentPadding,
-        onIntent = viewModel::dispatch,
-    )
+    LaunchedEffect(Unit) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is SettingsEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
+                is SettingsEffect.DownloadCompleted -> snackbarHostState.showSnackbar("✓ ${effect.modelName} downloaded successfully")
+            }
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        SettingsContent(
+            state = state,
+            contentPadding = contentPadding,
+            onIntent = viewModel::dispatch,
+        )
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            snackbar = { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = AstraColors.SurfaceElevated,
+                    contentColor = AstraColors.TextPrimary,
+                    actionColor = AstraColors.Primary,
+                )
+            },
+        )
+    }
 }
 
 @Composable
@@ -93,6 +127,10 @@ private fun SettingsContent(
             onDownload = { onIntent(SettingsIntent.DownloadModel(it)) },
             onDelete = { onIntent(SettingsIntent.DeleteModel(it)) },
             onCancel = { onIntent(SettingsIntent.CancelDownload(it)) },
+        )
+        HuggingFaceTokenCard(
+            token = state.huggingFaceToken,
+            onTokenChange = { onIntent(SettingsIntent.UpdateHuggingFaceToken(it)) },
         )
         IndustryConfigurationCard(
             selectedIndustry = state.selectedIndustry,
@@ -434,6 +472,63 @@ private fun ModelReadinessStatus.statusColor(): Color =
         ModelReadinessStatus.UnsupportedPlatform -> AstraColors.Error
         ModelReadinessStatus.ComingSoon -> AstraColors.TextSecondary
     }
+
+@Composable
+private fun HuggingFaceTokenCard(
+    token: String,
+    onTokenChange: (String) -> Unit,
+) {
+    var masked by remember { mutableStateOf(true) }
+    AstraCard(
+        title = "HuggingFace Token",
+        subtitle = "Required to download gated models (Gemma). Generate a token at huggingface.co/settings/tokens.",
+        status = if (token.isNotBlank()) "Configured" else "Not set",
+    ) {
+        Spacer(Modifier.height(AstraSpacing.M))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(AstraColors.Surface, RoundedCornerShape(8.dp))
+                .border(1.dp, AstraColors.Border, RoundedCornerShape(8.dp))
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            BasicTextField(
+                value = token,
+                onValueChange = onTokenChange,
+                singleLine = true,
+                textStyle = AstraTypography.Body.copy(color = AstraColors.TextPrimary),
+                visualTransformation = if (masked) PasswordVisualTransformation() else VisualTransformation.None,
+                modifier = Modifier.weight(1f),
+                decorationBox = { inner ->
+                    if (token.isEmpty()) {
+                        Text(
+                            text = "hf_...",
+                            style = AstraTypography.Body,
+                            color = AstraColors.TextSecondary,
+                        )
+                    }
+                    inner()
+                },
+            )
+            Text(
+                text = if (masked) "Show" else "Hide",
+                style = AstraTypography.Caption,
+                color = AstraColors.Primary,
+                modifier = Modifier.clickable { masked = !masked },
+            )
+        }
+        if (token.isNotBlank()) {
+            Spacer(Modifier.height(AstraSpacing.S))
+            Text(
+                text = "Token saved. Gemma models can now be downloaded.",
+                style = AstraTypography.Caption,
+                color = AstraColors.TextSecondary,
+            )
+        }
+    }
+}
 
 @Composable
 private fun IndustryConfigurationCard(

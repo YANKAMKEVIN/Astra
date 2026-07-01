@@ -25,23 +25,48 @@ data class PromptBuildRequest(
     val extractedDocumentContext: String? = null,
 )
 
+data class PromptParts(
+    val systemPrompt: String,
+    val userMessage: String,
+    val fullPrompt: String,
+)
+
 interface PromptBuilder {
-    fun build(
+    fun buildParts(
         request: PromptBuildRequest,
         template: PromptTemplate,
-    ): String
+    ): PromptParts
 }
 
 interface PromptPipeline {
-    fun preparePrompt(request: PromptBuildRequest): String
+    fun preparePrompt(request: PromptBuildRequest): PromptParts
 }
 
 class DefaultPromptBuilder : PromptBuilder {
-    override fun build(
+    override fun buildParts(
         request: PromptBuildRequest,
         template: PromptTemplate,
-    ): String =
-        buildString {
+    ): PromptParts {
+        val systemPrompt = buildString {
+            append(template.systemRole)
+            append("\n\n")
+            append(template.industryPersona)
+            append("\n\n")
+            append(template.systemInstructions.joinToString(separator = "\n") { "- $it" })
+            append("\n\n")
+            append(template.responseFormattingInstructions.joinToString(separator = "\n") { "- $it" })
+        }.trim()
+
+        val userMessage = buildString {
+            append(request.engineerQuestion.trim())
+            val context = request.extractedDocumentContext?.trim().orEmpty()
+            if (context.isNotBlank()) {
+                append("\n\nDocument context:\n")
+                append(context)
+            }
+        }.trim()
+
+        val fullPrompt = buildString {
             appendSection("System role", template.systemRole)
             appendSection("Industry persona", template.industryPersona)
             appendSection(
@@ -64,6 +89,9 @@ class DefaultPromptBuilder : PromptBuilder {
             )
         }.trim()
 
+        return PromptParts(systemPrompt = systemPrompt, userMessage = userMessage, fullPrompt = fullPrompt)
+    }
+
     private fun StringBuilder.appendSection(
         title: String,
         body: String,
@@ -78,9 +106,9 @@ class DefaultPromptBuilder : PromptBuilder {
 class DefaultPromptPipeline(
     private val promptBuilder: PromptBuilder,
 ) : PromptPipeline {
-    override fun preparePrompt(request: PromptBuildRequest): String {
+    override fun preparePrompt(request: PromptBuildRequest): PromptParts {
         val template = templateFor(request)
-        return promptBuilder.build(request, template)
+        return promptBuilder.buildParts(request, template)
     }
 
     private fun templateFor(request: PromptBuildRequest): PromptTemplate =

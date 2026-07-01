@@ -30,10 +30,9 @@ class DefaultModelCatalog(preInstalledIds: Set<String> = emptySet()) : ModelCata
             contextWindow = 8_192,
             supportedBackends = listOf(InferenceBackend.LiteRtLm),
             minimumMemoryMb = 1_024,
-            // Requires HuggingFace account — no anonymous download URL
             status = ModelStatus.DownloadRequired,
             runtimeModel = AiModel.Gemma,
-            downloadUrl = null,
+            downloadUrl = "https://huggingface.co/litert-community/Gemma3-1B-IT/resolve/main/Gemma3-1B-IT_multi-prefill-seq_q8_ekv1280.task",
         ),
         LocalModel(
             id = "gemma-3-4b",
@@ -44,9 +43,9 @@ class DefaultModelCatalog(preInstalledIds: Set<String> = emptySet()) : ModelCata
             contextWindow = 8_192,
             supportedBackends = listOf(InferenceBackend.LiteRtLm),
             minimumMemoryMb = 3_072,
-            // Requires HuggingFace account — no anonymous download URL
             status = ModelStatus.DownloadRequired,
             runtimeModel = AiModel.Gemma3_4B,
+            // litert-community/Gemma3-4B-IT only has -web.task files (WASM, not Android-compatible)
             downloadUrl = null,
         ),
         LocalModel(

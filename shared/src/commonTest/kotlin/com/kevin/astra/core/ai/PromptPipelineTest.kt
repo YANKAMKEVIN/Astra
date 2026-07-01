@@ -10,7 +10,7 @@ class PromptPipelineTest {
 
     @Test
     fun preparesAssistantPromptWithRequiredSections() {
-        val prompt = pipeline.preparePrompt(
+        val parts = pipeline.preparePrompt(
             PromptBuildRequest(
                 engineerQuestion = "How should we restart Pump A?",
                 selectedIndustry = PromptIndustry.IndustrialMaintenance,
@@ -18,18 +18,20 @@ class PromptPipelineTest {
             ),
         )
 
-        assertContains(prompt, "System role")
-        assertContains(prompt, "Industry persona")
-        assertContains(prompt, "User request")
-        assertContains(prompt, "Context")
-        assertContains(prompt, "Response formatting instructions")
-        assertContains(prompt, "industrial maintenance assistant")
-        assertContains(prompt, "How should we restart Pump A?")
+        assertContains(parts.fullPrompt, "System role")
+        assertContains(parts.fullPrompt, "Industry persona")
+        assertContains(parts.fullPrompt, "User request")
+        assertContains(parts.fullPrompt, "Context")
+        assertContains(parts.fullPrompt, "Response formatting instructions")
+        assertContains(parts.fullPrompt, "industrial maintenance assistant")
+        assertContains(parts.fullPrompt, "How should we restart Pump A?")
+        assertContains(parts.systemPrompt, "industrial maintenance assistant")
+        assertContains(parts.userMessage, "How should we restart Pump A?")
     }
 
     @Test
     fun usesDocumentQaTemplateWhenContextIsProvided() {
-        val prompt = pipeline.preparePrompt(
+        val parts = pipeline.preparePrompt(
             PromptBuildRequest(
                 engineerQuestion = "Which checks are needed?",
                 selectedIndustry = PromptIndustry.Energy,
@@ -38,8 +40,9 @@ class PromptPipelineTest {
             ),
         )
 
-        assertContains(prompt, "local document question-answering assistant")
-        assertContains(prompt, "Pump Restart Procedure")
-        assertContains(prompt, "If the context does not contain the answer")
+        assertContains(parts.fullPrompt, "local document question-answering assistant")
+        assertContains(parts.fullPrompt, "Pump Restart Procedure")
+        assertContains(parts.fullPrompt, "If the context does not contain the answer")
+        assertContains(parts.userMessage, "Pump Restart Procedure")
     }
 }

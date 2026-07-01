@@ -13,6 +13,7 @@ data class AiConfiguration(
     val experimentalFeaturesEnabled: Boolean = false,
     val demoModeEnabled: Boolean = false,
     val lightThemeEnabled: Boolean = false,
+    val huggingFaceToken: String? = null,
 )
 
 const val DefaultSelectedModelId: String = "mock-model"
