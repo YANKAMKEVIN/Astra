@@ -196,6 +196,28 @@ private fun ModelManagerCard(
         status = "$readyCount/${modelReadiness.size} READY",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
+        // Download error banner
+        val failedState = downloadState as? ModelDownloadState.Failed
+        if (failedState != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(AstraColors.Error.copy(alpha = 0.10f), RoundedCornerShape(12.dp))
+                    .border(1.dp, AstraColors.Error.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                    .padding(AstraSpacing.M),
+                horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Text("⚠", style = AstraTypography.Body, color = AstraColors.Error)
+                Text(
+                    text = failedState.reason,
+                    style = AstraTypography.Caption,
+                    color = AstraColors.Error,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Spacer(Modifier.height(AstraSpacing.S))
+        }
         Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
             modelReadiness.forEach { readiness ->
                 val model = models.firstOrNull { it.id == readiness.modelId }
@@ -341,6 +363,14 @@ private fun ModelReadinessRow(
                             text = "Download model",
                             onClick = { onDownload(readiness.modelId) },
                             style = AstraButtonStyle.Primary,
+                        )
+                    }
+                    // No download URL and not installed — requires manual setup (e.g. Gemma needs HF auth)
+                    model?.downloadUrl == null && !isInstalled -> {
+                        Text(
+                            text = "🔐 Requires a HuggingFace account. Download manually from huggingface.co/litert-community and place the file in the app's model directory.",
+                            style = AstraTypography.Caption,
+                            color = AstraColors.TextSecondary,
                         )
                     }
                     else -> {

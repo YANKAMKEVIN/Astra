@@ -54,7 +54,28 @@ class AndroidModelDownloadManager(
                 val connection = URL(request.url).openConnection() as HttpURLConnection
                 connection.connectTimeout = 15_000
                 connection.readTimeout = 60_000
+                connection.instanceFollowRedirects = true
                 connection.connect()
+
+                val responseCode = connection.responseCode
+                if (responseCode == HttpURLConnection.HTTP_UNAUTHORIZED || responseCode == HttpURLConnection.HTTP_FORBIDDEN) {
+                    connection.disconnect()
+                    _downloadState.value = ModelDownloadState.Failed(
+                        modelId = request.modelId,
+                        reason = "Authentication required (HTTP $responseCode). This model requires a HuggingFace account.",
+                    )
+                    activeModelId = null
+                    return@launch
+                }
+                if (responseCode != HttpURLConnection.HTTP_OK) {
+                    connection.disconnect()
+                    _downloadState.value = ModelDownloadState.Failed(
+                        modelId = request.modelId,
+                        reason = "Server returned HTTP $responseCode. Check the download URL.",
+                    )
+                    activeModelId = null
+                    return@launch
+                }
 
                 val totalBytes = connection.contentLengthLong
                 var downloadedBytes = 0L
