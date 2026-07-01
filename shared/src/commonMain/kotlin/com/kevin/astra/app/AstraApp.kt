@@ -4,6 +4,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -75,7 +77,19 @@ fun AstraApp(
                 AnimatedContent(
                     targetState = currentDestination,
                     transitionSpec = {
-                        fadeIn(tween(250)) togetherWith fadeOut(tween(150))
+                        val allDests = com.kevin.astra.core.navigation.AstraDestination.primaryNavDestinations
+                        val toIdx = allDests.indexOf(targetState)
+                        val fromIdx = allDests.indexOf(initialState)
+                        when {
+                            toIdx >= 0 && fromIdx >= 0 && toIdx > fromIdx ->
+                                (slideInHorizontally(tween(280)) { it / 3 } + fadeIn(tween(280))) togetherWith
+                                    (slideOutHorizontally(tween(220)) { -it / 4 } + fadeOut(tween(220)))
+                            toIdx >= 0 && fromIdx >= 0 && toIdx < fromIdx ->
+                                (slideInHorizontally(tween(280)) { -it / 3 } + fadeIn(tween(280))) togetherWith
+                                    (slideOutHorizontally(tween(220)) { it / 4 } + fadeOut(tween(220)))
+                            else ->
+                                fadeIn(tween(250)) togetherWith fadeOut(tween(180))
+                        }
                     },
                     label = "astra-destination",
                 ) { destination ->
@@ -110,6 +124,7 @@ fun AstraApp(
                         AstraDestination.Assistant -> AssistantScreen(
                             contentPadding = contentPadding,
                             viewModel = assistantViewModel,
+                            onNavigate = navigator::navigateTo,
                         )
                         AstraDestination.Documents -> DocumentsScreen(
                             contentPadding = contentPadding,

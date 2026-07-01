@@ -122,6 +122,12 @@ val astraRootModule = module {
             demoScenarioCatalog = get(),
             notificationService = get(),
             conversationRepository = get(),
+            pdfExtractor = get(),
+            chunker = get(),
+            contextRetriever = get(),
+            imageClassifier = get(),
+            speechRecognitionService = get(),
+            shareHelper = get(),
         )
     }
     single {

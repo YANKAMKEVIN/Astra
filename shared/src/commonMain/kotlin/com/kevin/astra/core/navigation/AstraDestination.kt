@@ -5,6 +5,8 @@ sealed class AstraDestination(
     val label: String,
     val shortLabel: String,
     val showsNavigationBar: Boolean = true,
+    /** Shown directly in the bottom bar. False = accessible via the "More" sheet. */
+    val isPrimaryNav: Boolean = false,
 ) {
     data object Splash : AstraDestination(
         id = "splash",
@@ -29,31 +31,48 @@ sealed class AstraDestination(
     data object ProjectOverview : AstraDestination(
         id = "overview",
         label = "Home",
-        shortLabel = "Home"
+        shortLabel = "Home",
+        isPrimaryNav = true
     )
 
     data object Assistant : AstraDestination(
         id = "assistant",
         label = "Assistant",
-        shortLabel = "AI"
+        shortLabel = "Chat",
+        isPrimaryNav = true
     )
 
     data object Documents : AstraDestination(
         id = "documents",
         label = "Documents",
-        shortLabel = "Docs"
+        shortLabel = "Docs",
+        isPrimaryNav = true
     )
 
     data object Benchmark : AstraDestination(
         id = "benchmark",
         label = "Benchmark",
-        shortLabel = "Bench"
+        shortLabel = "Bench",
+        isPrimaryNav = true
     )
 
     data object Settings : AstraDestination(
         id = "settings",
         label = "Settings",
-        shortLabel = "Settings"
+        shortLabel = "Config",
+        isPrimaryNav = true
+    )
+
+    data object VoiceAssistant : AstraDestination(
+        id = "voice",
+        label = "Voice Assistant",
+        shortLabel = "Voice"
+    )
+
+    data object VisionAssistant : AstraDestination(
+        id = "vision",
+        label = "Vision Assistant",
+        shortLabel = "Vision"
     )
 
     data object History : AstraDestination(
@@ -62,27 +81,23 @@ sealed class AstraDestination(
         shortLabel = "History"
     )
 
-    data object VoiceAssistant : AstraDestination(
-        id = "voice",
-        label = "Voice",
-        shortLabel = "Voice"
-    )
-
-    data object VisionAssistant : AstraDestination(
-        id = "vision",
-        label = "Vision",
-        shortLabel = "Vision"
-    )
-
     companion object {
         val all: List<AstraDestination>
             get() = listOf(
-                Splash, Onboarding, Demo, ProjectOverview,
-                Assistant, Documents, Benchmark, Settings, History, VoiceAssistant, VisionAssistant
+                Splash, Onboarding,
+                ProjectOverview, Assistant, Documents, Benchmark, Settings,
+                VoiceAssistant, VisionAssistant, History, Demo,
             )
 
         val primaryDestinations: List<AstraDestination>
             get() = all.filter { it.showsNavigationBar }
+
+        val primaryNavDestinations: List<AstraDestination>
+            get() = all.filter { it.isPrimaryNav }
+
+        /** Destinations reachable via the "More" sheet (in the nav bar but not primary). */
+        val secondaryNavDestinations: List<AstraDestination>
+            get() = all.filter { it.showsNavigationBar && !it.isPrimaryNav }
 
         fun fromId(id: String?): AstraDestination? = all.find { it.id == id }
     }

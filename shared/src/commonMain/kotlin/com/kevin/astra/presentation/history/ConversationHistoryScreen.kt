@@ -36,6 +36,7 @@ import com.kevin.astra.core.design.AstraColors
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
+import com.kevin.astra.core.design.SkeletonList
 import com.kevin.astra.domain.export.ExportFormat
 import com.kevin.astra.domain.history.ChatConversation
 import com.kevin.astra.domain.history.ChatMessage
@@ -81,12 +82,18 @@ fun ConversationHistoryScreen(
                 onQueryChange = { viewModel.dispatch(ConversationHistoryIntent.UpdateSearch(it)) },
             )
             if (state.isLoading) {
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text("Loading…", style = AstraTypography.Body, color = AstraColors.TextSecondary)
-                }
+                SkeletonList(count = 4)
             } else if (state.conversations.isEmpty()) {
                 EmptyHistoryView(hasQuery = state.searchQuery.isNotBlank())
             } else {
+                if (state.searchQuery.isNotBlank()) {
+                    Text(
+                        text = "${state.conversations.size} result${if (state.conversations.size == 1) "" else "s"}",
+                        style = AstraTypography.Caption,
+                        color = AstraColors.TextSecondary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
                 Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
                     state.conversations.forEach { conversation ->
                         ConversationListItem(
@@ -215,12 +222,22 @@ private fun MessageBubble(message: ChatMessage) {
 
 @Composable
 private fun EmptyHistoryView(hasQuery: Boolean) {
-    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Text(
-            text = if (hasQuery) "No conversations match your search."
-            else "No conversations yet.\nAsk ASTRA something to get started.",
-            style = AstraTypography.Body,
-            color = AstraColors.TextSecondary,
-        )
+    AstraCard(
+        title = if (hasQuery) "No results" else "No conversations yet",
+        subtitle = if (hasQuery)
+            "Try a different search term or clear the filter."
+        else
+            "Your past ASTRA sessions will appear here. Head to the Assistant and ask your first question.",
+        status = if (hasQuery) "FILTERED" else "EMPTY",
+    ) {
+        if (!hasQuery) {
+            Spacer(Modifier.height(AstraSpacing.M))
+            Text(
+                text = "Each conversation is saved automatically after the assistant responds. " +
+                    "You can search, review, export, or delete them from this screen.",
+                style = AstraTypography.Caption,
+                color = AstraColors.TextSecondary,
+            )
+        }
     }
 }

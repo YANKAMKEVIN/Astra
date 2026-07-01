@@ -4,6 +4,7 @@ import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.domain.settings.AiConfiguration
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import com.kevin.astra.domain.settings.DemoModeHolder
+import com.kevin.astra.domain.settings.ThemeHolder
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +14,7 @@ class PersistentAiConfigurationRepository(
 ) : AiConfigurationRepository {
     private val mutableConfiguration = MutableStateFlow(localDataSource.loadConfiguration().normalized()).also {
         DemoModeHolder.set(it.value.demoModeEnabled)
+        ThemeHolder.set(it.value.lightThemeEnabled)
     }
 
     override fun observeConfiguration(): Flow<AiConfiguration> =
@@ -26,6 +28,7 @@ class PersistentAiConfigurationRepository(
         localDataSource.saveConfiguration(normalized)
         mutableConfiguration.value = normalized
         DemoModeHolder.set(normalized.demoModeEnabled)
+        ThemeHolder.set(normalized.lightThemeEnabled)
     }
 
     override suspend fun updateSelectedModel(modelId: String) {
@@ -62,6 +65,10 @@ class PersistentAiConfigurationRepository(
 
     override suspend fun updateDemoModeEnabled(enabled: Boolean) {
         updateConfiguration(mutableConfiguration.value.copy(demoModeEnabled = enabled))
+    }
+
+    override suspend fun updateLightThemeEnabled(enabled: Boolean) {
+        updateConfiguration(mutableConfiguration.value.copy(lightThemeEnabled = enabled))
     }
 }
 

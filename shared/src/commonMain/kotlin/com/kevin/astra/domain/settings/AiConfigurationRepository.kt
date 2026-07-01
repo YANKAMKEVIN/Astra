@@ -18,4 +18,5 @@ interface AiConfigurationRepository {
     suspend fun updateQuantization(quantization: String)
     suspend fun updateExperimentalFeaturesEnabled(enabled: Boolean)
     suspend fun updateDemoModeEnabled(enabled: Boolean)
+    suspend fun updateLightThemeEnabled(enabled: Boolean)
 }

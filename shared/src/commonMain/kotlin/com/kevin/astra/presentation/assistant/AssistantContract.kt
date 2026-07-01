@@ -5,8 +5,12 @@ import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.core.mvi.AstraEffect
 import com.kevin.astra.core.mvi.AstraIntent
 import com.kevin.astra.core.mvi.AstraState
+import com.kevin.astra.domain.export.ExportFormat
 import com.kevin.astra.domain.assistant.PromptTemplate
 import com.kevin.astra.domain.demo.DemoScenario
+import com.kevin.astra.domain.history.ChatConversation
+import com.kevin.astra.domain.voice.SpeechRecognitionState
+import com.kevin.astra.domain.vision.ImageClassificationResult
 
 enum class AssistantIndustry(val label: String) {
     IndustrialMaintenance("Industrial Maintenance"),
@@ -51,26 +55,68 @@ data class AssistantResponse(
     val body: String,
 )
 
+enum class ChatRole { User, Assistant }
+
+data class ChatBubble(
+    val id: String,
+    val role: ChatRole,
+    val text: String,
+    val metrics: AssistantMetrics? = null,
+)
+
+enum class AttachmentStatus { Idle, Indexing, Ready, Error }
+
+data class AttachedPdf(
+    val fileName: String,
+    val pageCount: Int,
+    val extractedContext: String,
+    val status: AttachmentStatus = AttachmentStatus.Ready,
+)
+
+data class AttachedImage(
+    val bytes: ByteArray,
+    val classification: ImageClassificationResult?,
+    val status: AttachmentStatus = AttachmentStatus.Ready,
+) {
+    override fun equals(other: Any?) = other is AttachedImage && bytes.contentEquals(other.bytes)
+    override fun hashCode() = bytes.contentHashCode()
+}
+
 data class AssistantState(
     val selectedIndustry: AssistantIndustry = AssistantIndustry.IndustrialMaintenance,
     val question: String = "",
     val streamingText: String = "",
-    val response: AssistantResponse? = null,
     val isGenerating: Boolean = false,
-    val generationTimestamp: String? = null,
     val metrics: AssistantMetrics = AssistantMetrics(),
+    val messages: List<ChatBubble> = emptyList(),
     val availableScenarios: List<DemoScenario> = emptyList(),
     val promptTemplates: List<PromptTemplate> = emptyList(),
     val activeTemplate: PromptTemplate? = null,
     val installedModels: List<LocalModel> = emptyList(),
     val sessionModel: LocalModel? = null,
+    val attachedPdf: AttachedPdf? = null,
+    val attachedImage: AttachedImage? = null,
+    val voiceState: SpeechRecognitionState = SpeechRecognitionState.Idle,
+    val recentHistory: List<ChatConversation> = emptyList(),
     val error: String? = null,
 ) : AstraState {
     val canAsk: Boolean
-        get() = question.isNotBlank() && !isGenerating
+        get() = question.isNotBlank() && !isGenerating &&
+            attachedPdf?.status != AttachmentStatus.Indexing &&
+            attachedImage?.status != AttachmentStatus.Indexing
 
     val isStreaming: Boolean
         get() = isGenerating && streamingText.isNotEmpty()
+
+    val isListening: Boolean
+        get() = voiceState is SpeechRecognitionState.Listening ||
+            voiceState is SpeechRecognitionState.Partial
+
+    val hasAttachment: Boolean
+        get() = attachedPdf != null || attachedImage != null
+
+    val isEmpty: Boolean
+        get() = messages.isEmpty() && !isGenerating
 }
 
 sealed interface AssistantIntent : AstraIntent {
@@ -79,6 +125,14 @@ sealed interface AssistantIntent : AstraIntent {
     data class SelectScenario(val scenario: DemoScenario) : AssistantIntent
     data class SelectTemplate(val template: PromptTemplate) : AssistantIntent
     data class SelectSessionModel(val modelId: String) : AssistantIntent
+    data class PdfAttached(val bytes: ByteArray, val fileName: String) : AssistantIntent
+    data class ImageAttached(val bytes: ByteArray) : AssistantIntent
+    data object RemovePdf : AssistantIntent
+    data object RemoveImage : AssistantIntent
+    data object ToggleVoiceInput : AssistantIntent
+    data class LoadConversation(val id: String) : AssistantIntent
+    data class ShareBubble(val bubbleId: String, val format: ExportFormat) : AssistantIntent
+    data class RemoveMessage(val bubbleId: String) : AssistantIntent
     data object AskQuestion : AssistantIntent
     data object ClearConversation : AssistantIntent
 }

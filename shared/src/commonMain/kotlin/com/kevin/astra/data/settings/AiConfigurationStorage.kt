@@ -34,6 +34,7 @@ class AiConfigurationLocalDataSource(
             quantization = keyValueStore.getString(QuantizationKey) ?: "4-bit",
             experimentalFeaturesEnabled = keyValueStore.getBoolean(ExperimentalFeaturesEnabledKey) ?: false,
             demoModeEnabled = keyValueStore.getBoolean(DemoModeEnabledKey) ?: false,
+            lightThemeEnabled = keyValueStore.getBoolean(LightThemeEnabledKey) ?: false,
         )
 
     fun saveConfiguration(configuration: AiConfiguration) {
@@ -46,6 +47,7 @@ class AiConfigurationLocalDataSource(
         keyValueStore.putString(QuantizationKey, configuration.quantization)
         keyValueStore.putBoolean(ExperimentalFeaturesEnabledKey, configuration.experimentalFeaturesEnabled)
         keyValueStore.putBoolean(DemoModeEnabledKey, configuration.demoModeEnabled)
+        keyValueStore.putBoolean(LightThemeEnabledKey, configuration.lightThemeEnabled)
     }
 }
 
@@ -58,3 +60,4 @@ private const val ContextWindowKey = "ai.context_window"
 private const val QuantizationKey = "ai.quantization"
 private const val ExperimentalFeaturesEnabledKey = "ai.experimental_features_enabled"
 private const val DemoModeEnabledKey = "ai.demo_mode_enabled"
+private const val LightThemeEnabledKey = "ai.light_theme_enabled"

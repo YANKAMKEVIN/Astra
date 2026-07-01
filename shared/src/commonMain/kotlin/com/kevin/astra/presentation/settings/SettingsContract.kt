@@ -22,6 +22,7 @@ data class SettingsState(
     val quantization: String = "4-bit",
     val experimentalFeaturesEnabled: Boolean = false,
     val demoModeEnabled: Boolean = false,
+    val lightThemeEnabled: Boolean = false,
     val downloadState: ModelDownloadState = ModelDownloadState.Idle,
     val storageUsageMb: Float = 0f,
 ) : AstraState
@@ -36,6 +37,7 @@ sealed interface SettingsIntent : AstraIntent {
     data class UpdateQuantization(val quantization: String) : SettingsIntent
     data class ToggleExperimentalFeatures(val enabled: Boolean) : SettingsIntent
     data class ToggleDemoMode(val enabled: Boolean) : SettingsIntent
+    data class ToggleLightTheme(val enabled: Boolean) : SettingsIntent
     data class DownloadModel(val modelId: String) : SettingsIntent
     data class DeleteModel(val modelId: String) : SettingsIntent
     data class CancelDownload(val modelId: String) : SettingsIntent

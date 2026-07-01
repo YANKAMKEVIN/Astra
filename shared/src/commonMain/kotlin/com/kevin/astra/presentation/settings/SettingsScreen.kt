@@ -42,6 +42,10 @@ import com.kevin.astra.core.design.AstraMetricCard
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.kevin.astra.domain.modelmanager.ModelReadiness
 import com.kevin.astra.domain.modelmanager.ModelReadinessStatus
 import com.kevin.astra.domain.modelmanager.RequiredModelFile
@@ -101,6 +105,10 @@ private fun SettingsContent(
         DemoModeCard(
             enabled = state.demoModeEnabled,
             onToggle = { onIntent(SettingsIntent.ToggleDemoMode(it)) },
+        )
+        LightThemeCard(
+            enabled = state.lightThemeEnabled,
+            onToggle = { onIntent(SettingsIntent.ToggleLightTheme(it)) },
         )
         ExperimentalFeaturesCard(
             enabled = state.experimentalFeaturesEnabled,
@@ -216,14 +224,22 @@ private fun ModelReadinessRow(
     val isThisDownloading = downloadState is ModelDownloadState.Downloading &&
         downloadState.modelId == readiness.modelId
     val downloading = downloadState as? ModelDownloadState.Downloading
+    val isInstalled = readiness.status == ModelReadinessStatus.Installed
+    var expanded by remember { mutableStateOf(isThisDownloading) }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(AstraColors.SurfaceElevated, RoundedCornerShape(18.dp))
-            .border(1.dp, AstraColors.Border, RoundedCornerShape(18.dp))
+            .border(
+                1.dp,
+                if (isInstalled) AstraColors.Success.copy(alpha = 0.4f) else AstraColors.Border,
+                RoundedCornerShape(18.dp),
+            )
+            .clickable(enabled = !isThisDownloading) { expanded = !expanded }
             .padding(AstraSpacing.M),
     ) {
+        // ── Compact header (always visible) ──────────────────────────────
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -236,19 +252,26 @@ private fun ModelReadinessRow(
                     color = AstraColors.TextPrimary,
                     fontWeight = FontWeight.SemiBold,
                 )
-                Spacer(Modifier.height(AstraSpacing.XS))
                 Text(
-                    text = "${readiness.provider} • ${readiness.parameterCount} • ${readiness.quantization} • ${readiness.expectedSize}",
+                    text = "${readiness.parameterCount} • ${readiness.quantization} • ${readiness.expectedSize}",
                     style = AstraTypography.Caption,
                     color = AstraColors.TextSecondary,
                 )
             }
-            AstraChip(
-                label = if (isThisDownloading) "DOWNLOADING" else readiness.status.label.uppercase(),
-                color = if (isThisDownloading) AstraColors.Primary else readiness.status.statusColor(),
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S), verticalAlignment = Alignment.CenterVertically) {
+                AstraChip(
+                    label = if (isThisDownloading) "DOWNLOADING" else readiness.status.label.uppercase(),
+                    color = if (isThisDownloading) AstraColors.Primary else readiness.status.statusColor(),
+                )
+                Text(
+                    text = if (expanded) "▲" else "▼",
+                    style = AstraTypography.Caption,
+                    color = AstraColors.TextSecondary,
+                )
+            }
         }
 
+        // ── Downloading progress (always visible when active) ─────────────
         if (isThisDownloading && downloading != null) {
             Spacer(Modifier.height(AstraSpacing.S))
             LinearProgressIndicator(
@@ -267,56 +290,56 @@ private fun ModelReadinessRow(
                 style = AstraTypography.Caption,
                 color = AstraColors.Primary,
             )
-        } else {
             Spacer(Modifier.height(AstraSpacing.S))
-            Text(
-                text = readiness.readinessMessage,
-                style = AstraTypography.Caption,
-                color = AstraColors.TextSecondary,
+            AstraButton(
+                text = "Cancel",
+                onClick = { onCancel(readiness.modelId) },
+                style = AstraButtonStyle.Danger,
             )
-            Spacer(Modifier.height(AstraSpacing.S))
-            MetadataLine(label = "Backends", value = readiness.supportedBackends.joinToString { it.label })
-            if (readiness.requiredFiles.isNotEmpty()) {
-                Spacer(Modifier.height(AstraSpacing.S))
-                Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.XS)) {
-                    readiness.requiredFiles.forEach { file ->
-                        RequiredFileRow(file = file)
-                    }
-                }
-            }
         }
 
-        Spacer(Modifier.height(AstraSpacing.S))
-        SelectableOptionRow {
-            when {
-                isThisDownloading -> {
-                    AstraButton(
-                        text = "Cancel",
-                        onClick = { onCancel(readiness.modelId) },
-                        style = AstraButtonStyle.Danger,
-                    )
+        // ── Expanded details ──────────────────────────────────────────────
+        AnimatedVisibility(visible = expanded && !isThisDownloading) {
+            Column {
+                Spacer(Modifier.height(AstraSpacing.S))
+                Text(
+                    text = readiness.readinessMessage,
+                    style = AstraTypography.Caption,
+                    color = AstraColors.TextSecondary,
+                )
+                Spacer(Modifier.height(AstraSpacing.S))
+                MetadataLine(label = "Provider", value = readiness.provider)
+                MetadataLine(label = "Backends", value = readiness.supportedBackends.joinToString { it.label })
+                if (readiness.requiredFiles.isNotEmpty()) {
+                    Spacer(Modifier.height(AstraSpacing.S))
+                    Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.XS)) {
+                        readiness.requiredFiles.forEach { file -> RequiredFileRow(file = file) }
+                    }
                 }
-                readiness.status == ModelReadinessStatus.Installed && model?.status != ModelStatus.Installed -> {
-                    AstraButton(
-                        text = "Delete",
-                        onClick = { onDelete(readiness.modelId) },
-                        style = AstraButtonStyle.Danger,
-                    )
-                }
-                model?.downloadUrl != null && readiness.status != ModelReadinessStatus.Installed -> {
-                    AstraButton(
-                        text = "Download",
-                        onClick = { onDownload(readiness.modelId) },
-                        style = AstraButtonStyle.Primary,
-                    )
-                }
-                else -> {
-                    AstraButton(
-                        text = "Installed",
-                        onClick = {},
-                        style = AstraButtonStyle.Secondary,
-                        enabled = false,
-                    )
+                Spacer(Modifier.height(AstraSpacing.S))
+                when {
+                    isInstalled && model?.status != ModelStatus.Installed -> {
+                        AstraButton(
+                            text = "Delete model",
+                            onClick = { onDelete(readiness.modelId) },
+                            style = AstraButtonStyle.Danger,
+                        )
+                    }
+                    model?.downloadUrl != null && !isInstalled -> {
+                        AstraButton(
+                            text = "Download model",
+                            onClick = { onDownload(readiness.modelId) },
+                            style = AstraButtonStyle.Primary,
+                        )
+                    }
+                    else -> {
+                        AstraButton(
+                            text = "Installed",
+                            onClick = {},
+                            style = AstraButtonStyle.Secondary,
+                            enabled = false,
+                        )
+                    }
                 }
             }
         }
@@ -405,39 +428,13 @@ private fun InferenceParametersCard(
         subtitle = "In-memory runtime parameters used when ASTRA builds local prompt requests.",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
-        Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-            AstraMetricCard(
-                value = state.temperature.toString(),
-                unit = "",
-                label = "Temperature",
-                modifier = Modifier.weight(1f),
-            )
-            AstraMetricCard(
-                value = state.maxTokens.toString(),
-                unit = "",
-                label = "Max tokens",
-                modifier = Modifier.weight(1f),
-            )
-        }
-        Spacer(Modifier.height(AstraSpacing.S))
-        Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-            AstraMetricCard(
-                value = state.contextWindow.toString(),
-                unit = "",
-                label = "Context window",
-                modifier = Modifier.weight(1f),
-            )
-            AstraMetricCard(
-                value = state.quantization,
-                unit = "",
-                label = "Quantization",
-                modifier = Modifier.weight(1f),
-            )
-        }
-        Spacer(Modifier.height(AstraSpacing.M))
         ParameterStepper(
             label = "Temperature",
+            description = "Controls randomness of the output. Low = focused, high = creative.",
             value = state.temperature.toString(),
+            rangeLabel = "0.0 – 2.0",
+            canDecrease = state.temperature > 0.0,
+            canIncrease = state.temperature < 2.0,
             onDecrease = {
                 onIntent(SettingsIntent.UpdateTemperature(roundParameter(state.temperature - 0.1)))
             },
@@ -447,7 +444,11 @@ private fun InferenceParametersCard(
         )
         ParameterStepper(
             label = "Max tokens",
+            description = "Maximum number of tokens the model will generate per response.",
             value = state.maxTokens.toString(),
+            rangeLabel = "128 – 4 096",
+            canDecrease = state.maxTokens > 128,
+            canIncrease = state.maxTokens < 4_096,
             onDecrease = {
                 onIntent(SettingsIntent.UpdateMaxTokens(state.maxTokens - 128))
             },
@@ -457,7 +458,11 @@ private fun InferenceParametersCard(
         )
         ParameterStepper(
             label = "Context window",
+            description = "Total tokens (prompt + response) the model can process at once.",
             value = state.contextWindow.toString(),
+            rangeLabel = "1 024 – 32 768",
+            canDecrease = state.contextWindow > 1_024,
+            canIncrease = state.contextWindow < 32_768,
             onDecrease = {
                 onIntent(SettingsIntent.UpdateContextWindow(state.contextWindow - 1_024))
             },
@@ -511,6 +516,36 @@ private fun DemoModeCard(
             AstraChip(
                 label = if (enabled) "MOCK" else "REAL",
                 color = if (enabled) AstraColors.Warning else AstraColors.Success,
+            )
+        }
+    }
+}
+
+@Composable
+private fun LightThemeCard(
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    AstraCard(
+        title = "Light Theme",
+        subtitle = "Switch between dark and light color palettes. Dark mode is the default for edge environments.",
+        status = if (enabled) "LIGHT" else "DARK",
+    ) {
+        Spacer(Modifier.height(AstraSpacing.M))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AstraButton(
+                text = if (enabled) "Switch to dark" else "Switch to light",
+                onClick = { onToggle(!enabled) },
+                modifier = Modifier.weight(1f),
+                style = AstraButtonStyle.Secondary,
+            )
+            AstraChip(
+                label = if (enabled) "☀" else "🌙",
+                color = if (enabled) AstraColors.Warning else AstraColors.Primary,
             )
         }
     }
@@ -609,52 +644,63 @@ private fun SelectableOption(
 @Composable
 private fun ParameterStepper(
     label: String,
+    description: String,
     value: String,
+    rangeLabel: String,
+    canDecrease: Boolean,
+    canIncrease: Boolean,
     onDecrease: () -> Unit,
     onIncrease: () -> Unit,
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = AstraSpacing.XS),
-        horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = label,
-                style = AstraTypography.Caption,
-                color = AstraColors.TextSecondary,
-            )
-            Text(
-                text = value,
-                style = AstraTypography.Body,
-                color = AstraColors.TextPrimary,
-            )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = label, style = AstraTypography.Body, color = AstraColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                Text(text = description, style = AstraTypography.Caption, color = AstraColors.TextSecondary)
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                MiniControlButton(text = "−", enabled = canDecrease, onClick = onDecrease)
+                Text(text = value, style = AstraTypography.Body, color = AstraColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                MiniControlButton(text = "+", enabled = canIncrease, onClick = onIncrease)
+            }
         }
-        MiniControlButton(text = "−", onClick = onDecrease)
-        MiniControlButton(text = "+", onClick = onIncrease)
+        Spacer(Modifier.height(AstraSpacing.XS))
+        Text(text = "Range: $rangeLabel", style = AstraTypography.Caption, color = AstraColors.TextDisabled)
+        Spacer(Modifier.height(AstraSpacing.S))
     }
 }
 
 @Composable
 private fun MiniControlButton(
     text: String,
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     Box(
         modifier = Modifier
-            .heightIn(min = 48.dp)
-            .background(AstraColors.SurfaceElevated, RoundedCornerShape(16.dp))
-            .border(1.dp, AstraColors.Border, RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = AstraSpacing.L, vertical = AstraSpacing.S),
+            .heightIn(min = 40.dp)
+            .alpha(if (enabled) 1f else 0.35f)
+            .background(AstraColors.SurfaceElevated, RoundedCornerShape(12.dp))
+            .border(1.dp, if (enabled) AstraColors.Border else AstraColors.TextDisabled, RoundedCornerShape(12.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = text,
             style = AstraTypography.Title,
-            color = AstraColors.TextPrimary,
+            color = if (enabled) AstraColors.TextPrimary else AstraColors.TextDisabled,
         )
     }
 }

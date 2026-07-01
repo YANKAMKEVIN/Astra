@@ -302,44 +302,47 @@ fun AstraNavigationBar(
             .background(AstraColors.Surface)
             .border(1.dp, AstraColors.Border)
             .navigationBarsPadding()
-            .horizontalScroll(rememberScrollState())
             .padding(horizontal = AstraSpacing.S, vertical = AstraSpacing.S),
-        horizontalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
+        horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
-        AstraDestination.primaryDestinations.forEach { destination ->
-            val selected = destination == selectedDestination
-            Column(
-                modifier = Modifier
-                    .heightIn(min = 48.dp)
-                    .clickable { onDestinationSelected(destination) }
-                    .background(
-                        color = if (selected) {
-                            AstraColors.Primary.copy(alpha = 0.16f)
-                        } else {
-                            Color.Transparent
-                        },
-                        shape = RoundedCornerShape(16.dp),
-                    )
-                    .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(5.dp)
-                        .background(
-                            if (selected) AstraColors.Secondary else AstraColors.TextDisabled,
-                            RoundedCornerShape(50),
-                        ),
-                )
-                Spacer(Modifier.height(AstraSpacing.XS))
-                Text(
-                    text = destination.shortLabel,
-                    style = AstraTypography.Caption,
-                    color = if (selected) AstraColors.TextPrimary else AstraColors.TextSecondary,
-                )
-            }
+        AstraDestination.primaryNavDestinations.forEach { destination ->
+            NavBarItem(
+                label = destination.shortLabel,
+                selected = destination == selectedDestination,
+                onClick = { onDestinationSelected(destination) },
+            )
         }
+    }
+}
+
+@Composable
+private fun NavBarItem(label: String, selected: Boolean, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .heightIn(min = 48.dp)
+            .clickable(onClick = onClick)
+            .background(
+                color = if (selected) AstraColors.Primary.copy(alpha = 0.16f) else Color.Transparent,
+                shape = RoundedCornerShape(16.dp),
+            )
+            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(5.dp)
+                .background(
+                    if (selected) AstraColors.Secondary else AstraColors.TextDisabled,
+                    RoundedCornerShape(50),
+                ),
+        )
+        Spacer(Modifier.height(AstraSpacing.XS))
+        Text(
+            text = label,
+            style = AstraTypography.Caption,
+            color = if (selected) AstraColors.TextPrimary else AstraColors.TextSecondary,
+        )
     }
 }
 

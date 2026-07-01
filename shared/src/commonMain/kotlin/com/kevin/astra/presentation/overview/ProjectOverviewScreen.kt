@@ -1,8 +1,15 @@
 package com.kevin.astra.presentation.overview
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -10,27 +17,31 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
-import com.kevin.astra.core.design.AstraCard
 import com.kevin.astra.core.design.AstraChip
 import com.kevin.astra.core.design.AstraColors
-import com.kevin.astra.core.design.AstraMetricCard
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
 import com.kevin.astra.domain.modelmanager.ModelReadinessStatus
+import com.kevin.astra.domain.settings.DemoModeHolder
 
 @Composable
 fun ProjectOverviewScreen(
@@ -38,305 +49,378 @@ fun ProjectOverviewScreen(
     viewModel: ProjectOverviewViewModel,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val isDemoMode by DemoModeHolder.enabled.collectAsStateWithLifecycle()
 
-    ProjectOverviewContent(
-        state = state,
-        contentPadding = contentPadding,
-        onIntent = viewModel::dispatch,
-    )
-}
-
-@Composable
-private fun ProjectOverviewContent(
-    state: ProjectOverviewState,
-    contentPadding: PaddingValues,
-    onIntent: (ProjectOverviewIntent) -> Unit,
-) {
     AstraScreen(
-        title = "Welcome Engineer",
-        description = "Your secure Edge AI operations overview.",
+        title = "ASTRA Dashboard",
+        description = null,
         contentPadding = contentPadding,
     ) {
-        RuntimeOverviewCard(state = state, onRefresh = { onIntent(ProjectOverviewIntent.Refresh) })
-        ArchitectureCard(items = state.architectureItems)
+        StatusHeader(state = state, isDemoMode = isDemoMode)
+        LiveMetricsGrid(state = state)
         ModelsCard(state = state)
-        DeviceCard(state = state)
-        AiFeaturesCard(features = state.aiFeatures)
-        DocumentationCard(links = state.documentationLinks)
-    }
-}
-
-@Composable
-private fun RuntimeOverviewCard(
-    state: ProjectOverviewState,
-    onRefresh: () -> Unit,
-) {
-    AstraCard(
-        title = "Runtime",
-        subtitle = "Selected configuration from the local AI repositories.",
-        status = state.selectedBackend?.status?.label ?: "Unknown",
-    ) {
-        Spacer(Modifier.height(AstraSpacing.M))
-        Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-            AstraMetricCard(
-                value = state.selectedBackend?.displayName ?: "Unknown",
-                unit = "",
-                label = "Selected Backend",
-                modifier = Modifier.weight(1f),
-            )
-            AstraMetricCard(
-                value = state.currentRuntime,
-                unit = "",
-                label = "Current Runtime",
-                modifier = Modifier.weight(1f),
-            )
+        AiFeaturesSection(features = state.aiFeatures)
+        if (!state.isLoadingCapabilities) {
+            DeviceDetailSection(state = state)
         }
-        Spacer(Modifier.height(AstraSpacing.S))
-        Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-            AstraMetricCard(
-                value = state.selectedBackend?.status?.label ?: "Unknown",
-                unit = "",
-                label = "Runtime Status",
-                modifier = Modifier.weight(1f),
-            )
-            AstraMetricCard(
-                value = state.selectedIndustry.label,
-                unit = "",
-                label = "Current Industry",
-                modifier = Modifier.weight(1f),
-            )
-        }
-        Spacer(Modifier.height(AstraSpacing.S))
-        Text(
-            text = state.fallbackStatus,
-            style = AstraTypography.Body,
-            color = if (state.fallbackStatus.startsWith("Fallback active")) AstraColors.Warning else AstraColors.Success,
-        )
-        if (state.error != null) {
-            Spacer(Modifier.height(AstraSpacing.S))
-            Text(text = state.error, style = AstraTypography.Caption, color = AstraColors.Error)
-        }
-        Spacer(Modifier.height(AstraSpacing.M))
         AstraButton(
-            text = if (state.isLoadingCapabilities) "Refreshing..." else "Refresh device overview",
-            onClick = onRefresh,
+            text = if (state.isLoadingCapabilities) "Scanning device…" else "↺  Refresh",
+            onClick = { viewModel.dispatch(ProjectOverviewIntent.Refresh) },
             style = AstraButtonStyle.Ghost,
             enabled = !state.isLoadingCapabilities,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
 
-@Composable
-private fun ArchitectureCard(items: List<OverviewArchitectureItem>) {
-    AstraCard(
-        title = "Architecture",
-        subtitle = "Core technical building blocks used by ASTRA.",
-    ) {
-        Spacer(Modifier.height(AstraSpacing.M))
-        Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-            items.forEach { item ->
-                OverviewInfoRow(title = item.title, description = item.description)
-            }
-        }
-    }
-}
+// ── Status header ─────────────────────────────────────────────────────────────
 
 @Composable
-private fun ModelsCard(state: ProjectOverviewState) {
-    AstraCard(
-        title = "Models",
-        subtitle = "Catalog metadata and local readiness are read-only here.",
-        status = "${state.installedModels.size} INSTALLED",
+private fun StatusHeader(state: ProjectOverviewState, isDemoMode: Boolean) {
+    val infinite = rememberInfiniteTransition(label = "status-dot")
+    val dotAlpha by infinite.animateFloat(
+        initialValue = 0.4f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
+        label = "dot",
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(AstraColors.Surface, RoundedCornerShape(20.dp))
+            .border(1.dp, AstraColors.Border, RoundedCornerShape(20.dp))
+            .padding(AstraSpacing.L),
     ) {
-        Spacer(Modifier.height(AstraSpacing.M))
-        state.modelReadiness.forEach { readiness ->
-            val catalogModel = state.availableModels.firstOrNull { it.id == readiness.modelId }
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-                    .background(AstraColors.SurfaceElevated, RoundedCornerShape(16.dp))
-                    .border(1.dp, AstraColors.Border, RoundedCornerShape(16.dp))
-                    .padding(AstraSpacing.M),
+        Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.M)) {
+            // Title row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
+                Column {
+                    Text(
+                        text = "Edge AI Platform",
+                        style = AstraTypography.Caption.copy(
+                            fontFamily = FontFamily.Monospace,
+                            letterSpacing = 2.sp,
+                        ),
+                        color = AstraColors.Secondary,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(Modifier.height(AstraSpacing.XS))
+                    Text(
+                        text = "ASTRA",
+                        style = AstraTypography.Headline,
+                        color = AstraColors.TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                // Live/Demo badge
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .background(
+                            if (isDemoMode) AstraColors.Warning.copy(alpha = 0.12f)
+                            else AstraColors.Success.copy(alpha = 0.12f),
+                            RoundedCornerShape(12.dp),
+                        )
+                        .border(
+                            1.dp,
+                            if (isDemoMode) AstraColors.Warning.copy(alpha = 0.35f)
+                            else AstraColors.Success.copy(alpha = 0.35f),
+                            RoundedCornerShape(12.dp),
+                        )
+                        .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = readiness.displayName,
-                            style = AstraTypography.Body,
-                            color = AstraColors.TextPrimary,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = "${readiness.quantization} • ${readiness.parameterCount} • ${readiness.expectedSize}",
-                            style = AstraTypography.Caption,
-                            color = AstraColors.TextSecondary,
-                        )
-                        Text(
-                            text = "Context window: ${catalogModel?.contextWindow ?: 0}",
-                            style = AstraTypography.Caption,
-                            color = AstraColors.TextSecondary,
-                        )
-                    }
-                    AstraChip(
-                        label = readiness.status.label.uppercase(),
-                        color = if (readiness.status == ModelReadinessStatus.Installed) AstraColors.Success else AstraColors.Warning,
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .alpha(dotAlpha)
+                            .background(
+                                if (isDemoMode) AstraColors.Warning else AstraColors.Success,
+                                CircleShape,
+                            ),
+                    )
+                    Text(
+                        text = if (isDemoMode) "DEMO" else "LIVE",
+                        style = AstraTypography.Caption.copy(fontFamily = FontFamily.Monospace),
+                        color = if (isDemoMode) AstraColors.Warning else AstraColors.Success,
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
+
+            // Key info row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+            ) {
+                StatPill(
+                    label = "Model",
+                    value = state.selectedModel?.displayName ?: "None",
+                    modifier = Modifier.weight(1f),
+                )
+                StatPill(
+                    label = "Backend",
+                    value = state.selectedBackend?.displayName ?: "—",
+                    modifier = Modifier.weight(1f),
+                )
+                StatPill(
+                    label = "Domain",
+                    value = state.selectedIndustry.label.split(" ").first(),
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            // Runtime status line
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
+            ) {
+                val isFallback = state.fallbackStatus.startsWith("Fallback")
+                Box(
+                    modifier = Modifier
+                        .size(5.dp)
+                        .background(
+                            if (isFallback) AstraColors.Warning else AstraColors.Primary,
+                            CircleShape,
+                        ),
+                )
+                Text(
+                    text = state.fallbackStatus,
+                    style = AstraTypography.Caption,
+                    color = if (isFallback) AstraColors.Warning else AstraColors.TextSecondary,
+                )
+            }
+
+            if (state.error != null) {
+                Text(text = "⚠ ${state.error}", style = AstraTypography.Caption, color = AstraColors.Error)
+            }
         }
     }
 }
 
 @Composable
-private fun DeviceCard(state: ProjectOverviewState) {
-    val capabilities = state.capabilities
-    AstraCard(
-        title = "Device",
-        subtitle = "Best-effort local hardware and platform detection.",
-        status = if (state.isLoadingCapabilities) "SCANNING" else if (capabilities?.npuAvailable == true) "NPU READY" else "NPU NOT DETECTED",
+private fun StatPill(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .background(AstraColors.SurfaceElevated, RoundedCornerShape(12.dp))
+            .border(1.dp, AstraColors.Border, RoundedCornerShape(12.dp))
+            .padding(horizontal = AstraSpacing.S, vertical = AstraSpacing.S),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Spacer(Modifier.height(AstraSpacing.M))
-        Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-            AstraMetricCard(
-                value = capabilities?.platform ?: "Unknown",
-                unit = "",
-                label = "Platform",
-                modifier = Modifier.weight(1f),
-            )
-            AstraMetricCard(
-                value = capabilities?.osVersion ?: "Unknown",
-                unit = "",
-                label = "OS",
-                modifier = Modifier.weight(1f),
-            )
-        }
-        Spacer(Modifier.height(AstraSpacing.S))
-        Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-            AstraMetricCard(
-                value = capabilities?.totalMemoryMb?.let { "$it MB" } ?: "Unknown",
-                unit = "",
-                label = "Memory",
-                modifier = Modifier.weight(1f),
-            )
-            AstraMetricCard(
-                value = capabilities?.availableMemoryMb?.let { "$it MB" } ?: "Unknown",
-                unit = "",
-                label = "Available",
-                modifier = Modifier.weight(1f),
-            )
-        }
-        Spacer(Modifier.height(AstraSpacing.S))
-        DeviceInfoRow(label = "Device", value = capabilities?.deviceModel ?: "Unknown")
-        DeviceInfoRow(label = "CPU", value = capabilities?.cpuName ?: "Unknown")
-        DeviceInfoRow(label = "GPU", value = capabilities?.gpuName ?: "Not detected")
-        DeviceInfoRow(
+        Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextDisabled)
+        Text(
+            text = value,
+            style = AstraTypography.Caption,
+            color = AstraColors.TextPrimary,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+        )
+    }
+}
+
+// ── Live metrics grid ─────────────────────────────────────────────────────────
+
+@Composable
+private fun LiveMetricsGrid(state: ProjectOverviewState) {
+    val caps = state.capabilities
+    SectionLabel("Device")
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+    ) {
+        MetricTile(
+            icon = "💾",
+            label = "RAM avail.",
+            value = caps?.availableMemoryMb?.let { "$it MB" } ?: "—",
+            modifier = Modifier.weight(1f),
+        )
+        MetricTile(
+            icon = "🖥",
+            label = "Platform",
+            value = caps?.platform ?: "—",
+            modifier = Modifier.weight(1f),
+        )
+        MetricTile(
+            icon = if (caps?.npuAvailable == true) "🟢" else "⚪",
             label = "NPU",
-            value = if (capabilities?.npuAvailable == true) capabilities.npuName else "Not detected",
-        )
-        DeviceInfoRow(
-            label = "Storage available",
-            value = capabilities?.storageAvailableGb?.let { "${((it * 10).toInt() / 10.0)} GB" } ?: "Unknown",
-        )
-        Spacer(Modifier.height(AstraSpacing.M))
-        ChipScroller(
-            title = "Supported backends",
-            labels = capabilities?.supportedBackends?.map { it.label }.orEmpty(),
-        )
-        Spacer(Modifier.height(AstraSpacing.M))
-        ChipScroller(
-            title = "Supported features",
-            labels = capabilities?.supportedFeatures?.map { it.label }.orEmpty(),
+            value = if (caps?.npuAvailable == true) "Ready" else "None",
+            modifier = Modifier.weight(1f),
         )
     }
-}
-
-@Composable
-private fun DeviceInfoRow(label: String, value: String) {
-    Column {
-        Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextSecondary)
-        Text(text = value, style = AstraTypography.Body, color = AstraColors.TextPrimary)
-    }
-}
-
-@Composable
-private fun AiFeaturesCard(features: List<String>) {
-    AstraCard(
-        title = "AI Features",
-        subtitle = "Implemented capabilities available in this build.",
+    Spacer(Modifier.height(AstraSpacing.S))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
     ) {
-        Spacer(Modifier.height(AstraSpacing.M))
-        ChipScroller(title = "Capabilities", labels = features)
+        MetricTile(
+            icon = "📦",
+            label = "Storage",
+            value = caps?.storageAvailableGb?.let { "${(it * 10).toLong() / 10.0} GB" } ?: "—",
+            modifier = Modifier.weight(1f),
+        )
+        MetricTile(
+            icon = "🧠",
+            label = "RAM total",
+            value = caps?.totalMemoryMb?.let { "$it MB" } ?: "—",
+            modifier = Modifier.weight(1f),
+        )
+        MetricTile(
+            icon = "⚙",
+            label = "Runtime",
+            value = state.currentRuntime,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
 @Composable
-private fun DocumentationCard(links: List<OverviewDocumentationLink>) {
-    AstraCard(
-        title = "Documentation",
-        subtitle = "Quick references for technical discussion. Paths are repository-local.",
+private fun MetricTile(icon: String, label: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .background(AstraColors.Surface, RoundedCornerShape(16.dp))
+            .border(1.dp, AstraColors.Border, RoundedCornerShape(16.dp))
+            .padding(AstraSpacing.M),
+        verticalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
     ) {
-        Spacer(Modifier.height(AstraSpacing.M))
-        Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-            links.forEach { link ->
-                OverviewInfoRow(
-                    title = link.title,
-                    description = "${link.path} — ${link.description}",
+        Text(text = icon, style = AstraTypography.Body)
+        Text(text = value, style = AstraTypography.Caption, color = AstraColors.TextPrimary, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextDisabled)
+    }
+}
+
+// ── Models card ───────────────────────────────────────────────────────────────
+
+@Composable
+private fun ModelsCard(state: ProjectOverviewState) {
+    SectionLabel("Models  ·  ${state.installedModels.size} installed")
+    Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+        state.modelReadiness.forEach { readiness ->
+            val isInstalled = readiness.status == ModelReadinessStatus.Installed
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(AstraColors.Surface, RoundedCornerShape(14.dp))
+                    .border(1.dp, AstraColors.Border, RoundedCornerShape(14.dp))
+                    .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.M),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .background(
+                            if (isInstalled) AstraColors.Success else AstraColors.TextDisabled,
+                            CircleShape,
+                        ),
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = readiness.displayName,
+                        style = AstraTypography.Caption,
+                        color = AstraColors.TextPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "${readiness.parameterCount} · ${readiness.quantization} · ${readiness.expectedSize}",
+                        style = AstraTypography.Caption,
+                        color = AstraColors.TextDisabled,
+                    )
+                }
+                AstraChip(
+                    label = readiness.status.label.uppercase(),
+                    color = if (isInstalled) AstraColors.Success else AstraColors.Warning,
                 )
             }
         }
     }
 }
 
-@Composable
-private fun OverviewInfoRow(
-    title: String,
-    description: String,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(AstraColors.SurfaceElevated, RoundedCornerShape(16.dp))
-            .border(1.dp, AstraColors.Border, RoundedCornerShape(16.dp))
-            .padding(AstraSpacing.M),
-    ) {
-        Text(
-            text = title,
-            style = AstraTypography.Body,
-            color = AstraColors.TextPrimary,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(Modifier.height(AstraSpacing.XS))
-        Text(
-            text = description,
-            style = AstraTypography.Caption,
-            color = AstraColors.TextSecondary,
-        )
-    }
-}
+// ── AI Features ───────────────────────────────────────────────────────────────
 
 @Composable
-private fun ChipScroller(
-    title: String,
-    labels: List<String>,
-) {
-    Text(text = title, style = AstraTypography.Caption, color = AstraColors.TextSecondary)
-    Spacer(Modifier.height(AstraSpacing.S))
+private fun AiFeaturesSection(features: List<String>) {
+    if (features.isEmpty()) return
+    SectionLabel("Capabilities")
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
     ) {
-        labels.ifEmpty { listOf("Unknown") }.forEach { label ->
-            AstraChip(
-                label = label,
-                color = if (label == "Unknown") AstraColors.Warning else AstraColors.Success,
-            )
+        features.forEach { feature ->
+            AstraChip(label = feature, color = AstraColors.Primary)
         }
     }
+}
+
+// ── Device detail ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun DeviceDetailSection(state: ProjectOverviewState) {
+    val caps = state.capabilities ?: return
+    SectionLabel("Hardware")
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(AstraColors.Surface, RoundedCornerShape(16.dp))
+            .border(1.dp, AstraColors.Border, RoundedCornerShape(16.dp))
+            .padding(AstraSpacing.M),
+        verticalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+    ) {
+        InfoRow("Device", caps.deviceModel)
+        InfoRow("CPU", caps.cpuName)
+        InfoRow("GPU", caps.gpuName ?: "Not detected")
+        InfoRow("NPU", if (caps.npuAvailable) caps.npuName else "Not detected")
+        InfoRow("OS", "${caps.platform} ${caps.osVersion}")
+    }
+    if (caps.supportedBackends.isNotEmpty()) {
+        Spacer(Modifier.height(AstraSpacing.S))
+        SectionLabel("Supported backends")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+        ) {
+            caps.supportedBackends.forEach { b ->
+                AstraChip(label = b.label, color = AstraColors.Secondary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextDisabled)
+        Spacer(Modifier.width(AstraSpacing.M))
+        Text(
+            text = value,
+            style = AstraTypography.Caption,
+            color = AstraColors.TextPrimary,
+            fontWeight = FontWeight.Medium,
+        )
+    }
+}
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text = text.uppercase(),
+        style = AstraTypography.Caption.copy(
+            fontFamily = FontFamily.Monospace,
+            letterSpacing = 1.5.sp,
+        ),
+        color = AstraColors.TextDisabled,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(bottom = AstraSpacing.XS),
+    )
 }

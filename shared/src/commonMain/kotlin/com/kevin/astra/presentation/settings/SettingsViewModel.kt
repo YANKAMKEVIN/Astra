@@ -123,6 +123,11 @@ class SettingsViewModel(
                 settingsScope.launch { aiConfigurationRepository.updateDemoModeEnabled(intent.enabled) }
             }
 
+            is SettingsIntent.ToggleLightTheme -> {
+                updateState { copy(lightThemeEnabled = intent.enabled) }
+                settingsScope.launch { aiConfigurationRepository.updateLightThemeEnabled(intent.enabled) }
+            }
+
             is SettingsIntent.DownloadModel -> {
                 val model = modelCatalog.modelById(intent.modelId) ?: return
                 val url = model.downloadUrl ?: run {
@@ -194,6 +199,7 @@ private fun AiConfiguration.toSettingsState(
         quantization = quantization,
         experimentalFeaturesEnabled = experimentalFeaturesEnabled,
         demoModeEnabled = demoModeEnabled,
+        lightThemeEnabled = lightThemeEnabled,
         downloadState = downloadState,
         storageUsageMb = storageUsageMb,
     )

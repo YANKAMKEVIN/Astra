@@ -38,6 +38,7 @@ import com.kevin.astra.core.design.AstraChip
 import com.kevin.astra.core.design.AstraColors
 import com.kevin.astra.core.design.AstraEmptyView
 import com.kevin.astra.core.design.AstraErrorView
+import com.kevin.astra.core.design.MarkdownText
 import com.kevin.astra.core.design.AstraMetricCard
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
@@ -117,6 +118,13 @@ private fun DocumentsContent(
                     color = AstraColors.TextSecondary,
                 )
             }
+        }
+
+        if (state.loadedFileName == null && !state.isLoading && !state.isIndexing) {
+            AstraEmptyView(
+                title = "No document loaded",
+                message = "Load a PDF to start querying it with on-device RAG. Your files never leave the device.",
+            )
         }
 
         AnimatedVisibility(visible = state.documentStatus == DocumentStatus.Indexed) {
@@ -351,11 +359,7 @@ private fun AnswerCard(answer: DocumentsAnswer) {
         status = "LOCAL",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
-        Text(
-            text = answer.body,
-            style = AstraTypography.Body,
-            color = AstraColors.TextPrimary,
-        )
+        MarkdownText(text = answer.body)
     }
 }
 

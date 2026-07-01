@@ -71,6 +71,7 @@ class DocumentsViewModel(
                     error = null,
                     loadedFileName = null,
                     pageCount = 0,
+                    question = "",
                     documentStatus = DocumentStatus.NotIndexed,
                     indexedChunks = emptyList(),
                     answer = null,
