@@ -119,7 +119,7 @@ enum class PromptIndustry(val label: String) {
 
 data class PromptRequest(
     val prompt: String,
-    val industry: PromptIndustry,
+    val industry: PromptIndustry? = null,
     val model: AiModel = AiModel.Mock,
     val backend: InferenceBackend = InferenceBackend.Mock,
     val maxTokens: Int = 512,

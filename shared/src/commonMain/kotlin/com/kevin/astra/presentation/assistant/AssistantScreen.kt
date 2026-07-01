@@ -492,7 +492,7 @@ private fun AssistantContent(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "${state.selectedIndustry.label} · ${state.sessionModel?.displayName ?: "Local AI"}",
+                    text = "${state.selectedIndustry?.label ?: "General"} · ${state.sessionModel?.displayName ?: "Local AI"}",
                     style = AstraTypography.Caption,
                     color = AstraColors.TextSecondary,
                 )
@@ -696,7 +696,7 @@ private fun HeaderIconButton(icon: String, onClick: () -> Unit) {
 @Composable
 private fun EmptyChat(
     modifier: Modifier,
-    industry: AssistantIndustry,
+    industry: AssistantIndustry?,
     onSuggestionSelected: (String) -> Unit,
 ) {
     Column(
@@ -747,7 +747,7 @@ private fun EmptyChat(
     }
 }
 
-private fun quickSuggestions(industry: AssistantIndustry): List<String> = when (industry) {
+private fun quickSuggestions(industry: AssistantIndustry?): List<String> = when (industry) {
     AssistantIndustry.IndustrialMaintenance -> listOf(
         "Diagnose hydraulic pump failure symptoms",
         "What are the FMEA steps for a conveyor belt?",
@@ -772,6 +772,11 @@ private fun quickSuggestions(industry: AssistantIndustry): List<String> = when (
         "Explain HL7 FHIR data standards",
         "What are DICOM imaging best practices?",
         "How does federated learning improve diagnostics?",
+    )
+    null -> listOf(
+        "Hello, what can you do?",
+        "Explain edge AI in simple terms",
+        "What makes on-device inference private?",
     )
 }
 

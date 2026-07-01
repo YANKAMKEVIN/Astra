@@ -167,16 +167,26 @@ class MockInferenceEngine(
                 Status:
                 Troubleshooting guidance generated in simulated offline mode.
             """.trimIndent()
+            null -> """
+                ASTRA · General Mode
+
+                "$normalizedPrompt"
+
+                ${request.prompt.trim().let { if (it.length < 20) it else "Here is a response to your request." }}
+
+                Running in general assistant mode — no industry persona active.
+            """.trimIndent()
         }
     }
 
-    private fun buildMetrics(industry: PromptIndustry): GenerationMetrics {
+    private fun buildMetrics(industry: PromptIndustry?): GenerationMetrics {
         val tokenCount = when (industry) {
             PromptIndustry.IndustrialMaintenance -> 138
             PromptIndustry.Aerospace -> 126
             PromptIndustry.Defense -> 132
             PromptIndustry.Energy -> 124
             PromptIndustry.Healthcare -> 118
+            null -> 120
         }
 
         return GenerationMetrics(

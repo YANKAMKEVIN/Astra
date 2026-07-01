@@ -6,7 +6,7 @@ class RuleBasedTaskEvaluationEngine : TaskEvaluationEngine {
     override fun evaluate(
         prompt: String,
         response: String,
-        industry: PromptIndustry,
+        industry: PromptIndustry?,
     ): TaskEvaluationReport {
         val normalizedPrompt = prompt.lowercase()
         val normalizedResponse = response.lowercase()
@@ -68,7 +68,7 @@ class RuleBasedTaskEvaluationEngine : TaskEvaluationEngine {
     private fun scoreTerminology(
         prompt: String,
         response: String,
-        industry: PromptIndustry,
+        industry: PromptIndustry? = null,
     ): TaskEvaluationScore {
         val keywords = when (industry) {
             PromptIndustry.IndustrialMaintenance -> listOf("pump", "motor", "conveyor", "vibration", "pressure", "relay", "maintenance", "shutdown")
@@ -76,6 +76,7 @@ class RuleBasedTaskEvaluationEngine : TaskEvaluationEngine {
             PromptIndustry.Defense -> listOf("secure", "offline", "classified", "operator", "mission", "zone", "authorized", "isolate")
             PromptIndustry.Energy -> listOf("turbine", "pressure", "site", "grid", "loop", "thermal", "blade", "isolation")
             PromptIndustry.Healthcare -> listOf("device", "alarm", "patient", "oxygen", "ventilator", "biomedical", "sensitive", "data")
+            null -> listOf("answer", "explain", "describe", "how", "what", "why")
         }
         return keywordScore(
             criterion = TaskEvaluationCriterion.DomainTerminology,

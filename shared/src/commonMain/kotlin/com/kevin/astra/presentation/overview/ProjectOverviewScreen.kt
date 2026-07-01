@@ -169,7 +169,7 @@ private fun StatusHeader(state: ProjectOverviewState, isDemoMode: Boolean) {
                 )
                 StatPill(
                     label = "Domain",
-                    value = state.selectedIndustry.label.split(" ").first(),
+                    value = state.selectedIndustry?.label?.split(" ")?.first() ?: "None",
                     modifier = Modifier.weight(1f),
                 )
             }

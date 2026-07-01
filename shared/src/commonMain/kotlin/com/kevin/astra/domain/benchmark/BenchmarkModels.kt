@@ -10,7 +10,7 @@ data class BenchmarkRequest(
     val prompt: String,
     val models: List<LocalModel>,
     val backend: InferenceBackend,
-    val industry: PromptIndustry,
+    val industry: PromptIndustry? = null,
 )
 
 data class BenchmarkReport(
