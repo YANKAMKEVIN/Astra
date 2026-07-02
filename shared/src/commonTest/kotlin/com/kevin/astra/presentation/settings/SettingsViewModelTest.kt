@@ -20,6 +20,7 @@ import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SettingsViewModelTest {
@@ -40,7 +41,8 @@ class SettingsViewModelTest {
         assertTrue(state.availableBackends.map { it.displayName }.containsAll(
             listOf("Mock Engine", "LiteRT", "LiteRT-LM")
         ))
-        assertEquals(PromptIndustry.IndustrialMaintenance, state.selectedIndustry)
+        // Industry persona is optional and unset by default.
+        assertNull(state.selectedIndustry)
         assertEquals(0.3, state.temperature)
         assertEquals(512, state.maxTokens)
         assertEquals(4_096, state.contextWindow)

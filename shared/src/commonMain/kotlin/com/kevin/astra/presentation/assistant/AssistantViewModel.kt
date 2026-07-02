@@ -192,7 +192,7 @@ class AssistantViewModel(
                         maxChunks = 6,
                     )
                 }
-                AttachedPdf(pdf.fileName, pdf.pageCount, context.text, AttachmentStatus.Ready)
+                AttachedPdf(pdf.fileName, pdf.pageCount, context.text, AttachmentStatus.Ready, chunks)
             }.onSuccess { attached ->
                 updateState { copy(attachedPdf = attached) }
             }.onFailure { e ->
@@ -335,12 +335,28 @@ class AssistantViewModel(
                 }
             }
 
+            // Re-rank the attached PDF against the final question so chat answers with the most
+            // relevant passages, not context cached from the placeholder "Summarize this document."
+            val documentContext = snapshot.attachedPdf?.let { pdf ->
+                if (pdf.chunks.isNotEmpty()) {
+                    withContext(Dispatchers.Default) {
+                        contextRetriever.retrieve(
+                            question = snapshot.question,
+                            chunks = pdf.chunks,
+                            maxChunks = 6,
+                        ).text
+                    }
+                } else {
+                    pdf.extractedContext
+                }
+            }
+
             val preparedParts = promptPipeline.preparePrompt(
                 PromptBuildRequest(
                     engineerQuestion = enrichedQuestion,
                     selectedIndustry = industry,
                     selectedModel = selectedModel,
-                    extractedDocumentContext = snapshot.attachedPdf?.extractedContext,
+                    extractedDocumentContext = documentContext,
                 ),
             )
 

@@ -8,6 +8,7 @@ import com.kevin.astra.core.mvi.AstraState
 import com.kevin.astra.domain.export.ExportFormat
 import com.kevin.astra.domain.assistant.PromptTemplate
 import com.kevin.astra.domain.demo.DemoScenario
+import com.kevin.astra.domain.documents.IndexedDocumentChunk
 import com.kevin.astra.domain.history.ChatConversation
 import com.kevin.astra.domain.voice.SpeechRecognitionState
 import com.kevin.astra.domain.vision.ImageClassificationResult
@@ -71,6 +72,9 @@ data class AttachedPdf(
     val pageCount: Int,
     val extractedContext: String,
     val status: AttachmentStatus = AttachmentStatus.Ready,
+    // Indexed chunks are retained so retrieval can be re-ranked against the final
+    // question at ask-time, instead of reusing context ranked with a placeholder prompt.
+    val chunks: List<IndexedDocumentChunk> = emptyList(),
 )
 
 data class AttachedImage(
@@ -78,8 +82,17 @@ data class AttachedImage(
     val classification: ImageClassificationResult?,
     val status: AttachmentStatus = AttachmentStatus.Ready,
 ) {
-    override fun equals(other: Any?) = other is AttachedImage && bytes.contentEquals(other.bytes)
-    override fun hashCode() = bytes.contentHashCode()
+    override fun equals(other: Any?) = other is AttachedImage &&
+        bytes.contentEquals(other.bytes) &&
+        classification == other.classification &&
+        status == other.status
+
+    override fun hashCode(): Int {
+        var result = bytes.contentHashCode()
+        result = 31 * result + (classification?.hashCode() ?: 0)
+        result = 31 * result + status.hashCode()
+        return result
+    }
 }
 
 data class AssistantState(
