@@ -20,6 +20,8 @@ pdfbox-android = "2.0.27.0"
 material3 = "1.9.0"
 ktor = "3.4.3"
 kotlinxSerialization = "1.9.0"
+appauth = "0.11.1"
+securityCrypto = "1.1.0-alpha06"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -48,6 +50,8 @@ ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx
 ktor-client-android = { module = "io.ktor:ktor-client-android", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
+appauth = { module = "net.openid:appauth", version.ref = "appauth" }
+androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "securityCrypto" }
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 litert = { module = "com.google.ai.edge.litert:litert", version.ref = "litert" }
 mediapipe-tasks-genai = { module = "com.google.mediapipe:tasks-genai", version.ref = "mediapipeTasksGenai" }
