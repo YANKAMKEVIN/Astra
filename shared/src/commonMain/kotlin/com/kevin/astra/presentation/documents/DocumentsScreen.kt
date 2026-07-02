@@ -30,6 +30,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
@@ -56,7 +58,8 @@ fun DocumentsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val haptic = LocalHapticFeedback.current
 
-    LaunchedEffect(Unit) {
+    // Refresh on every resume so returning from the Gmail consent screen updates the connection state.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.dispatch(DocumentsIntent.RefreshGmailState)
     }
 

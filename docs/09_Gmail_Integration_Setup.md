@@ -115,10 +115,18 @@ The credential-agnostic core is already implemented and tested (`domain/gmail/`)
 - `GmailTokenProvider` — the single seam Phase B fills: it just needs to return a valid access
   token obtained from the OAuth flow.
 
-## Next (Phase B — after you have the Client IDs)
+## OAuth implementation (Phase B — done)
 
-- Android: OAuth via AppAuth-Android or Credential Manager + Authorization API, requesting the
-  `gmail.readonly` scope; store the refresh token in EncryptedSharedPreferences/Keystore.
-- iOS: OAuth via GoogleSignIn or AppAuth-iOS + `ASWebAuthenticationSession`; store the refresh
-  token in the Keychain.
+- **Android**: OAuth via **AppAuth-Android** (authorization-code + PKCE), requesting the
+  `gmail.readonly` scope; refresh token stored in **EncryptedSharedPreferences**. The AppAuth
+  redirect scheme (reversed client id) is wired as a manifest placeholder from `local.properties`.
+- **iOS**: OAuth via the native **`ASWebAuthenticationSession`** (no third-party SDK) with
+  PKCE (S256) and a Ktor token exchange; client id read from `Info.plist` (`GIDClientID`), redirect
+  scheme declared in `CFBundleURLTypes`. Tokens are currently stored in **NSUserDefaults** —
+  **TODO: move to the Keychain for production**.
 - Both implement `GmailTokenProvider` (refreshing the access token as needed).
+
+### iOS Xcode checklist
+- Confirm `iosApp/iosApp/Info.plist` contains `GIDClientID` and the reversed-client-id URL scheme.
+- The `AuthenticationServices` framework is linked automatically via the shared Kotlin/Native
+  framework — no manual Xcode step needed.

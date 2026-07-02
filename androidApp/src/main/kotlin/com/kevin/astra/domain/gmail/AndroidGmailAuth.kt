@@ -143,7 +143,11 @@ private var gmailAuthenticatorInstance: AndroidGmailAuthenticator? = null
 fun initializeAndroidGmailAuth(context: Context, clientId: String) {
     if (clientId.isBlank()) return
     if (gmailAuthenticatorInstance == null) {
-        gmailAuthenticatorInstance = AndroidGmailAuthenticator(context.applicationContext, clientId)
+        // Constructing the authenticator touches the Android keystore (EncryptedSharedPreferences);
+        // never let a keystore failure crash startup — Gmail just stays unavailable.
+        gmailAuthenticatorInstance = runCatching {
+            AndroidGmailAuthenticator(context.applicationContext, clientId)
+        }.getOrNull()
     }
 }
 
