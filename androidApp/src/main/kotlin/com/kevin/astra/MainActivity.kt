@@ -6,10 +6,18 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.lifecycleScope
 import com.kevin.astra.core.ai.initializeAndroidEdgeAiRuntime
+import com.kevin.astra.domain.gmail.AndroidGmailController
+import com.kevin.astra.domain.gmail.GmailIntegration
+import com.kevin.astra.domain.gmail.GmailSignInBridge
+import com.kevin.astra.domain.gmail.androidGmailAuthenticatorOrNull
+import com.kevin.astra.domain.gmail.initializeAndroidGmailAuth
+import kotlinx.coroutines.launch
 import com.kevin.astra.core.navigation.AstraDestination
 import com.kevin.astra.core.navigation.AstraNavigator
 import com.kevin.astra.core.notification.NotificationKeys
@@ -32,6 +40,8 @@ class MainActivity : ComponentActivity(), KoinComponent {
 
     private val navigator: AstraNavigator by inject()
 
+    private lateinit var gmailSignInLauncher: ActivityResultLauncher<Intent>
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -48,6 +58,8 @@ class MainActivity : ComponentActivity(), KoinComponent {
         initializeAndroidPdfExtractor(this)
         initializeAndroidEmbeddingEngine(this)
         initializeAndroidHardwareSensorReader(this)
+        initializeAndroidGmailAuth(this, BuildConfig.GMAIL_ANDROID_CLIENT_ID)
+        setupGmailSignIn()
 
         requestNotificationPermission()
         requestMicrophonePermission()
@@ -62,6 +74,30 @@ class MainActivity : ComponentActivity(), KoinComponent {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleIntent(intent)
+    }
+
+    private fun setupGmailSignIn() {
+        gmailSignInLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult(),
+        ) { result ->
+            val data = result.data ?: return@registerForActivityResult
+            lifecycleScope.launch {
+                runCatching { androidGmailAuthenticatorOrNull()?.handleAuthorizationResponse(data) }
+            }
+        }
+        // Let the shared UI request the interactive consent that only the Activity can launch.
+        GmailSignInBridge.onRequestSignIn = {
+            androidGmailAuthenticatorOrNull()?.authorizationIntent()?.let(gmailSignInLauncher::launch)
+        }
+        // Publish the controller so shared code can query connection state and trigger sign-in.
+        GmailIntegration.controller = AndroidGmailController(
+            clientIdConfigured = BuildConfig.GMAIL_ANDROID_CLIENT_ID.isNotBlank(),
+        )
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        GmailSignInBridge.onRequestSignIn = null
     }
 
     private fun handleIntent(intent: Intent?) {
