@@ -67,6 +67,24 @@ class DocumentsViewModelTest {
     }
 
     @Test
+    fun loadingEmailExtractsIndexesAndMarksSourceAsEmail() = runBlocking {
+        val viewModel = testViewModel(workScope = CoroutineScope(coroutineContext))
+
+        val fakeText = "Subject: Pump maintenance report. Quarterly service is required. ".repeat(60)
+        viewModel.dispatch(DocumentsIntent.EmailLoaded(fakeText.encodeToByteArray(), "inbox.mbox"))
+        yield()
+        delay(200)
+
+        val state = viewModel.state.value
+        assertEquals("inbox.mbox", state.loadedFileName)
+        assertEquals(DocumentSourceType.Email, state.sourceType)
+        assertEquals(DocumentStatus.Indexed, state.documentStatus)
+        assertTrue(state.indexedChunks.isNotEmpty())
+        assertTrue(state.emailCount >= 1)
+        assertFalse(state.isIndexing)
+    }
+
+    @Test
     fun asksDocumentAfterIndexing() = runBlocking {
         var capturedRequest: PromptRequest? = null
         val viewModel = testViewModel(
