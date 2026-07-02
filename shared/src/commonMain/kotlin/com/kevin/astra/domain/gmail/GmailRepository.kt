@@ -11,7 +11,7 @@ import com.kevin.astra.domain.documents.LoadedEmailDocument
 class GmailRepository(
     private val apiClient: GmailApiClient,
     private val emailExtractor: EmailExtractor,
-) {
+) : GmailMessageSource {
     /** Fetches up to [maxResults] messages (optionally filtered by [query]) as parsed documents. */
     suspend fun fetchMessages(query: String? = null, maxResults: Int = 20): List<LoadedEmailDocument> {
         val ids = apiClient.listMessageIds(query = query, maxResults = maxResults)
@@ -25,10 +25,10 @@ class GmailRepository(
      * Fetches messages and merges them into a single [LoadedEmailDocument] (like an mbox), ready to
      * feed straight into the existing email RAG indexing path.
      */
-    suspend fun fetchAsSingleDocument(
-        query: String? = null,
-        maxResults: Int = 20,
-        label: String = "Gmail",
+    override suspend fun fetchAsSingleDocument(
+        query: String?,
+        maxResults: Int,
+        label: String,
     ): LoadedEmailDocument {
         val messages = fetchMessages(query = query, maxResults = maxResults)
         val merged = messages.joinToString("\n\n---\n\n") { it.rawText }

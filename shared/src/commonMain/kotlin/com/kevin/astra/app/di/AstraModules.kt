@@ -88,6 +88,19 @@ val astraRootModule = module {
     single<EmbeddingEngine> { createEmbeddingEngine() }
     single { SmartTextChunker() }
     single<DocumentContextRetriever> { HybridContextRetriever(embeddingEngine = get()) }
+    single<com.kevin.astra.domain.gmail.GmailMessageSource> {
+        com.kevin.astra.domain.gmail.GmailRepository(
+            apiClient = com.kevin.astra.domain.gmail.GmailApiClient(
+                httpClient = com.kevin.astra.domain.gmail.defaultGmailHttpClient(),
+                tokenProvider = com.kevin.astra.domain.gmail.GmailTokenProvider {
+                    val provider = com.kevin.astra.domain.gmail.GmailIntegration.controller?.tokenProvider()
+                        ?: error("Gmail is not connected.")
+                    provider.accessToken()
+                },
+            ),
+            emailExtractor = get(),
+        )
+    }
     single<ConversationRepository> { DefaultConversationRepository(fileStore = createConversationFileStore()) }
     single<ConversationShareHelper> { createConversationShareHelper() }
     single<SpeechRecognitionService> { createSpeechRecognitionService() }
@@ -161,6 +174,7 @@ val astraRootModule = module {
             backendCatalog = get(),
             promptPipeline = get(),
             notificationService = get(),
+            gmailSource = get(),
         )
     }
     single {
