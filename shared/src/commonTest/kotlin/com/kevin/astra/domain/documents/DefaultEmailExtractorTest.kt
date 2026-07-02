@@ -88,6 +88,30 @@ class DefaultEmailExtractorTest {
         assertFalse(result.rawText.contains("<"))
     }
 
+    @OptIn(ExperimentalEncodingApi::class)
+    @Test
+    fun decodesRfc2047Base64Subject() {
+        val encoded = Base64.encode("Contrat confidentiel".encodeToByteArray())
+        val eml = "Subject: =?UTF-8?B?$encoded?=\nFrom: a@b.com\n\nBody."
+        val result = extractor.extractEml(eml.encodeToByteArray(), "mail.eml")
+        assertContains(result.rawText, "Subject: Contrat confidentiel")
+    }
+
+    @Test
+    fun decodesRfc2047QEncodedSubjectWithUnderscoreAsSpace() {
+        // "Caf=C3=A9_r=C3=A9union" → "Café réunion" (underscore is a space in Q-encoding)
+        val eml = "Subject: =?UTF-8?Q?Caf=C3=A9_r=C3=A9union?=\nFrom: a@b.com\n\nBody."
+        val result = extractor.extractEml(eml.encodeToByteArray(), "mail.eml")
+        assertContains(result.rawText, "Subject: Café réunion")
+    }
+
+    @Test
+    fun concatenatesAdjacentEncodedWords() {
+        val eml = "Subject: =?UTF-8?Q?Rapport_?= =?UTF-8?Q?trimestriel?=\n\nBody."
+        val result = extractor.extractEml(eml.encodeToByteArray(), "mail.eml")
+        assertContains(result.rawText, "Subject: Rapport trimestriel")
+    }
+
     @Test
     fun splitsMboxIntoMultipleMessages() {
         val mbox = """

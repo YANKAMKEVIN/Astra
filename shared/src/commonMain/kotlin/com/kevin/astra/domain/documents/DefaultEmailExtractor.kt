@@ -63,9 +63,9 @@ class DefaultEmailExtractor : EmailExtractor {
             else null
         }.toMap()
 
-        val subject = headerMap["subject"] ?: ""
-        val from = headerMap["from"] ?: ""
-        val to = headerMap["to"] ?: ""
+        val subject = decodeEncodedWords(headerMap["subject"] ?: "")
+        val from = decodeEncodedWords(headerMap["from"] ?: "")
+        val to = decodeEncodedWords(headerMap["to"] ?: "")
         val date = headerMap["date"] ?: ""
 
         val contentType = headerMap["content-type"] ?: "text/plain"
@@ -163,6 +163,63 @@ class DefaultEmailExtractor : EmailExtractor {
             }
         }
         return bytes.toByteArray().decodeToString()
+    }
+
+    /**
+     * Decodes RFC 2047 "encoded-words" found in headers, e.g. `=?UTF-8?B?Q29udHJhdA==?=`
+     * or `=?UTF-8?Q?Caf=C3=A9?=`, so non-ASCII subjects/senders render as real text instead
+     * of raw tokens. Adjacent encoded-words separated only by whitespace are concatenated.
+     */
+    @OptIn(ExperimentalEncodingApi::class)
+    private fun decodeEncodedWords(text: String): String {
+        if (!text.contains("=?")) return text
+        // Per RFC 2047, whitespace between two encoded-words is not significant.
+        val joined = text.replace(Regex("\\?=\\s+=\\?"), "?==?")
+        val regex = Regex("=\\?([^?]+)\\?([BbQq])\\?([^?]*)\\?=")
+        return regex.replace(joined) { match ->
+            val charset = match.groupValues[1]
+            val encoding = match.groupValues[2].uppercase()
+            val data = match.groupValues[3]
+            try {
+                val bytes = when (encoding) {
+                    "B" -> Base64.Mime.decode(data)
+                    "Q" -> decodeQEncoding(data)
+                    else -> return@replace match.value
+                }
+                decodeBytes(bytes, charset)
+            } catch (e: Exception) {
+                match.value
+            }
+        }
+    }
+
+    // RFC 2047 "Q" encoding: like quoted-printable but '_' stands for a space.
+    private fun decodeQEncoding(s: String): ByteArray {
+        val out = ArrayList<Byte>(s.length)
+        var i = 0
+        while (i < s.length) {
+            val c = s[i]
+            when {
+                c == '_' -> { out.add(0x20); i++ }
+                c == '=' && i + 2 < s.length -> {
+                    val code = s.substring(i + 1, i + 3).toIntOrNull(16)
+                    if (code != null) { out.add(code.toByte()); i += 3 }
+                    else { out.add(c.code.toByte()); i++ }
+                }
+                else -> { for (b in c.toString().encodeToByteArray()) out.add(b); i++ }
+            }
+        }
+        return out.toByteArray()
+    }
+
+    private fun decodeBytes(bytes: ByteArray, charset: String): String {
+        val cs = charset.lowercase()
+        return if (cs.contains("8859-1") || cs.contains("latin1") || cs.contains("windows-1252")) {
+            // Single-byte Latin charsets map each byte directly to a code point.
+            buildString(bytes.size) { for (b in bytes) append((b.toInt() and 0xFF).toChar()) }
+        } else {
+            bytes.decodeToString() // UTF-8 (and ASCII) — the common case
+        }
     }
 
     private fun stripHtml(html: String): String =
