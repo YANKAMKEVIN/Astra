@@ -121,7 +121,7 @@ class VoiceAssistantViewModel(
             }
 
             val industry = PromptIndustry.IndustrialMaintenance
-            val preparedPrompt = promptPipeline.preparePrompt(
+            val preparedParts = promptPipeline.preparePrompt(
                 PromptBuildRequest(
                     engineerQuestion = question,
                     selectedIndustry = industry,
@@ -133,7 +133,9 @@ class VoiceAssistantViewModel(
                 withContext(Dispatchers.Default) {
                     askLocalAssistant(
                         PromptRequest(
-                            prompt = preparedPrompt,
+                            prompt = preparedParts.fullPrompt,
+                            systemPrompt = preparedParts.systemPrompt,
+                            userMessage = preparedParts.userMessage,
                             industry = industry,
                             model = model.runtimeModel,
                             backend = backend.runtimeBackend,

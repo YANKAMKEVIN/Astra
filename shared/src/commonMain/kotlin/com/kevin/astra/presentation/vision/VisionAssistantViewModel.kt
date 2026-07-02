@@ -87,7 +87,7 @@ class VisionAssistantViewModel(
             val visionContext = classification.toPromptDescription()
             val question = "${state.value.userQuestion}\n\nContext: $visionContext"
 
-            val preparedPrompt = promptPipeline.preparePrompt(
+            val preparedParts = promptPipeline.preparePrompt(
                 PromptBuildRequest(
                     engineerQuestion = question,
                     selectedIndustry = PromptIndustry.IndustrialMaintenance,
@@ -100,7 +100,9 @@ class VisionAssistantViewModel(
                 withContext(Dispatchers.Default) {
                     askLocalAssistant(
                         PromptRequest(
-                            prompt = preparedPrompt,
+                            prompt = preparedParts.fullPrompt,
+                            systemPrompt = preparedParts.systemPrompt,
+                            userMessage = preparedParts.userMessage,
                             industry = PromptIndustry.IndustrialMaintenance,
                             model = model.runtimeModel,
                             backend = backend.runtimeBackend,

@@ -38,7 +38,7 @@ interface TaskEvaluationEngine {
     fun evaluate(
         prompt: String,
         response: String,
-        industry: PromptIndustry,
+        industry: PromptIndustry? = null,
     ): TaskEvaluationReport
 }
 

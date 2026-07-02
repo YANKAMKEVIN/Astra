@@ -36,7 +36,7 @@ data class DemoState(
     val isLoadingCapabilities: Boolean = true,
     val selectedModel: LocalModel? = null,
     val selectedBackend: InferenceBackendInfo? = null,
-    val selectedIndustry: PromptIndustry = PromptIndustry.IndustrialMaintenance,
+    val selectedIndustry: PromptIndustry? = null,
     val modelReadiness: List<ModelReadiness> = emptyList(),
     val readinessIndicators: List<DemoReadinessIndicator> = emptyList(),
     val currentStep: DemoStep = DemoStep.DeviceCapabilities,

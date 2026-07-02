@@ -38,6 +38,7 @@ import com.kevin.astra.core.design.AstraChip
 import com.kevin.astra.core.design.AstraColors
 import com.kevin.astra.core.design.AstraEmptyView
 import com.kevin.astra.core.design.AstraErrorView
+import com.kevin.astra.core.design.MarkdownText
 import com.kevin.astra.core.design.AstraMetricCard
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
@@ -45,6 +46,7 @@ import com.kevin.astra.core.design.AstraTypography
 import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.domain.documents.DocumentStatus
 import com.kevin.astra.domain.documents.RetrievedDocumentContext
+import androidx.compose.ui.Alignment
 
 @Composable
 fun DocumentsScreen(
@@ -76,6 +78,9 @@ private fun DocumentsContent(
     val pdfLauncher = rememberPdfPickerLauncher { bytes, fileName ->
         onIntent(DocumentsIntent.PdfLoaded(bytes, fileName))
     }
+    val emailLauncher = rememberEmailPickerLauncher { bytes, fileName ->
+        onIntent(DocumentsIntent.EmailLoaded(bytes, fileName))
+    }
 
     AstraScreen(
         title = "RAG Document Assistant",
@@ -85,11 +90,14 @@ private fun DocumentsContent(
         DocumentCard(
             fileName = state.loadedFileName,
             pageCount = state.pageCount,
+            emailCount = state.emailCount,
+            sourceType = state.sourceType,
             status = state.documentStatus,
             chunksCount = state.indexedChunks.size,
             isLoading = state.isLoading,
             isIndexing = state.isIndexing,
             onPickPdf = pdfLauncher,
+            onPickEmail = emailLauncher,
             onClear = { onIntent(DocumentsIntent.ClearDocument) },
         )
 
@@ -102,7 +110,7 @@ private fun DocumentsContent(
             )
         }
 
-        AnimatedVisibility(visible = state.isLoading || state.isIndexing) {
+        AnimatedVisibility(visible = state.isLoading || state.isIndexing || state.isSummarizing) {
             Column {
                 Spacer(Modifier.height(AstraSpacing.S))
                 LinearProgressIndicator(
@@ -112,9 +120,32 @@ private fun DocumentsContent(
                 )
                 Spacer(Modifier.height(AstraSpacing.XS))
                 Text(
-                    text = if (state.isLoading) "Extracting text from PDF…" else "Chunking & indexing document…",
+                    text = when {
+                        state.isLoading -> "Extracting text from PDF…"
+                        state.isIndexing -> "Chunking & indexing document…"
+                        else -> "Generating document summary…"
+                    },
                     style = AstraTypography.Caption,
                     color = AstraColors.TextSecondary,
+                )
+            }
+        }
+
+        if (state.loadedFileName == null && !state.isLoading && !state.isIndexing) {
+            AstraEmptyView(
+                title = "No document loaded",
+                message = "Load a PDF to start querying it with on-device RAG. Your files never leave the device.",
+            )
+        }
+
+        AnimatedVisibility(visible = state.documentSummary != null && !state.isSummarizing) {
+            state.documentSummary?.let { summary ->
+                SummaryCard(
+                    summary = summary,
+                    onAskAboutDocument = {
+                        onIntent(DocumentsIntent.UpdateQuestion("What is this document about?"))
+                        onIntent(DocumentsIntent.AskDocument)
+                    },
                 )
             }
         }
@@ -153,26 +184,43 @@ private fun DocumentsContent(
 private fun DocumentCard(
     fileName: String?,
     pageCount: Int,
+    emailCount: Int,
+    sourceType: DocumentSourceType,
     status: DocumentStatus,
     chunksCount: Int,
     isLoading: Boolean,
     isIndexing: Boolean,
     onPickPdf: () -> Unit,
+    onPickEmail: () -> Unit,
     onClear: () -> Unit,
 ) {
+    val isEmail = sourceType == DocumentSourceType.Email
+    val subtitle = when {
+        fileName != null -> fileName
+        else -> "No source loaded — import a PDF or email file"
+    }
     AstraCard(
-        title = "Document",
-        subtitle = fileName ?: "No document loaded — select a PDF to begin",
+        title = if (isEmail) "Email Source" else "Document",
+        subtitle = subtitle,
         status = if (isLoading) "LOADING" else if (isIndexing) "INDEXING" else status.label.uppercase(),
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
         Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-            AstraMetricCard(
-                value = if (pageCount > 0) pageCount.toString() else "—",
-                unit = "",
-                label = "Pages",
-                modifier = Modifier.weight(1f),
-            )
+            if (isEmail) {
+                AstraMetricCard(
+                    value = if (emailCount > 0) emailCount.toString() else "—",
+                    unit = "",
+                    label = if (emailCount == 1) "Email" else "Emails",
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                AstraMetricCard(
+                    value = if (pageCount > 0) pageCount.toString() else "—",
+                    unit = "",
+                    label = "Pages",
+                    modifier = Modifier.weight(1f),
+                )
+            }
             AstraMetricCard(
                 value = if (chunksCount > 0) chunksCount.toString() else "—",
                 unit = "",
@@ -191,17 +239,35 @@ private fun DocumentCard(
                     DocumentStatus.NotIndexed -> AstraColors.Secondary
                 },
             )
+            AstraChip(label = if (isEmail) "EMAIL" else "PDF", color = AstraColors.Primary.copy(alpha = 0.7f))
             AstraChip(label = "ON-DEVICE", color = AstraColors.Secondary)
         }
         Spacer(Modifier.height(AstraSpacing.M))
-        Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-            AstraButton(
-                text = if (isLoading || isIndexing) "Processing…" else "Choose PDF",
-                onClick = onPickPdf,
-                enabled = !isLoading && !isIndexing,
-                modifier = Modifier.weight(1f),
-            )
-            if (fileName != null) {
+        if (fileName == null) {
+            // No source loaded — show both import options
+            Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+                AstraButton(
+                    text = "📄 PDF",
+                    onClick = onPickPdf,
+                    enabled = !isLoading && !isIndexing,
+                    modifier = Modifier.weight(1f),
+                )
+                AstraButton(
+                    text = "📧 Email",
+                    onClick = onPickEmail,
+                    enabled = !isLoading && !isIndexing,
+                    modifier = Modifier.weight(1f),
+                    style = AstraButtonStyle.Secondary,
+                )
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+                AstraButton(
+                    text = if (isLoading || isIndexing) "Processing…" else if (isEmail) "📧 New email" else "📄 New PDF",
+                    onClick = if (isEmail) onPickEmail else onPickPdf,
+                    enabled = !isLoading && !isIndexing,
+                    modifier = Modifier.weight(1f),
+                )
                 AstraButton(
                     text = "Clear",
                     onClick = onClear,
@@ -351,11 +417,7 @@ private fun AnswerCard(answer: DocumentsAnswer) {
         status = "LOCAL",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
-        Text(
-            text = answer.body,
-            style = AstraTypography.Body,
-            color = AstraColors.TextPrimary,
-        )
+        MarkdownText(text = answer.body)
     }
 }
 
@@ -373,6 +435,25 @@ private fun MetricsPanel(metrics: DocumentsMetrics) {
                 AstraMetricCard(metrics.tokensPerSecond, "", "Tokens/sec", Modifier.weight(1f))
             }
         }
+    }
+}
+
+@Composable
+private fun SummaryCard(summary: String, onAskAboutDocument: () -> Unit) {
+    AstraCard(
+        title = "Document Summary",
+        subtitle = "Auto-generated from the first pages of your document.",
+        status = "AI",
+    ) {
+        Spacer(Modifier.height(AstraSpacing.M))
+        MarkdownText(text = summary)
+        Spacer(Modifier.height(AstraSpacing.M))
+        AstraButton(
+            text = "Ask about this document",
+            onClick = onAskAboutDocument,
+            style = AstraButtonStyle.Secondary,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

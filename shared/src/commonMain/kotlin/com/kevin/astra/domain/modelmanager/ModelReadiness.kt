@@ -29,6 +29,8 @@ data class ModelReadiness(
     val localPath: String,
     val status: ModelReadinessStatus,
     val readinessMessage: String,
+    // true only when the model file lives in filesDir (downloaded via the app — deletable)
+    val isDownloadedToFilesDir: Boolean = false,
 )
 
 interface ModelReadinessProvider {

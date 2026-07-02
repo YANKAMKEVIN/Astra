@@ -5,13 +5,15 @@ import com.kevin.astra.core.ai.PromptIndustry
 data class AiConfiguration(
     val selectedModelId: String = DefaultSelectedModelId,
     val selectedBackendId: String = DefaultSelectedBackendId,
-    val selectedIndustry: PromptIndustry = PromptIndustry.IndustrialMaintenance,
+    val selectedIndustry: PromptIndustry? = null,
     val temperature: Double = 0.3,
     val maxTokens: Int = 512,
     val contextWindow: Int = 4_096,
     val quantization: String = "4-bit",
     val experimentalFeaturesEnabled: Boolean = false,
     val demoModeEnabled: Boolean = false,
+    val lightThemeEnabled: Boolean = false,
+    val huggingFaceToken: String? = null,
 )
 
 const val DefaultSelectedModelId: String = "mock-model"

@@ -15,13 +15,15 @@ data class SettingsState(
     val modelReadiness: List<ModelReadiness> = emptyList(),
     val availableBackends: List<InferenceBackendInfo> = emptyList(),
     val selectedBackend: InferenceBackendInfo? = null,
-    val selectedIndustry: PromptIndustry = PromptIndustry.IndustrialMaintenance,
+    val selectedIndustry: PromptIndustry? = null,
     val temperature: Double = 0.3,
     val maxTokens: Int = 512,
     val contextWindow: Int = 4_096,
     val quantization: String = "4-bit",
     val experimentalFeaturesEnabled: Boolean = false,
     val demoModeEnabled: Boolean = false,
+    val lightThemeEnabled: Boolean = false,
+    val huggingFaceToken: String = "",
     val downloadState: ModelDownloadState = ModelDownloadState.Idle,
     val storageUsageMb: Float = 0f,
 ) : AstraState
@@ -29,13 +31,15 @@ data class SettingsState(
 sealed interface SettingsIntent : AstraIntent {
     data class SelectModel(val modelId: String) : SettingsIntent
     data class SelectBackend(val backendId: String) : SettingsIntent
-    data class SelectIndustry(val industry: PromptIndustry) : SettingsIntent
+    data class SelectIndustry(val industry: PromptIndustry?) : SettingsIntent
     data class UpdateTemperature(val temperature: Double) : SettingsIntent
     data class UpdateMaxTokens(val maxTokens: Int) : SettingsIntent
     data class UpdateContextWindow(val contextWindow: Int) : SettingsIntent
     data class UpdateQuantization(val quantization: String) : SettingsIntent
     data class ToggleExperimentalFeatures(val enabled: Boolean) : SettingsIntent
     data class ToggleDemoMode(val enabled: Boolean) : SettingsIntent
+    data class ToggleLightTheme(val enabled: Boolean) : SettingsIntent
+    data class UpdateHuggingFaceToken(val token: String) : SettingsIntent
     data class DownloadModel(val modelId: String) : SettingsIntent
     data class DeleteModel(val modelId: String) : SettingsIntent
     data class CancelDownload(val modelId: String) : SettingsIntent

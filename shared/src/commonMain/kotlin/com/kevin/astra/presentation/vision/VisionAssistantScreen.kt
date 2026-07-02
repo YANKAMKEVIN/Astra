@@ -39,6 +39,7 @@ import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
 import com.kevin.astra.core.design.DemoModeBanner
+import com.kevin.astra.core.design.MarkdownText
 import com.kevin.astra.domain.settings.DemoModeHolder
 import com.kevin.astra.domain.vision.ImageClassificationResult
 
@@ -125,14 +126,37 @@ fun VisionAssistantScreen(
             ClassificationCard(result)
         }
 
+        // Empty state — no image taken yet
+        if (state.capturedImageBytes == null && state.phase == VisionPhase.Idle) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(AstraColors.Surface, RoundedCornerShape(16.dp))
+                    .padding(AstraSpacing.XL),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(AstraSpacing.M),
+            ) {
+                Text("📷", style = AstraTypography.DisplayLarge, textAlign = TextAlign.Center)
+                Text(
+                    text = "No photo yet",
+                    style = AstraTypography.Title,
+                    color = AstraColors.TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    text = "Tap \"Take Photo\" above to capture an image.\nASTRA will classify and analyze it on-device.",
+                    style = AstraTypography.Body,
+                    color = AstraColors.TextSecondary,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+
         // ASTRA response
         if (state.response.isNotBlank()) {
             AstraCard(title = "ASTRA Analysis") {
-                Text(
-                    text = state.response,
-                    style = AstraTypography.Body,
-                    color = AstraColors.TextPrimary,
-                )
+                MarkdownText(text = state.response)
             }
             AstraButton(
                 text = "Export",

@@ -277,7 +277,8 @@ class AndroidLiteRtLmRuntimeSession(
         val runtime = inference ?: error("LiteRT-LM session was not initialized.")
         val generationMark = TimeSource.Monotonic.markNow()
 
-        val text = runtime.generateResponse(request.prompt)
+        val inputText = request.userMessage.ifBlank { request.prompt }
+        val text = runtime.generateResponse(inputText)
             .trim()
             .ifBlank { "LiteRT-LM returned an empty response." }
         val generationLatencyMillis = generationMark.elapsedNow().inWholeMilliseconds.coerceAtLeast(1L)
@@ -328,7 +329,7 @@ class AndroidLiteRtLmRuntimeSession(
         val loadMark = TimeSource.Monotonic.markNow()
         val options = LlmInference.LlmInferenceOptions.builder()
             .setModelPath(bundle.modelPath)
-            .setMaxTokens(request.maxTokens.coerceIn(128, 4_096))
+            .setMaxTokens(4_096) // total context budget (input + output); always use model max
             .setMaxTopK(40)
             .build()
         inference = LlmInference.createFromOptions(context, options)

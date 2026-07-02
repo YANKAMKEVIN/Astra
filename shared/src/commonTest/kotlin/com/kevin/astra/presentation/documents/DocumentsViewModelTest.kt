@@ -19,6 +19,8 @@ import com.kevin.astra.data.settings.testAiConfigurationRepository
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import com.kevin.astra.domain.assistant.StreamEvent
 import com.kevin.astra.domain.documents.DocumentStatus
+import com.kevin.astra.domain.documents.EmailExtractor
+import com.kevin.astra.domain.documents.LoadedEmailDocument
 import com.kevin.astra.domain.documents.LoadedPdfDocument
 import com.kevin.astra.domain.documents.PdfExtractor
 import kotlinx.coroutines.CoroutineScope
@@ -198,6 +200,7 @@ class DocumentsViewModelTest {
     ): DocumentsViewModel =
         DocumentsViewModel(
             pdfExtractor = FakePdfExtractor(),
+            emailExtractor = FakeEmailExtractor(),
             chunker = SmartTextChunker(),
             contextRetriever = TfIdfContextRetriever(),
             askLocalAssistant = AskLocalAssistantUseCase(inferenceEngine),
@@ -221,4 +224,12 @@ private class FakePdfExtractor : PdfExtractor {
 
 private class NoOpNotificationService : NotificationService {
     override fun showNotification(title: String, message: String, targetDestination: AstraDestination?) = Unit
+}
+
+private class FakeEmailExtractor : EmailExtractor {
+    override fun extractEml(bytes: ByteArray, fileName: String): LoadedEmailDocument =
+        LoadedEmailDocument(fileName = fileName, emailCount = 1, rawText = bytes.decodeToString())
+
+    override fun extractMbox(bytes: ByteArray, fileName: String): LoadedEmailDocument =
+        LoadedEmailDocument(fileName = fileName, emailCount = 1, rawText = bytes.decodeToString())
 }

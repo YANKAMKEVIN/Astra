@@ -6,6 +6,7 @@ import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PersistentAiConfigurationRepositoryTest {
@@ -17,7 +18,8 @@ class PersistentAiConfigurationRepositoryTest {
 
         assertEquals("mock-model", configuration.selectedModelId)
         assertEquals("mock-engine", configuration.selectedBackendId)
-        assertEquals(PromptIndustry.IndustrialMaintenance, configuration.selectedIndustry)
+        // Industry persona is optional and unset by default.
+        assertNull(configuration.selectedIndustry)
         assertEquals(0.3, configuration.temperature)
         assertEquals(512, configuration.maxTokens)
         assertEquals(4_096, configuration.contextWindow)

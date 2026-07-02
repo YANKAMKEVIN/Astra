@@ -100,7 +100,7 @@ private fun DemoOverviewCard(
                 modifier = Modifier.weight(1f),
             )
             AstraMetricCard(
-                value = state.selectedIndustry.label,
+                value = state.selectedIndustry?.label ?: "None",
                 unit = "",
                 label = "Industry",
                 modifier = Modifier.weight(1f),
@@ -302,7 +302,7 @@ private fun DemoStep.guidance(state: DemoState): String =
         DemoStep.RuntimeSelection ->
             "Explain the selected runtime: ${state.selectedBackend?.displayName ?: "none"}. Status: ${state.selectedBackend?.status?.label ?: "unknown"}."
         DemoStep.Assistant ->
-            "Move to Assistant and run one operational question using the ${state.selectedIndustry.label} persona."
+            "Move to Assistant and run one operational question using the ${state.selectedIndustry?.label ?: "General"} persona."
         DemoStep.DocumentsAssistant ->
             "Move to Documents and show how embedded maintenance context grounds the answer without external services."
         DemoStep.Benchmark ->

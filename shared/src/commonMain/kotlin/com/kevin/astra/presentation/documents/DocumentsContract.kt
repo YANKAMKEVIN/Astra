@@ -20,13 +20,19 @@ data class DocumentsAnswer(
     val body: String,
 )
 
+enum class DocumentSourceType { Pdf, Email }
+
 data class DocumentsState(
     val availableModels: List<LocalModel> = emptyList(),
     val sessionModel: LocalModel? = null,
     val loadedFileName: String? = null,
     val pageCount: Int = 0,
+    val emailCount: Int = 0,
+    val sourceType: DocumentSourceType = DocumentSourceType.Pdf,
     val documentStatus: DocumentStatus = DocumentStatus.NotIndexed,
     val indexedChunks: List<IndexedDocumentChunk> = emptyList(),
+    val documentSummary: String? = null,
+    val isSummarizing: Boolean = false,
     val question: String = "",
     val extractedContext: RetrievedDocumentContext? = null,
     val answer: DocumentsAnswer? = null,
@@ -43,11 +49,12 @@ data class DocumentsState(
     val canAsk: Boolean
         get() = question.isNotBlank() &&
             documentStatus == DocumentStatus.Indexed &&
-            !isGenerating && !isIndexing
+            !isGenerating && !isIndexing && !isSummarizing
 }
 
 sealed interface DocumentsIntent : AstraIntent {
     data class PdfLoaded(val bytes: ByteArray, val fileName: String) : DocumentsIntent
+    data class EmailLoaded(val bytes: ByteArray, val fileName: String) : DocumentsIntent
     data object IndexDocument : DocumentsIntent
     data class UpdateQuestion(val question: String) : DocumentsIntent
     data object AskDocument : DocumentsIntent

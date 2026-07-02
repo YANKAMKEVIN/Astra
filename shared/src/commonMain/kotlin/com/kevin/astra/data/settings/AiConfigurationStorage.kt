@@ -26,26 +26,30 @@ class AiConfigurationLocalDataSource(
             selectedModelId = keyValueStore.getString(SelectedModelIdKey) ?: DefaultSelectedModelId,
             selectedBackendId = keyValueStore.getString(SelectedBackendIdKey) ?: DefaultSelectedBackendId,
             selectedIndustry = keyValueStore.getString(SelectedIndustryKey)
-                ?.let { saved -> PromptIndustry.entries.firstOrNull { it.name == saved } }
-                ?: PromptIndustry.IndustrialMaintenance,
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { saved -> PromptIndustry.entries.firstOrNull { it.name == saved } },
             temperature = keyValueStore.getDouble(TemperatureKey) ?: 0.3,
             maxTokens = keyValueStore.getInt(MaxTokensKey) ?: 512,
             contextWindow = keyValueStore.getInt(ContextWindowKey) ?: 4_096,
             quantization = keyValueStore.getString(QuantizationKey) ?: "4-bit",
             experimentalFeaturesEnabled = keyValueStore.getBoolean(ExperimentalFeaturesEnabledKey) ?: false,
             demoModeEnabled = keyValueStore.getBoolean(DemoModeEnabledKey) ?: false,
+            lightThemeEnabled = keyValueStore.getBoolean(LightThemeEnabledKey) ?: false,
+            huggingFaceToken = keyValueStore.getString(HuggingFaceTokenKey)?.takeIf { it.isNotEmpty() },
         )
 
     fun saveConfiguration(configuration: AiConfiguration) {
         keyValueStore.putString(SelectedModelIdKey, configuration.selectedModelId)
         keyValueStore.putString(SelectedBackendIdKey, configuration.selectedBackendId)
-        keyValueStore.putString(SelectedIndustryKey, configuration.selectedIndustry.name)
+        keyValueStore.putString(SelectedIndustryKey, configuration.selectedIndustry?.name ?: "")
         keyValueStore.putDouble(TemperatureKey, configuration.temperature)
         keyValueStore.putInt(MaxTokensKey, configuration.maxTokens)
         keyValueStore.putInt(ContextWindowKey, configuration.contextWindow)
         keyValueStore.putString(QuantizationKey, configuration.quantization)
         keyValueStore.putBoolean(ExperimentalFeaturesEnabledKey, configuration.experimentalFeaturesEnabled)
         keyValueStore.putBoolean(DemoModeEnabledKey, configuration.demoModeEnabled)
+        keyValueStore.putBoolean(LightThemeEnabledKey, configuration.lightThemeEnabled)
+        keyValueStore.putString(HuggingFaceTokenKey, configuration.huggingFaceToken ?: "")
     }
 }
 
@@ -58,3 +62,5 @@ private const val ContextWindowKey = "ai.context_window"
 private const val QuantizationKey = "ai.quantization"
 private const val ExperimentalFeaturesEnabledKey = "ai.experimental_features_enabled"
 private const val DemoModeEnabledKey = "ai.demo_mode_enabled"
+private const val LightThemeEnabledKey = "ai.light_theme_enabled"
+private const val HuggingFaceTokenKey = "ai.hugging_face_token"

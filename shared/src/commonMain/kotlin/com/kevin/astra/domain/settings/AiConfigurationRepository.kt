@@ -11,11 +11,12 @@ interface AiConfigurationRepository {
     suspend fun updateConfiguration(configuration: AiConfiguration)
     suspend fun updateSelectedModel(modelId: String)
     suspend fun updateSelectedBackend(backendId: String)
-    suspend fun updateIndustry(industry: PromptIndustry)
+    suspend fun updateIndustry(industry: PromptIndustry?)
     suspend fun updateTemperature(temperature: Double)
     suspend fun updateMaxTokens(maxTokens: Int)
     suspend fun updateContextWindow(contextWindow: Int)
     suspend fun updateQuantization(quantization: String)
     suspend fun updateExperimentalFeaturesEnabled(enabled: Boolean)
     suspend fun updateDemoModeEnabled(enabled: Boolean)
+    suspend fun updateLightThemeEnabled(enabled: Boolean)
 }

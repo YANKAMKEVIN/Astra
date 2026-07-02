@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 @Composable
 fun AstraScreen(
     title: String,
-    description: String,
+    description: String? = null,
     contentPadding: PaddingValues,
     showDemoIndicator: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
@@ -46,11 +46,13 @@ fun AstraScreen(
                 AstraDemoModeIndicator()
             }
         }
-        Text(
-            text = description,
-            style = AstraTypography.Body,
-            color = AstraColors.TextSecondary,
-        )
+        if (!description.isNullOrBlank()) {
+            Text(
+                text = description,
+                style = AstraTypography.Body,
+                color = AstraColors.TextSecondary,
+            )
+        }
         content()
     }
 }

@@ -86,7 +86,7 @@ class BenchmarkViewModel(
             val backendRuntime = snapshot.selectedBackend?.runtimeBackend
                 ?: backendCatalog.currentBackend().runtimeBackend
 
-            val preparedPrompt = withContext(Dispatchers.Default) {
+            val preparedParts = withContext(Dispatchers.Default) {
                 promptPipeline.preparePrompt(
                     PromptBuildRequest(
                         engineerQuestion = snapshot.prompt,
@@ -119,7 +119,9 @@ class BenchmarkViewModel(
                 val report = withContext(Dispatchers.Default) {
                     benchmarkRunner.run(
                         BenchmarkRequest(
-                            prompt = preparedPrompt,
+                            prompt = preparedParts.fullPrompt,
+                            systemPrompt = preparedParts.systemPrompt,
+                            userMessage = preparedParts.userMessage,
                             models = listOf(model),
                             backend = backendRuntime,
                             industry = configuration.selectedIndustry,

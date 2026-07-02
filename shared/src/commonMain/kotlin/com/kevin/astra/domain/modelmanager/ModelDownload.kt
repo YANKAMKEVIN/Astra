@@ -7,6 +7,7 @@ data class ModelDownloadRequest(
     val displayName: String,
     val url: String,
     val fileName: String,
+    val authToken: String? = null,
 )
 
 sealed interface ModelDownloadState {

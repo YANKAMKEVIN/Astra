@@ -123,6 +123,11 @@ class SettingsViewModel(
                 settingsScope.launch { aiConfigurationRepository.updateDemoModeEnabled(intent.enabled) }
             }
 
+            is SettingsIntent.ToggleLightTheme -> {
+                updateState { copy(lightThemeEnabled = intent.enabled) }
+                settingsScope.launch { aiConfigurationRepository.updateLightThemeEnabled(intent.enabled) }
+            }
+
             is SettingsIntent.DownloadModel -> {
                 val model = modelCatalog.modelById(intent.modelId) ?: return
                 val url = model.downloadUrl ?: run {
@@ -130,6 +135,7 @@ class SettingsViewModel(
                     return
                 }
                 val fileName = url.substringAfterLast('/')
+                val token = state.value.huggingFaceToken.ifBlank { null }
                 settingsScope.launch {
                     modelDownloadManager.download(
                         ModelDownloadRequest(
@@ -137,6 +143,7 @@ class SettingsViewModel(
                             displayName = model.displayName,
                             url = url,
                             fileName = fileName,
+                            authToken = token,
                         ),
                     )
                 }
@@ -153,6 +160,15 @@ class SettingsViewModel(
                             storageUsageMb = modelDownloadManager.getStorageUsageMb(),
                         )
                     }
+                }
+            }
+
+            is SettingsIntent.UpdateHuggingFaceToken -> {
+                updateState { copy(huggingFaceToken = intent.token) }
+                settingsScope.launch {
+                    aiConfigurationRepository.updateConfiguration(
+                        aiConfigurationRepository.getConfiguration().copy(huggingFaceToken = intent.token.ifBlank { null }),
+                    )
                 }
             }
 
@@ -194,6 +210,8 @@ private fun AiConfiguration.toSettingsState(
         quantization = quantization,
         experimentalFeaturesEnabled = experimentalFeaturesEnabled,
         demoModeEnabled = demoModeEnabled,
+        lightThemeEnabled = lightThemeEnabled,
+        huggingFaceToken = huggingFaceToken ?: "",
         downloadState = downloadState,
         storageUsageMb = storageUsageMb,
     )

@@ -28,7 +28,7 @@ data class ProjectOverviewState(
     val availableModels: List<LocalModel> = emptyList(),
     val installedModels: List<LocalModel> = emptyList(),
     val modelReadiness: List<ModelReadiness> = emptyList(),
-    val selectedIndustry: PromptIndustry = PromptIndustry.IndustrialMaintenance,
+    val selectedIndustry: PromptIndustry? = null,
     val currentRuntime: String = "Unknown",
     val fallbackStatus: String = "Unknown",
     val architectureItems: List<OverviewArchitectureItem> = emptyList(),

@@ -20,6 +20,7 @@ class AndroidModelReadinessProvider(
     override fun readinessFor(models: List<LocalModel>): List<ModelReadiness> =
         models.map { model ->
             when {
+                // Mock model is always installed by definition — no file check needed
                 model.status == ModelStatus.Installed -> model.installedReadiness()
                 InferenceBackend.LiteRtLm in model.supportedBackends -> model.liteRtLmReadiness()
                 InferenceBackend.LiteRt in model.supportedBackends -> model.liteRtReadiness()
@@ -28,17 +29,22 @@ class AndroidModelReadinessProvider(
             }
         }
 
+    // ── Mock / built-in ───────────────────────────────────────────────────────
+
     private fun LocalModel.installedReadiness(): ModelReadiness =
         baseReadiness(
             requiredFiles = emptyList(),
             localPath = "Built-in mock runtime",
             status = ModelReadinessStatus.Installed,
-            readinessMessage = "Installed and ready for deterministic local fallback.",
+            isDownloadedToFilesDir = false,
+            readinessMessage = "Built-in mock engine — no model file required.",
         )
 
+    // ── LiteRT-LM ─────────────────────────────────────────────────────────────
+
     private fun LocalModel.liteRtLmReadiness(): ModelReadiness {
-        // Check filesDir first (downloaded models)
-        val filesDirModel = context?.let { ctx ->
+        // 1. Check filesDir (downloaded via the app)
+        val downloadedFile = context?.let { ctx ->
             val modelDir = java.io.File(ctx.filesDir, "astra-models/${runtimeModel.filesystemId}")
             if (modelDir.exists()) {
                 modelDir.listFiles()?.firstOrNull { f ->
@@ -46,50 +52,66 @@ class AndroidModelReadinessProvider(
                 }
             } else null
         }
-        if (filesDirModel != null) {
+        if (downloadedFile != null) {
             return baseReadiness(
                 requiredFiles = listOf(
-                    RequiredModelFile(filesDirModel.absolutePath, true, "Downloaded LiteRT-LM model bundle"),
+                    RequiredModelFile(downloadedFile.absolutePath, true, "Downloaded LiteRT-LM model"),
                 ),
-                localPath = filesDirModel.parent ?: filesDirModel.absolutePath,
+                localPath = downloadedFile.parent ?: downloadedFile.absolutePath,
                 status = ModelReadinessStatus.Installed,
-                readinessMessage = "Downloaded model ready. Real on-device inference active when LiteRT-LM is selected.",
+                isDownloadedToFilesDir = true,
+                readinessMessage = "Downloaded and ready. Real on-device inference active.",
             )
         }
 
-        // Fall back to assets (bundled models, e.g. Gemma 3 1B)
-        val root = "models/litert-lm"
-        val files = context?.assets?.list(root).orEmpty().toSet()
-        val bundlePresent = files.any { it.endsWith(".task") || it.endsWith(".litertlm") }
-        val splitModelPresent = files.any { it.endsWith(".tflite") || it.endsWith(".bin") }
-        val tokenizerPresent = files.any { it.endsWith(".model") || it.endsWith(".spm") || it.contains("tokenizer", ignoreCase = true) }
-        val configPresent = files.any { it.endsWith(".json") }
-        val hasSupportedBundle = bundlePresent || (splitModelPresent && tokenizerPresent)
-        val requiredFiles = listOf(
-            RequiredModelFile("$root/gemma.task or $root/gemma.litertlm", bundlePresent, "LiteRT-LM generative model bundle"),
-            RequiredModelFile("$root/model.tflite + tokenizer.model", splitModelPresent && tokenizerPresent, "Legacy split model/tokenizer fallback"),
-            RequiredModelFile("$root/config.json", configPresent, "Optional runtime configuration"),
-        )
+        // 2. Check assets — model-specific subdirectory assets/models/litert-lm/{filesystemId}/
+        val assetDir = "models/litert-lm/${runtimeModel.filesystemId}"
+        val assetFiles = runCatching {
+            context?.assets?.list(assetDir).orEmpty().toSet()
+        }.getOrDefault(emptySet())
 
-        return baseReadiness(
-            requiredFiles = requiredFiles,
-            localPath = "assets/$root/",
-            status = if (hasSupportedBundle) ModelReadinessStatus.Installed else ModelReadinessStatus.ModelRequired,
-            readinessMessage = if (hasSupportedBundle) {
-                "LiteRT-LM bundle detected in assets. Real on-device inference active when LiteRT-LM is selected."
-            } else {
-                "No bundle in assets. Download this model or add the bundle manually."
-            },
-        )
+        val bundlePresent = assetFiles.any { it.endsWith(".task") || it.endsWith(".litertlm") }
+        val tflitePresent = assetFiles.any { it.endsWith(".tflite") }
+        val tokenizerPresent = assetFiles.any {
+            it.endsWith(".model") || it.endsWith(".spm") || it.contains("tokenizer", ignoreCase = true)
+        }
+        val hasSupportedBundle = bundlePresent || (tflitePresent && tokenizerPresent)
+
+        if (hasSupportedBundle) {
+            return baseReadiness(
+                requiredFiles = listOf(
+                    RequiredModelFile("assets/$assetDir/", true, "Bundled in app assets"),
+                ),
+                localPath = "assets/$assetDir/",
+                status = ModelReadinessStatus.Installed,
+                isDownloadedToFilesDir = false,
+                readinessMessage = "Bundled in app assets. Deployed with the APK — cannot be deleted.",
+            )
+        }
+
+        // 3. Not available anywhere → show download option if URL exists, else require manual setup
+        return if (downloadUrl != null) {
+            baseReadiness(
+                requiredFiles = emptyList(),
+                localPath = "Not downloaded",
+                status = ModelReadinessStatus.ModelRequired,
+                isDownloadedToFilesDir = false,
+                readinessMessage = "Not installed. Tap \"Download\" to fetch from HuggingFace (~${expectedSizeFor(id)}).",
+            )
+        } else {
+            baseReadiness(
+                requiredFiles = listOf(
+                    RequiredModelFile("assets/$assetDir/*.litertlm", false, "LiteRT-LM model bundle"),
+                ),
+                localPath = "assets/$assetDir/",
+                status = ModelReadinessStatus.MissingFiles,
+                isDownloadedToFilesDir = false,
+                readinessMessage = "Add the model bundle to assets/$assetDir/ and rebuild the app.",
+            )
+        }
     }
 
-    private fun LocalModel.downloadableReadiness(): ModelReadiness =
-        baseReadiness(
-            requiredFiles = emptyList(),
-            localPath = "Not downloaded",
-            status = ModelReadinessStatus.ModelRequired,
-            readinessMessage = "Download required. Tap Download in the Model Manager to install on-device.",
-        )
+    // ── LiteRT (tensor) ───────────────────────────────────────────────────────
 
     private fun LocalModel.liteRtReadiness(): ModelReadiness {
         val path = "models/astra-slm.tflite"
@@ -98,30 +120,48 @@ class AndroidModelReadinessProvider(
         }.getOrDefault(false)
         return baseReadiness(
             requiredFiles = listOf(
-                RequiredModelFile(path, present, "LiteRT tensor validation model"),
+                RequiredModelFile(path, present, "LiteRT tensor model"),
             ),
-            localPath = "shared/src/androidMain/assets/$path",
-            status = if (present) ModelReadinessStatus.ModelRequired else ModelReadinessStatus.MissingFiles,
+            localPath = "assets/$path",
+            status = if (present) ModelReadinessStatus.Installed else ModelReadinessStatus.MissingFiles,
+            isDownloadedToFilesDir = false,
             readinessMessage = if (present) {
-                "LiteRT tensor model detected and ready for runtime validation."
+                "LiteRT tensor model found in assets."
             } else {
-                "Missing $path. See docs/REAL_INFERENCE_SETUP.md or use Mock fallback."
+                "Missing assets/$path. Add the model file and rebuild."
             },
         )
     }
+
+    // ── Downloadable (no backend yet) ─────────────────────────────────────────
+
+    private fun LocalModel.downloadableReadiness(): ModelReadiness =
+        baseReadiness(
+            requiredFiles = emptyList(),
+            localPath = "Not downloaded",
+            status = ModelReadinessStatus.ModelRequired,
+            isDownloadedToFilesDir = false,
+            readinessMessage = "Not installed. Tap \"Download\" to install on-device.",
+        )
+
+    // ── Coming soon ───────────────────────────────────────────────────────────
 
     private fun LocalModel.comingSoonReadiness(): ModelReadiness =
         baseReadiness(
             requiredFiles = emptyList(),
             localPath = "N/A",
             status = ModelReadinessStatus.ComingSoon,
-            readinessMessage = "Local file management for this runtime is coming soon. Use Mock fallback.",
+            isDownloadedToFilesDir = false,
+            readinessMessage = "Runtime support coming soon. Use Mock fallback for now.",
         )
+
+    // ── Base builder ──────────────────────────────────────────────────────────
 
     private fun LocalModel.baseReadiness(
         requiredFiles: List<RequiredModelFile>,
         localPath: String,
         status: ModelReadinessStatus,
+        isDownloadedToFilesDir: Boolean,
         readinessMessage: String,
     ): ModelReadiness =
         ModelReadiness(
@@ -135,6 +175,7 @@ class AndroidModelReadinessProvider(
             requiredFiles = requiredFiles,
             localPath = localPath,
             status = status,
+            isDownloadedToFilesDir = isDownloadedToFilesDir,
             readinessMessage = readinessMessage,
         )
 }
