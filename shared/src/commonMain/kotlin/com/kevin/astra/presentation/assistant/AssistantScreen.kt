@@ -1153,6 +1153,7 @@ private fun InputBar(
                     .fillMaxWidth()
                     .background(AstraColors.SurfaceElevated, RoundedCornerShape(14.dp))
                     .border(1.dp, AstraColors.Border, RoundedCornerShape(14.dp))
+                    .horizontalScroll(rememberScrollState())
                     .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
                 horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
             ) {
@@ -1289,6 +1290,8 @@ private fun AttachmentOption(
             text = label,
             style = AstraTypography.Caption,
             color = if (active) AstraColors.Primary else AstraColors.TextSecondary,
+            maxLines = 1,
+            softWrap = false,
         )
     }
 }
