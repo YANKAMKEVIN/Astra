@@ -19,7 +19,7 @@ class SmartTextChunker : DocumentIndexer {
         indexText(text = pdf.rawText, sourceId = pdf.fileName)
 
     /** Chunks any plain text (email, Gmail, …) — avoids faking a [LoadedPdfDocument] for non-PDF sources. */
-    fun indexText(text: String, sourceId: String): List<IndexedDocumentChunk> =
+    override fun indexText(text: String, sourceId: String): List<IndexedDocumentChunk> =
         chunkText(text = text, documentId = sourceId)
 
     private fun chunkText(text: String, documentId: String): List<IndexedDocumentChunk> {

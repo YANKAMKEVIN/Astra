@@ -23,6 +23,8 @@ import com.kevin.astra.domain.assistant.StreamEvent
 import com.kevin.astra.domain.demo.DemoScenarioCatalog
 import com.kevin.astra.domain.documents.DocumentContextRetriever
 import com.kevin.astra.domain.documents.EmailExtractor
+import com.kevin.astra.domain.documents.FetchGmailUseCase
+import com.kevin.astra.domain.documents.IndexEmailFileUseCase
 import com.kevin.astra.domain.documents.IndexedDocumentChunk
 import com.kevin.astra.domain.documents.LoadedEmailDocument
 import com.kevin.astra.domain.documents.LoadedPdfDocument
@@ -314,8 +316,9 @@ class AssistantViewModelTest {
         contextRetriever: DocumentContextRetriever = TfIdfContextRetriever(),
         gmailSource: GmailMessageSource? = null,
         generationScope: CoroutineScope? = null,
-    ): AssistantViewModel =
-        AssistantViewModel(
+    ): AssistantViewModel {
+        val chunker = SmartTextChunker()
+        return AssistantViewModel(
             askLocalAssistant = useCase,
             aiConfigurationRepository = configurationRepository,
             modelCatalog = DefaultModelCatalog(),
@@ -325,15 +328,16 @@ class AssistantViewModelTest {
             notificationService = NoOpNotificationService(),
             conversationRepository = NoOpConversationRepository(),
             pdfExtractor = FakePdfExtractor(),
-            emailExtractor = FakeEmailExtractor(),
-            chunker = SmartTextChunker(),
+            indexEmailFile = IndexEmailFileUseCase(FakeEmailExtractor(), chunker),
+            fetchGmailUseCase = FetchGmailUseCase(gmailSource, chunker),
+            chunker = chunker,
             contextRetriever = contextRetriever,
             imageClassifier = imageClassifier,
             speechRecognitionService = FakeSpeechRecognitionService(),
             shareHelper = NoOpConversationShareHelper(),
-            gmailSource = gmailSource,
             generationScope = generationScope,
         )
+    }
 
     private fun testUseCase(): AskLocalAssistantUseCase =
         AskLocalAssistantUseCase(

@@ -87,6 +87,9 @@ val astraRootModule = module {
     single<com.kevin.astra.domain.documents.EmailExtractor> { com.kevin.astra.domain.documents.createEmailExtractor() }
     single<EmbeddingEngine> { createEmbeddingEngine() }
     single { SmartTextChunker() }
+    single<com.kevin.astra.domain.documents.DocumentIndexer> { get<SmartTextChunker>() }
+    single { com.kevin.astra.domain.documents.IndexEmailFileUseCase(emailExtractor = get(), indexer = get()) }
+    single { com.kevin.astra.domain.documents.FetchGmailUseCase(gmailSource = get(), indexer = get()) }
     single<DocumentContextRetriever> { HybridContextRetriever(embeddingEngine = get()) }
     single<com.kevin.astra.domain.gmail.GmailMessageSource> {
         com.kevin.astra.domain.gmail.GmailRepository(
@@ -137,13 +140,13 @@ val astraRootModule = module {
             notificationService = get(),
             conversationRepository = get(),
             pdfExtractor = get(),
-            emailExtractor = get(),
+            indexEmailFile = get(),
+            fetchGmailUseCase = get(),
             chunker = get(),
             contextRetriever = get(),
             imageClassifier = get(),
             speechRecognitionService = get(),
             shareHelper = get(),
-            gmailSource = get(),
         )
     }
     single {
@@ -167,7 +170,8 @@ val astraRootModule = module {
     single {
         DocumentsViewModel(
             pdfExtractor = get(),
-            emailExtractor = get(),
+            indexEmailFile = get(),
+            fetchGmailUseCase = get(),
             chunker = get(),
             contextRetriever = get(),
             askLocalAssistant = get(),
@@ -176,7 +180,6 @@ val astraRootModule = module {
             backendCatalog = get(),
             promptPipeline = get(),
             notificationService = get(),
-            gmailSource = get(),
         )
     }
     single {

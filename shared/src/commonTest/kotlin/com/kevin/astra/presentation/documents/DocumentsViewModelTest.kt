@@ -20,6 +20,8 @@ import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import com.kevin.astra.domain.assistant.StreamEvent
 import com.kevin.astra.domain.documents.DocumentStatus
 import com.kevin.astra.domain.documents.EmailExtractor
+import com.kevin.astra.domain.documents.FetchGmailUseCase
+import com.kevin.astra.domain.documents.IndexEmailFileUseCase
 import com.kevin.astra.domain.documents.LoadedEmailDocument
 import com.kevin.astra.domain.documents.LoadedPdfDocument
 import com.kevin.astra.domain.documents.PdfExtractor
@@ -242,11 +244,13 @@ class DocumentsViewModelTest {
         },
         workScope: CoroutineScope? = null,
         gmailSource: GmailMessageSource? = null,
-    ): DocumentsViewModel =
-        DocumentsViewModel(
+    ): DocumentsViewModel {
+        val chunker = SmartTextChunker()
+        return DocumentsViewModel(
             pdfExtractor = FakePdfExtractor(),
-            emailExtractor = FakeEmailExtractor(),
-            chunker = SmartTextChunker(),
+            indexEmailFile = IndexEmailFileUseCase(FakeEmailExtractor(), chunker),
+            fetchGmailUseCase = FetchGmailUseCase(gmailSource, chunker),
+            chunker = chunker,
             contextRetriever = TfIdfContextRetriever(),
             askLocalAssistant = AskLocalAssistantUseCase(inferenceEngine),
             aiConfigurationRepository = testAiConfigurationRepository(),
@@ -254,9 +258,9 @@ class DocumentsViewModelTest {
             backendCatalog = DefaultBackendCatalog(),
             promptPipeline = DefaultPromptPipeline(DefaultPromptBuilder()),
             notificationService = NoOpNotificationService(),
-            gmailSource = gmailSource,
             workScope = workScope,
         )
+    }
 }
 
 private class FakeGmailSource(private val doc: LoadedEmailDocument) : GmailMessageSource {

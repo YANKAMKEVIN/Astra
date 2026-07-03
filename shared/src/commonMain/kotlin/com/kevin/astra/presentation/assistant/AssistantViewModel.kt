@@ -16,10 +16,10 @@ import com.kevin.astra.domain.assistant.StreamEvent
 import com.kevin.astra.domain.assistant.StaticPromptTemplateCatalog
 import com.kevin.astra.domain.demo.DemoScenarioCatalog
 import com.kevin.astra.domain.documents.DocumentContextRetriever
-import com.kevin.astra.domain.documents.EmailExtractor
+import com.kevin.astra.domain.documents.FetchGmailUseCase
+import com.kevin.astra.domain.documents.IndexEmailFileUseCase
 import com.kevin.astra.domain.documents.PdfExtractor
 import com.kevin.astra.domain.gmail.GmailIntegration
-import com.kevin.astra.domain.gmail.GmailMessageSource
 import com.kevin.astra.domain.export.ConversationShareHelper
 import com.kevin.astra.domain.history.ChatConversation
 import com.kevin.astra.domain.history.ChatMessage
@@ -48,13 +48,13 @@ class AssistantViewModel(
     private val notificationService: NotificationService,
     private val conversationRepository: ConversationRepository,
     private val pdfExtractor: PdfExtractor,
-    private val emailExtractor: EmailExtractor,
+    private val indexEmailFile: IndexEmailFileUseCase,
+    private val fetchGmailUseCase: FetchGmailUseCase,
     private val chunker: SmartTextChunker,
     private val contextRetriever: DocumentContextRetriever,
     private val imageClassifier: ImageClassifier,
     private val speechRecognitionService: SpeechRecognitionService,
     private val shareHelper: ConversationShareHelper,
-    private val gmailSource: GmailMessageSource? = null,
     private val generationScope: CoroutineScope? = null,
 ) : AstraViewModel<AssistantState, AssistantIntent, AssistantEffect>(
     initialState = AssistantState(
@@ -239,27 +239,19 @@ class AssistantViewModel(
         (generationScope ?: viewModelScope).launch {
             updateState { copy(attachedEmail = AttachedEmail(fileName, 0, AttachmentStatus.Indexing), error = null) }
             runCatching {
-                val email = withContext(Dispatchers.Default) {
-                    if (fileName.endsWith(".mbox", ignoreCase = true)) emailExtractor.extractMbox(bytes, fileName)
-                    else emailExtractor.extractEml(bytes, fileName)
-                }
-                if (email.rawText.isBlank()) error("Could not extract text from this email file.")
-                val chunks = withContext(Dispatchers.Default) {
-                    chunker.indexText(email.rawText, email.fileName)
-                }
-                AttachedEmail(email.fileName, email.emailCount, AttachmentStatus.Ready, chunks)
+                val indexed = withContext(Dispatchers.Default) { indexEmailFile(bytes, fileName) }
+                AttachedEmail(indexed.label, indexed.emailCount, AttachmentStatus.Ready, indexed.chunks)
             }.onSuccess { attached ->
                 updateState { copy(attachedEmail = attached) }
             }.onFailure { e ->
-                updateState { copy(attachedEmail = null, error = "Email error: ${e.message}") }
+                updateState { copy(attachedEmail = null, error = e.message ?: "Email error.") }
             }
         }
     }
 
     private fun attachGmail() {
-        val controller = GmailIntegration.controller
-        val source = gmailSource
-        if (controller == null || source == null) return
+        val controller = GmailIntegration.controller ?: return
+        if (!fetchGmailUseCase.isAvailable) return
         // First tap connects; the user completes consent then taps Gmail again to fetch.
         if (!controller.isConnected()) {
             controller.connect()
@@ -271,18 +263,12 @@ class AssistantViewModel(
                 copy(attachedEmail = AttachedEmail("Gmail", 0, AttachmentStatus.Indexing), isFetchingEmail = true, error = null)
             }
             runCatching {
-                val doc = withContext(Dispatchers.Default) {
-                    source.fetchAsSingleDocument(query = null, maxResults = 20, label = "Gmail")
-                }
-                if (doc.rawText.isBlank()) error("No Gmail messages found.")
-                val chunks = withContext(Dispatchers.Default) {
-                    chunker.indexText(doc.rawText, doc.fileName)
-                }
-                AttachedEmail(doc.fileName, doc.emailCount, AttachmentStatus.Ready, chunks)
+                val indexed = withContext(Dispatchers.Default) { fetchGmailUseCase(query = null) }
+                AttachedEmail(indexed.label, indexed.emailCount, AttachmentStatus.Ready, indexed.chunks)
             }.onSuccess { attached ->
                 updateState { copy(attachedEmail = attached, isFetchingEmail = false, gmailConnected = true) }
             }.onFailure { e ->
-                updateState { copy(attachedEmail = null, isFetchingEmail = false, error = "Gmail error: ${e.message}") }
+                updateState { copy(attachedEmail = null, isFetchingEmail = false, error = e.message ?: "Gmail error.") }
             }
         }
     }

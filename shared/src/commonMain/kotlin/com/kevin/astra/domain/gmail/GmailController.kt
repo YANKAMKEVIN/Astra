@@ -6,11 +6,11 @@ import com.kevin.astra.domain.documents.LoadedEmailDocument
  * Source of Gmail messages, expressed at the domain level so the UI/ViewModel never touch the
  * HTTP client directly. [GmailRepository] is the production implementation.
  */
-interface GmailMessageSource {
+fun interface GmailMessageSource {
     suspend fun fetchAsSingleDocument(
-        query: String? = null,
-        maxResults: Int = 20,
-        label: String = "Gmail",
+        query: String?,
+        maxResults: Int,
+        label: String,
     ): LoadedEmailDocument
 }
 
