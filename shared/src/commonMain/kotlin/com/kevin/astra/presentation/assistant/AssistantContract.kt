@@ -77,6 +77,15 @@ data class AttachedPdf(
     val chunks: List<IndexedDocumentChunk> = emptyList(),
 )
 
+/** An attached email source (imported .eml/.mbox file or Gmail fetch), retained as chunks so the
+ *  chat can re-rank them against each question — the same pattern as [AttachedPdf]. */
+data class AttachedEmail(
+    val label: String,
+    val emailCount: Int,
+    val status: AttachmentStatus = AttachmentStatus.Ready,
+    val chunks: List<IndexedDocumentChunk> = emptyList(),
+)
+
 data class AttachedImage(
     val bytes: ByteArray,
     val classification: ImageClassificationResult?,
@@ -109,6 +118,10 @@ data class AssistantState(
     val sessionModel: LocalModel? = null,
     val attachedPdf: AttachedPdf? = null,
     val attachedImage: AttachedImage? = null,
+    val attachedEmail: AttachedEmail? = null,
+    val gmailSupported: Boolean = false,
+    val gmailConnected: Boolean = false,
+    val isFetchingEmail: Boolean = false,
     val voiceState: SpeechRecognitionState = SpeechRecognitionState.Idle,
     val recentHistory: List<ChatConversation> = emptyList(),
     val error: String? = null,
@@ -116,7 +129,8 @@ data class AssistantState(
     val canAsk: Boolean
         get() = question.isNotBlank() && !isGenerating &&
             attachedPdf?.status != AttachmentStatus.Indexing &&
-            attachedImage?.status != AttachmentStatus.Indexing
+            attachedImage?.status != AttachmentStatus.Indexing &&
+            attachedEmail?.status != AttachmentStatus.Indexing
 
     val isStreaming: Boolean
         get() = isGenerating && streamingText.isNotEmpty()
@@ -126,7 +140,7 @@ data class AssistantState(
             voiceState is SpeechRecognitionState.Partial
 
     val hasAttachment: Boolean
-        get() = attachedPdf != null || attachedImage != null
+        get() = attachedPdf != null || attachedImage != null || attachedEmail != null
 
     val isEmpty: Boolean
         get() = messages.isEmpty() && !isGenerating
@@ -140,8 +154,12 @@ sealed interface AssistantIntent : AstraIntent {
     data class SelectSessionModel(val modelId: String) : AssistantIntent
     data class PdfAttached(val bytes: ByteArray, val fileName: String) : AssistantIntent
     data class ImageAttached(val bytes: ByteArray) : AssistantIntent
+    data class EmailFileAttached(val bytes: ByteArray, val fileName: String) : AssistantIntent
+    data object AttachGmail : AssistantIntent
     data object RemovePdf : AssistantIntent
     data object RemoveImage : AssistantIntent
+    data object RemoveEmail : AssistantIntent
+    data object RefreshGmailState : AssistantIntent
     data object ToggleVoiceInput : AssistantIntent
     data class LoadConversation(val id: String) : AssistantIntent
     data class ShareBubble(val bubbleId: String, val format: ExportFormat) : AssistantIntent

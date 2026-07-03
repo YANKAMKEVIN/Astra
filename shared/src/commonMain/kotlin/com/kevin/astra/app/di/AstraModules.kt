@@ -137,11 +137,13 @@ val astraRootModule = module {
             notificationService = get(),
             conversationRepository = get(),
             pdfExtractor = get(),
+            emailExtractor = get(),
             chunker = get(),
             contextRetriever = get(),
             imageClassifier = get(),
             speechRecognitionService = get(),
             shareHelper = get(),
+            gmailSource = get(),
         )
     }
     single {
