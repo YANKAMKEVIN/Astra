@@ -57,6 +57,39 @@ class DefaultEmailExtractorTest {
     }
 
     @Test
+    fun decodesLatin1QuotedPrintableBody() {
+        // "Caf=E9" is 'é' (0xE9) in ISO-8859-1 — a single byte, invalid as standalone UTF-8.
+        val eml = "Subject: Legacy\n" +
+            "Content-Type: text/plain; charset=ISO-8859-1\n" +
+            "Content-Transfer-Encoding: quoted-printable\n\n" +
+            "Caf=E9 au lait"
+        val result = extractor.extractEml(eml.encodeToByteArray(), "mail.eml")
+        assertContains(result.rawText, "Café au lait")
+    }
+
+    @OptIn(ExperimentalEncodingApi::class)
+    @Test
+    fun decodesLatin1Base64Body() {
+        val latin1 = byteArrayOf(0x43, 0x61, 0x66, 0xE9.toByte()) // "Café" in ISO-8859-1
+        val encoded = Base64.encode(latin1)
+        val eml = "Subject: LegacyB64\n" +
+            "Content-Type: text/plain; charset=windows-1252\n" +
+            "Content-Transfer-Encoding: base64\n\n" +
+            encoded
+        val result = extractor.extractEml(eml.encodeToByteArray(), "mail.eml")
+        assertContains(result.rawText, "Café")
+    }
+
+    @Test
+    fun decodesRawEightBitLatin1Body() {
+        // No transfer-encoding: raw 8-bit body. 0xE9 = 'é' in ISO-8859-1.
+        val headers = "Subject: Raw8bit\nContent-Type: text/plain; charset=ISO-8859-1\n\n"
+        val bytes = headers.encodeToByteArray() + byteArrayOf(0x43, 0x61, 0x66, 0xE9.toByte()) // "Café"
+        val result = extractor.extractEml(bytes, "mail.eml")
+        assertContains(result.rawText, "Café")
+    }
+
+    @Test
     fun prefersPlainTextPartInMultipart() {
         val eml = """
             Subject: Multipart
