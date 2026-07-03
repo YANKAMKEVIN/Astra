@@ -17,7 +17,6 @@ import com.kevin.astra.domain.assistant.StaticPromptTemplateCatalog
 import com.kevin.astra.domain.demo.DemoScenarioCatalog
 import com.kevin.astra.domain.documents.DocumentContextRetriever
 import com.kevin.astra.domain.documents.EmailExtractor
-import com.kevin.astra.domain.documents.LoadedPdfDocument
 import com.kevin.astra.domain.documents.PdfExtractor
 import com.kevin.astra.domain.gmail.GmailIntegration
 import com.kevin.astra.domain.gmail.GmailMessageSource
@@ -246,7 +245,7 @@ class AssistantViewModel(
                 }
                 if (email.rawText.isBlank()) error("Could not extract text from this email file.")
                 val chunks = withContext(Dispatchers.Default) {
-                    chunker.indexPdf(LoadedPdfDocument(email.fileName, email.rawText, email.emailCount))
+                    chunker.indexText(email.rawText, email.fileName)
                 }
                 AttachedEmail(email.fileName, email.emailCount, AttachmentStatus.Ready, chunks)
             }.onSuccess { attached ->
@@ -277,7 +276,7 @@ class AssistantViewModel(
                 }
                 if (doc.rawText.isBlank()) error("No Gmail messages found.")
                 val chunks = withContext(Dispatchers.Default) {
-                    chunker.indexPdf(LoadedPdfDocument(doc.fileName, doc.rawText, doc.emailCount))
+                    chunker.indexText(doc.rawText, doc.fileName)
                 }
                 AttachedEmail(doc.fileName, doc.emailCount, AttachmentStatus.Ready, chunks)
             }.onSuccess { attached ->

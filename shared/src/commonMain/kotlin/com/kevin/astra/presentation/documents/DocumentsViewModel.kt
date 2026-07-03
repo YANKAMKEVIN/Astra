@@ -121,7 +121,7 @@ class DocumentsViewModel(
                         documentStatus = DocumentStatus.NotIndexed,
                     )
                 }
-                indexEmailInternal(doc.rawText, doc.fileName, doc.emailCount)
+                indexEmailInternal(doc.rawText, doc.fileName)
             } catch (e: Exception) {
                 updateState { copy(isFetchingGmail = false, error = "Failed to fetch Gmail: ${e.message}") }
             }
@@ -209,19 +209,19 @@ class DocumentsViewModel(
                         documentStatus = DocumentStatus.NotIndexed,
                     )
                 }
-                indexEmailInternal(email.rawText, email.fileName, email.emailCount)
+                indexEmailInternal(email.rawText, email.fileName)
             } catch (e: Exception) {
                 updateState { copy(isLoading = false, error = "Failed to read email file: ${e.message}") }
             }
         }
     }
 
-    private fun indexEmailInternal(rawText: String, fileName: String, emailCount: Int) {
+    private fun indexEmailInternal(rawText: String, fileName: String) {
         (workScope ?: viewModelScope).launch {
             updateState { copy(isIndexing = true, error = null) }
             try {
                 val chunks = withContext(Dispatchers.Default) {
-                    chunker.indexPdf(com.kevin.astra.domain.documents.LoadedPdfDocument(fileName, rawText, emailCount))
+                    chunker.indexText(rawText, fileName)
                 }
                 updateState {
                     copy(

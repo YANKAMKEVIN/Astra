@@ -16,10 +16,11 @@ class SmartTextChunker : DocumentIndexer {
         )
 
     fun indexPdf(pdf: LoadedPdfDocument): List<IndexedDocumentChunk> =
-        chunkText(
-            text = pdf.rawText,
-            documentId = pdf.fileName,
-        )
+        indexText(text = pdf.rawText, sourceId = pdf.fileName)
+
+    /** Chunks any plain text (email, Gmail, …) — avoids faking a [LoadedPdfDocument] for non-PDF sources. */
+    fun indexText(text: String, sourceId: String): List<IndexedDocumentChunk> =
+        chunkText(text = text, documentId = sourceId)
 
     private fun chunkText(text: String, documentId: String): List<IndexedDocumentChunk> {
         val words = text.split(Regex("\\s+")).filter { it.isNotBlank() }
