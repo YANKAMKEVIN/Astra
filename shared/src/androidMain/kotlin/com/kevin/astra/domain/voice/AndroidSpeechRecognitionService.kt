@@ -1,6 +1,7 @@
 package com.kevin.astra.domain.voice
 
 import android.content.Context
+import com.kevin.astra.app.di.androidAppContext
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
@@ -12,15 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-private lateinit var applicationContext: Context
-
-fun initializeAndroidSpeechRecognitionService(context: Context) {
-    applicationContext = context.applicationContext
-}
-
 actual fun createSpeechRecognitionService(): SpeechRecognitionService =
-    if (::applicationContext.isInitialized) AndroidSpeechRecognitionService(applicationContext)
-    else UnavailableSpeechRecognitionService
+    AndroidSpeechRecognitionService(androidAppContext())
 
 private class AndroidSpeechRecognitionService(private val context: Context) : SpeechRecognitionService {
 

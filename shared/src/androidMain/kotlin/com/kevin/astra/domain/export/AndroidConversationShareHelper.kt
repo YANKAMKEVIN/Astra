@@ -1,6 +1,7 @@
 package com.kevin.astra.domain.export
 
 import android.content.Context
+import com.kevin.astra.app.di.androidAppContext
 import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -10,15 +11,8 @@ import com.kevin.astra.data.export.ConversationExportBuilder
 import com.kevin.astra.domain.history.ChatConversation
 import java.io.File
 
-private lateinit var applicationContext: Context
-
-fun initializeAndroidConversationShareHelper(context: Context) {
-    applicationContext = context.applicationContext
-}
-
 actual fun createConversationShareHelper(): ConversationShareHelper =
-    if (::applicationContext.isInitialized) AndroidConversationShareHelper(applicationContext)
-    else NoOpConversationShareHelper
+    AndroidConversationShareHelper(androidAppContext())
 
 private class AndroidConversationShareHelper(private val context: Context) : ConversationShareHelper {
 

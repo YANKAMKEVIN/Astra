@@ -1,19 +1,13 @@
 package com.kevin.astra.data.settings
 
 import android.content.Context
+import com.kevin.astra.app.di.androidAppContext
 import android.content.SharedPreferences
 
-private var astraApplicationContext: Context? = null
-
-fun initializeAndroidAiConfigurationStorage(context: Context) {
-    astraApplicationContext = context.applicationContext
-}
-
 actual fun createAiConfigurationKeyValueStore(): AiConfigurationKeyValueStore =
-    astraApplicationContext
-        ?.getSharedPreferences("astra_ai_configuration", Context.MODE_PRIVATE)
-        ?.let(::AndroidAiConfigurationKeyValueStore)
-        ?: InMemoryAiConfigurationKeyValueStore()
+    AndroidAiConfigurationKeyValueStore(
+        androidAppContext().getSharedPreferences("astra_ai_configuration", Context.MODE_PRIVATE),
+    )
 
 private class AndroidAiConfigurationKeyValueStore(
     private val sharedPreferences: SharedPreferences,

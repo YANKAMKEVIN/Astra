@@ -4,13 +4,7 @@ import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.text.PDFTextStripper
 import android.content.Context
-
-private var applicationContext: Context? = null
-
-fun initializeAndroidPdfExtractor(context: Context) {
-    applicationContext = context.applicationContext
-    PDFBoxResourceLoader.init(context.applicationContext)
-}
+import com.kevin.astra.app.di.androidAppContext
 
 class AndroidPdfExtractor : PdfExtractor {
     override fun extract(pdfBytes: ByteArray, fileName: String): LoadedPdfDocument {
@@ -30,4 +24,7 @@ class AndroidPdfExtractor : PdfExtractor {
     }
 }
 
-actual fun createPdfExtractor(): PdfExtractor = AndroidPdfExtractor()
+actual fun createPdfExtractor(): PdfExtractor {
+    PDFBoxResourceLoader.init(androidAppContext())
+    return AndroidPdfExtractor()
+}

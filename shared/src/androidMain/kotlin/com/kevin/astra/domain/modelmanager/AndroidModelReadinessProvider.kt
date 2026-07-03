@@ -1,18 +1,13 @@
 package com.kevin.astra.domain.modelmanager
 
 import android.content.Context
+import com.kevin.astra.app.di.androidAppContext
 import com.kevin.astra.core.ai.InferenceBackend
 import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.ai.ModelStatus
 
-private var modelReadinessContext: Context? = null
-
-fun initializeAndroidModelReadinessProvider(context: Context) {
-    modelReadinessContext = context.applicationContext
-}
-
 actual fun createModelReadinessProvider(): ModelReadinessProvider =
-    AndroidModelReadinessProvider(context = modelReadinessContext)
+    AndroidModelReadinessProvider(context = androidAppContext())
 
 class AndroidModelReadinessProvider(
     private val context: Context?,

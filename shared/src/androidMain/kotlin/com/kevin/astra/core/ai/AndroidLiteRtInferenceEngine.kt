@@ -1,6 +1,7 @@
 package com.kevin.astra.core.ai
 
 import android.content.Context
+import com.kevin.astra.app.di.androidAppContext
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
@@ -12,14 +13,8 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.TimeSource
 
-private var applicationContext: Context? = null
-
-fun initializeAndroidEdgeAiRuntime(context: Context) {
-    applicationContext = context.applicationContext
-}
-
 actual fun createInferenceEngine(): InferenceEngine {
-    val context = applicationContext
+    val context: Context = androidAppContext()
     val mockEngine = MockInferenceEngine()
     return RoutingInferenceEngine(
         mockEngine = mockEngine,

@@ -59,6 +59,7 @@ import com.kevin.astra.domain.onboarding.OnboardingRepository
 import com.kevin.astra.presentation.overview.ProjectOverviewViewModel
 import com.kevin.astra.presentation.settings.SettingsViewModel
 import org.koin.core.KoinApplication
+import org.koin.dsl.KoinAppDeclaration
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 
@@ -219,9 +220,10 @@ val astraRootModule = module {
 
 private var koinApp: KoinApplication? = null
 
-fun initializeKoin(): KoinApplication {
+fun initializeKoin(appDeclaration: KoinAppDeclaration = {}): KoinApplication {
     if (koinApp == null) {
         koinApp = startKoin {
+            appDeclaration()
             modules(astraRootModule)
         }
     }
