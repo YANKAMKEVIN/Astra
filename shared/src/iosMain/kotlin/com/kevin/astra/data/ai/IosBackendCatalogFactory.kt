@@ -7,7 +7,7 @@ actual fun createBackendCatalog(): BackendCatalog =
     DefaultBackendCatalog(
         statusOverrides = mapOf(
             "litert" to BackendStatus.Unsupported,
-            "litert-lm" to BackendStatus.Unsupported,
+            "litert-lm" to BackendStatus.Installed,
             "onnx-runtime" to BackendStatus.Unsupported,
             "core-ml" to BackendStatus.Available,
         ),

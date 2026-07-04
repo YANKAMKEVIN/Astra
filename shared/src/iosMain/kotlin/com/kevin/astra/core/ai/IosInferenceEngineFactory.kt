@@ -5,12 +5,13 @@ actual fun createInferenceEngine(): InferenceEngine =
         RoutingInferenceEngine(
             mockEngine = mockEngine,
             liteRtEngine = LiteRtInferenceEngine(
-                modelLoader = UnavailableLocalModelLoader("LiteRT is Android-only in Sprint 3; iOS uses Mock fallback until Core ML integration."),
-                runtimeSession = UnavailableEdgeRuntimeSession("LiteRT runtime is not supported on iOS."),
+                modelLoader = UnavailableLocalModelLoader("Plain LiteRT (non-LM) is Android-only; iOS uses Mock fallback until Core ML integration."),
+                runtimeSession = UnavailableEdgeRuntimeSession("LiteRT tensor runtime is not supported on iOS."),
                 fallbackEngine = mockEngine,
             ),
             liteRtLmEngine = LiteRtLmInferenceEngine(
-                modelLoader = UnsupportedLiteRtLmModelLoader("LiteRT-LM is Android-only in this Sprint 3 evaluation."),
+                modelLoader = IosLiteRtLmModelLoader(),
+                runtimeSession = IosLiteRtLmRuntimeSession(),
                 fallbackEngine = mockEngine,
             ),
         )

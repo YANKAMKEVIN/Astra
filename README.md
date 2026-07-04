@@ -19,7 +19,7 @@ ASTRA demonstrates how critical-operation assistants can be designed without dep
 - a Model Manager that explains local file readiness and fallback status;
 - a Project Overview screen for architecture discussions.
 
-The v1.0.0 release candidate is presentation-ready and intentionally conservative: real model downloads, remote registries and cloud inference are out of scope.
+The v1.0.0 release candidate is presentation-ready. Real local model downloads (HTTP streaming, progress, cancel/delete, storage accounting) and real generative inference via LiteRT-LM are implemented and working end-to-end on Android; cloud inference and remote model registries remain out of scope.
 
 ## Screenshots
 
@@ -126,7 +126,7 @@ Provides a read-only technical architecture explorer directly inside the app.
 | Platform | Status | Notes |
 |---|---|---|
 | Android | Supported | Compose UI, device capability provider, Mock runtime, LiteRT/LiteRT-LM foundations. |
-| iOS | Supported | Compose UI, Mock runtime and static readiness/fallback transparency. |
+| iOS | Supported | Compose UI, Mock runtime, real model download, and real LiteRT-LM generative inference via a Swift bridge (see below). |
 | Desktop | Future | Not part of v1.0.0. |
 
 ## Runtime and model status
@@ -134,13 +134,13 @@ Provides a read-only technical architecture explorer directly inside the app.
 | Runtime | Status |
 |---|---|
 | Mock Engine | Installed and demo-ready. |
-| LiteRT | Foundation implemented; requires local Android model assets for real execution. |
-| LiteRT-LM | Foundation implemented; Android model bundle readiness is surfaced in Model Manager. |
+| LiteRT | Real TFLite `Interpreter` load/execute pass on Android only. Proves model loading and measures real latency, but currently runs on a zeroed input tensor rather than the encoded prompt, so its output is a tensor-shape report, not a generated answer. Not implemented on iOS. |
+| LiteRT-LM | Real generative local inference on **both** platforms: Android via MediaPipe `LlmInference`, iOS via a community Swift package ([mylovelycodes/LiteRTLM-Swift](https://github.com/mylovelycodes/LiteRTLM-Swift)) bridged into the shared Kotlin code — Google's own official Swift package hit three separate upstream build bugs, documented in [iOS LiteRT-LM Setup](docs/10_iOS_LiteRT_LM_Setup.md). Both load a downloaded or bundled model and generate an actual response to the user's prompt, with real latency/token metrics. The iOS build is confirmed compiling and linking end-to-end in Xcode; on-device generation with a real model still needs to be run. That doc covers the manual Xcode steps required (adding the package + an entitlement) and what's still unverified. |
 | ONNX Runtime | Cataloged for future work. |
 | Core ML | Cataloged for future work. |
 | llama.cpp | Cataloged for future work. |
 
-Production model downloads are intentionally not implemented in v1.0.0.
+Model downloads are implemented on both platforms: models are fetched over HTTP with progress reporting, can be cancelled and deleted, and on-device storage usage is tracked. Downloaded LiteRT-LM bundles are picked up automatically ahead of any bundled asset.
 
 ## Build instructions
 
@@ -187,14 +187,15 @@ xcodebuild \
 - [Task Evaluation Methodology](docs/07_Task_Evaluation_Methodology.md)
 - [Benchmark Methodology](docs/08_Benchmark_Methodology.md)
 - [Real Inference Setup](docs/REAL_INFERENCE_SETUP.md)
+- [iOS LiteRT-LM Setup](docs/10_iOS_LiteRT_LM_Setup.md)
 - [Demo Script](docs/DEMO_SCRIPT.md)
 
 ## Future roadmap
 
 ASTRA v1.0.0 is a polished demonstration baseline. Future work may include:
 
-- real local model packaging workflow;
-- production LiteRT-LM generation loop;
+- feeding the real encoded prompt into the plain LiteRT (non-LM) engine instead of a zeroed input tensor;
+- running the iOS LiteRT-LM Swift bridge on a physical device with a real downloaded model — the build itself is confirmed compiling and linking (see [iOS LiteRT-LM Setup](docs/10_iOS_LiteRT_LM_Setup.md));
 - ONNX Runtime integration;
 - Core ML integration;
 - llama.cpp/GGUF experiments;
