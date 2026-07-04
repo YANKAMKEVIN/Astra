@@ -4,5 +4,20 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- Gmail OAuth (read from Kotlin via NSBundle "GIDClientID"). Not a secret. -->
+	<key>GIDClientID</key>
+	<string>12573789762-oc525l5qlg0fr7u9c5piiogdd5bpphfl.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Reversed client id — the ASWebAuthenticationSession redirect scheme. -->
+				<string>com.googleusercontent.apps.12573789762-oc525l5qlg0fr7u9c5piiogdd5bpphfl</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

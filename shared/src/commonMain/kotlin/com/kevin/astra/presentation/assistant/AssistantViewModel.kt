@@ -16,7 +16,11 @@ import com.kevin.astra.domain.assistant.StreamEvent
 import com.kevin.astra.domain.assistant.StaticPromptTemplateCatalog
 import com.kevin.astra.domain.demo.DemoScenarioCatalog
 import com.kevin.astra.domain.documents.DocumentContextRetriever
+import com.kevin.astra.domain.documents.EmailExtractor
+import com.kevin.astra.domain.documents.LoadedPdfDocument
 import com.kevin.astra.domain.documents.PdfExtractor
+import com.kevin.astra.domain.gmail.GmailIntegration
+import com.kevin.astra.domain.gmail.GmailMessageSource
 import com.kevin.astra.domain.export.ConversationShareHelper
 import com.kevin.astra.domain.history.ChatConversation
 import com.kevin.astra.domain.history.ChatMessage
@@ -45,11 +49,13 @@ class AssistantViewModel(
     private val notificationService: NotificationService,
     private val conversationRepository: ConversationRepository,
     private val pdfExtractor: PdfExtractor,
+    private val emailExtractor: EmailExtractor,
     private val chunker: SmartTextChunker,
     private val contextRetriever: DocumentContextRetriever,
     private val imageClassifier: ImageClassifier,
     private val speechRecognitionService: SpeechRecognitionService,
     private val shareHelper: ConversationShareHelper,
+    private val gmailSource: GmailMessageSource? = null,
     private val generationScope: CoroutineScope? = null,
 ) : AstraViewModel<AssistantState, AssistantIntent, AssistantEffect>(
     initialState = AssistantState(
@@ -57,6 +63,8 @@ class AssistantViewModel(
         promptTemplates = StaticPromptTemplateCatalog.all,
         installedModels = modelCatalog.installedModels(),
         sessionModel = modelCatalog.currentModel(),
+        gmailSupported = GmailIntegration.controller?.isSupported == true,
+        gmailConnected = GmailIntegration.controller?.isConnected() == true,
     ),
 ) {
     private var generationJob: Job? = null
@@ -131,8 +139,17 @@ class AssistantViewModel(
 
             is AssistantIntent.PdfAttached -> attachPdf(intent.bytes, intent.fileName)
             is AssistantIntent.ImageAttached -> attachImage(intent.bytes)
+            is AssistantIntent.EmailFileAttached -> attachEmailFile(intent.bytes, intent.fileName)
+            AssistantIntent.AttachGmail -> attachGmail()
             AssistantIntent.RemovePdf -> updateState { copy(attachedPdf = null, error = null) }
             AssistantIntent.RemoveImage -> updateState { copy(attachedImage = null, error = null) }
+            AssistantIntent.RemoveEmail -> updateState { copy(attachedEmail = null, error = null) }
+            AssistantIntent.RefreshGmailState -> updateState {
+                copy(
+                    gmailSupported = GmailIntegration.controller?.isSupported == true,
+                    gmailConnected = GmailIntegration.controller?.isConnected() == true,
+                )
+            }
 
             AssistantIntent.ToggleVoiceInput -> {
                 if (state.value.isListening) speechRecognitionService.stopListening()
@@ -169,6 +186,7 @@ class AssistantViewModel(
                         activeTemplate = null,
                         attachedPdf = null,
                         attachedImage = null,
+                        attachedEmail = null,
                         error = null,
                     )
                 }
@@ -214,6 +232,58 @@ class AssistantViewModel(
                 }
             }.onFailure { e ->
                 updateState { copy(attachedImage = null, error = "Image analysis failed: ${e.message}") }
+            }
+        }
+    }
+
+    private fun attachEmailFile(bytes: ByteArray, fileName: String) {
+        (generationScope ?: viewModelScope).launch {
+            updateState { copy(attachedEmail = AttachedEmail(fileName, 0, AttachmentStatus.Indexing), error = null) }
+            runCatching {
+                val email = withContext(Dispatchers.Default) {
+                    if (fileName.endsWith(".mbox", ignoreCase = true)) emailExtractor.extractMbox(bytes, fileName)
+                    else emailExtractor.extractEml(bytes, fileName)
+                }
+                if (email.rawText.isBlank()) error("Could not extract text from this email file.")
+                val chunks = withContext(Dispatchers.Default) {
+                    chunker.indexPdf(LoadedPdfDocument(email.fileName, email.rawText, email.emailCount))
+                }
+                AttachedEmail(email.fileName, email.emailCount, AttachmentStatus.Ready, chunks)
+            }.onSuccess { attached ->
+                updateState { copy(attachedEmail = attached) }
+            }.onFailure { e ->
+                updateState { copy(attachedEmail = null, error = "Email error: ${e.message}") }
+            }
+        }
+    }
+
+    private fun attachGmail() {
+        val controller = GmailIntegration.controller
+        val source = gmailSource
+        if (controller == null || source == null) return
+        // First tap connects; the user completes consent then taps Gmail again to fetch.
+        if (!controller.isConnected()) {
+            controller.connect()
+            updateState { copy(gmailConnected = controller.isConnected()) }
+            return
+        }
+        (generationScope ?: viewModelScope).launch {
+            updateState {
+                copy(attachedEmail = AttachedEmail("Gmail", 0, AttachmentStatus.Indexing), isFetchingEmail = true, error = null)
+            }
+            runCatching {
+                val doc = withContext(Dispatchers.Default) {
+                    source.fetchAsSingleDocument(query = null, maxResults = 20, label = "Gmail")
+                }
+                if (doc.rawText.isBlank()) error("No Gmail messages found.")
+                val chunks = withContext(Dispatchers.Default) {
+                    chunker.indexPdf(LoadedPdfDocument(doc.fileName, doc.rawText, doc.emailCount))
+                }
+                AttachedEmail(doc.fileName, doc.emailCount, AttachmentStatus.Ready, chunks)
+            }.onSuccess { attached ->
+                updateState { copy(attachedEmail = attached, isFetchingEmail = false, gmailConnected = true) }
+            }.onFailure { e ->
+                updateState { copy(attachedEmail = null, isFetchingEmail = false, error = "Gmail error: ${e.message}") }
             }
         }
     }
@@ -288,6 +358,7 @@ class AssistantViewModel(
                 append(snapshot.question)
                 if (snapshot.attachedPdf != null) append(" [📄 ${snapshot.attachedPdf.fileName}]")
                 if (snapshot.attachedImage != null) append(" [📷 Image]")
+                if (snapshot.attachedEmail != null) append(" [📧 ${snapshot.attachedEmail.label}]")
             },
         )
 
@@ -335,20 +406,18 @@ class AssistantViewModel(
                 }
             }
 
-            // Re-rank the attached PDF against the final question so chat answers with the most
-            // relevant passages, not context cached from the placeholder "Summarize this document."
-            val documentContext = snapshot.attachedPdf?.let { pdf ->
-                if (pdf.chunks.isNotEmpty()) {
-                    withContext(Dispatchers.Default) {
-                        contextRetriever.retrieve(
-                            question = snapshot.question,
-                            chunks = pdf.chunks,
-                            maxChunks = 6,
-                        ).text
-                    }
-                } else {
-                    pdf.extractedContext
+            // Re-rank all attached sources (PDF + email/Gmail) against the final question, so chat
+            // answers from the most relevant passages instead of stale placeholder-ranked context.
+            val attachedChunks = snapshot.attachedPdf?.chunks.orEmpty() + snapshot.attachedEmail?.chunks.orEmpty()
+            val documentContext = when {
+                attachedChunks.isNotEmpty() -> withContext(Dispatchers.Default) {
+                    contextRetriever.retrieve(
+                        question = snapshot.question,
+                        chunks = attachedChunks,
+                        maxChunks = 6,
+                    ).text
                 }
+                else -> snapshot.attachedPdf?.extractedContext
             }
 
             val preparedParts = promptPipeline.preparePrompt(
@@ -401,6 +470,7 @@ class AssistantViewModel(
                     metrics = assistantMetrics,
                     attachedPdf = null,
                     attachedImage = null,
+                    attachedEmail = null,
                 )
             }
 

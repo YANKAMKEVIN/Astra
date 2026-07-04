@@ -41,6 +41,11 @@ data class DocumentsState(
     val isGenerating: Boolean = false,
     val metrics: DocumentsMetrics = DocumentsMetrics(),
     val error: String? = null,
+    // Gmail integration (optional, opt-in — data is fetched from Google then analyzed on-device)
+    val gmailSupported: Boolean = false,
+    val gmailConnected: Boolean = false,
+    val gmailQuery: String = "",
+    val isFetchingGmail: Boolean = false,
 ) : AstraState {
     val canIndex: Boolean
         get() = loadedFileName != null && !isIndexing && !isLoading &&
@@ -61,6 +66,13 @@ sealed interface DocumentsIntent : AstraIntent {
     data object ClearDocument : DocumentsIntent
     data object ClearAnswer : DocumentsIntent
     data class SelectSessionModel(val modelId: String) : DocumentsIntent
+    // Gmail
+    data object RefreshGmailState : DocumentsIntent
+    data object ConnectGmail : DocumentsIntent
+    data object DisconnectGmail : DocumentsIntent
+    data class UpdateGmailQuery(val query: String) : DocumentsIntent
+    data object FetchGmailRecent : DocumentsIntent
+    data object FetchGmailSearch : DocumentsIntent
 }
 
 sealed interface DocumentsEffect : AstraEffect

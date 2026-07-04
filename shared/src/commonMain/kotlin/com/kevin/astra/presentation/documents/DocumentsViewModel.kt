@@ -16,6 +16,8 @@ import com.kevin.astra.domain.documents.DocumentContextRetriever
 import com.kevin.astra.domain.documents.DocumentStatus
 import com.kevin.astra.domain.documents.EmailExtractor
 import com.kevin.astra.domain.documents.PdfExtractor
+import com.kevin.astra.domain.gmail.GmailIntegration
+import com.kevin.astra.domain.gmail.GmailMessageSource
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,11 +37,14 @@ class DocumentsViewModel(
     private val backendCatalog: BackendCatalog,
     private val promptPipeline: PromptPipeline,
     private val notificationService: NotificationService,
+    private val gmailSource: GmailMessageSource? = null,
     private val workScope: CoroutineScope? = null,
 ) : AstraViewModel<DocumentsState, DocumentsIntent, DocumentsEffect>(
     initialState = DocumentsState(
         availableModels = modelCatalog.installedModels(),
         sessionModel = modelCatalog.currentModel(),
+        gmailSupported = GmailIntegration.controller?.isSupported == true,
+        gmailConnected = GmailIntegration.controller?.isConnected() == true,
     ),
 ) {
     private var generationJob: Job? = null
@@ -60,6 +65,65 @@ class DocumentsViewModel(
             is DocumentsIntent.SelectSessionModel -> {
                 val model = modelCatalog.modelById(intent.modelId) ?: return
                 updateState { copy(sessionModel = model) }
+            }
+            DocumentsIntent.RefreshGmailState -> updateState {
+                copy(
+                    gmailSupported = GmailIntegration.controller?.isSupported == true,
+                    gmailConnected = GmailIntegration.controller?.isConnected() == true,
+                )
+            }
+            DocumentsIntent.ConnectGmail -> GmailIntegration.controller?.connect()
+            DocumentsIntent.DisconnectGmail -> {
+                GmailIntegration.controller?.disconnect()
+                updateState { copy(gmailConnected = GmailIntegration.controller?.isConnected() == true) }
+            }
+            is DocumentsIntent.UpdateGmailQuery -> updateState { copy(gmailQuery = intent.query, error = null) }
+            DocumentsIntent.FetchGmailRecent -> fetchGmail(query = null)
+            DocumentsIntent.FetchGmailSearch -> fetchGmail(query = state.value.gmailQuery.ifBlank { null })
+        }
+    }
+
+    private fun fetchGmail(query: String?) {
+        val source = gmailSource ?: return
+        generationJob?.cancel()
+        generationJob = null
+        (workScope ?: viewModelScope).launch {
+            updateState {
+                copy(
+                    isFetchingGmail = true,
+                    error = null,
+                    loadedFileName = null,
+                    emailCount = 0,
+                    pageCount = 0,
+                    question = "",
+                    sourceType = DocumentSourceType.Email,
+                    documentStatus = DocumentStatus.NotIndexed,
+                    indexedChunks = emptyList(),
+                    answer = null,
+                    extractedContext = null,
+                    documentSummary = null,
+                    metrics = DocumentsMetrics(),
+                )
+            }
+            try {
+                val doc = withContext(Dispatchers.Default) {
+                    source.fetchAsSingleDocument(query = query, maxResults = 20, label = "Gmail")
+                }
+                if (doc.rawText.isBlank()) {
+                    updateState { copy(isFetchingGmail = false, error = "No Gmail messages found for this request.") }
+                    return@launch
+                }
+                updateState {
+                    copy(
+                        isFetchingGmail = false,
+                        loadedFileName = doc.fileName,
+                        emailCount = doc.emailCount,
+                        documentStatus = DocumentStatus.NotIndexed,
+                    )
+                }
+                indexEmailInternal(doc.rawText, doc.fileName, doc.emailCount)
+            } catch (e: Exception) {
+                updateState { copy(isFetchingGmail = false, error = "Failed to fetch Gmail: ${e.message}") }
             }
         }
     }
