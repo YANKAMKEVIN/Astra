@@ -48,6 +48,8 @@ fun expectedSizeFor(modelId: String): String =
         "mock-model" -> "Built-in"
         "gemma-3-1b" -> "~0.8 GB"
         "gemma-3-4b" -> "~2.5 GB"
+        "gemma-4-e2b" -> "~2.6 GB"
+        "gemma-4-e4b" -> "~3.7 GB"
         "phi-4-mini" -> "~2.2 GB"
         "phi-3-mini" -> "~2–4 GB"
         "qwen3-1-7b" -> "~1.1 GB"

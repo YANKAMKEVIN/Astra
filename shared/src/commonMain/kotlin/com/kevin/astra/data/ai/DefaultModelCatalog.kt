@@ -52,6 +52,35 @@ class DefaultModelCatalog(
             downloadUrl = null,
         ),
         LocalModel(
+            id = "gemma-4-e2b",
+            displayName = "Gemma 4 E2B",
+            provider = ModelProvider.Google,
+            parameterCount = "E2B",
+            quantization = "int4",
+            contextWindow = 8_192,
+            supportedBackends = listOf(InferenceBackend.LiteRtLm),
+            minimumMemoryMb = 4_096,
+            status = ModelStatus.DownloadRequired,
+            runtimeModel = AiModel.Gemma4E2B,
+            // Ungated Apache-2.0 LiteRT-LM build; vendor-neutral CPU .litertlm (~2.6 GB). This is the
+            // model the iOS LiteRTLMSwift bridge's generate() targets (Gemma-4 turn markers).
+            downloadUrl = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm",
+        ),
+        LocalModel(
+            id = "gemma-4-e4b",
+            displayName = "Gemma 4 E4B",
+            provider = ModelProvider.Google,
+            parameterCount = "E4B",
+            quantization = "int4",
+            contextWindow = 8_192,
+            supportedBackends = listOf(InferenceBackend.LiteRtLm),
+            minimumMemoryMb = 6_144,
+            status = ModelStatus.DownloadRequired,
+            runtimeModel = AiModel.Gemma4E4B,
+            // Ungated Apache-2.0 LiteRT-LM build; vendor-neutral CPU .litertlm (~3.7 GB).
+            downloadUrl = "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm",
+        ),
+        LocalModel(
             id = "phi-4-mini",
             displayName = "Phi-4 Mini",
             provider = ModelProvider.Microsoft,

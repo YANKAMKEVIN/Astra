@@ -41,7 +41,7 @@ class BenchmarkViewModelTest {
 
         assertEquals(DefaultBenchmarkPrompt, state.prompt)
         assertEquals(setOf("mock-model"), state.selectedModelIds)
-        assertEquals(10, state.availableModels.size)
+        assertEquals(12, state.availableModels.size)
         assertEquals(2, state.availableBackends.size)
         assertEquals("litert-lm", state.selectedBackend?.id)
         assertFalse(state.isRunning)
@@ -66,7 +66,7 @@ class BenchmarkViewModelTest {
         val viewModel = testViewModel()
 
         viewModel.dispatch(BenchmarkIntent.SelectAllModels)
-        assertEquals(10, viewModel.state.value.selectedModelIds.size)
+        assertEquals(12, viewModel.state.value.selectedModelIds.size)
 
         viewModel.dispatch(BenchmarkIntent.ClearModelSelection)
         assertTrue(viewModel.state.value.selectedModelIds.isEmpty())

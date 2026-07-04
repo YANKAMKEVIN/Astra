@@ -16,9 +16,9 @@ class DefaultModelCatalogTest {
 
         val models = catalog.availableModels()
 
-        assertEquals(10, models.size)
+        assertEquals(12, models.size)
         assertTrue(models.map { it.displayName }.containsAll(
-            listOf("Mock Model", "Gemma 3 1B", "Phi-3 Mini", "Llama 3.2 3B", "Qwen 2.5 1.5B")
+            listOf("Mock Model", "Gemma 3 1B", "Gemma 4 E2B", "Phi-3 Mini", "Llama 3.2 3B", "Qwen 2.5 1.5B")
         ))
         assertEquals(listOf("mock-model"), catalog.installedModels().map { it.id })
         assertEquals(ModelProvider.Google, catalog.modelById("gemma-3-1b")?.provider)
@@ -46,12 +46,12 @@ class DefaultModelCatalogTest {
 
         val ids = catalog.availableModels().map { it.id }
 
-        assertEquals(7, ids.size)
+        assertEquals(9, ids.size)
         // ONNX / llama.cpp-only models have no runtime here and are not listed at all.
         assertFalse(ids.contains("phi-3-mini"))
         assertFalse(ids.contains("qwen-2-5-1-5b"))
         assertFalse(ids.contains("llama-3-2-3b"))
-        // Mock and every LiteRT-LM model remain — including llama-3-2-1b, which also declares LiteRT-LM.
-        assertTrue(ids.containsAll(listOf("mock-model", "gemma-3-1b", "llama-3-2-1b")))
+        // Mock and every LiteRT-LM model remain — including the Gemma 4 builds and llama-3-2-1b.
+        assertTrue(ids.containsAll(listOf("mock-model", "gemma-3-1b", "gemma-4-e2b", "gemma-4-e4b", "llama-3-2-1b")))
     }
 }
