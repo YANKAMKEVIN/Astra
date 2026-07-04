@@ -18,6 +18,7 @@ import com.kevin.astra.data.demo.StaticDemoScenarioCatalog
 import com.kevin.astra.data.documents.SmartTextChunker
 import com.kevin.astra.data.documents.TfIdfContextRetriever
 import com.kevin.astra.data.settings.testAiConfigurationRepository
+import com.kevin.astra.test.awaitCondition
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import com.kevin.astra.domain.assistant.StreamEvent
 import com.kevin.astra.domain.demo.DemoScenarioCatalog
@@ -135,7 +136,7 @@ class AssistantViewModelTest {
 
         assertTrue(viewModel.state.value.isGenerating)
 
-        delay(50)
+        awaitCondition { !viewModel.state.value.isGenerating }
 
         val state = viewModel.state.value
         assertFalse(state.isGenerating)
