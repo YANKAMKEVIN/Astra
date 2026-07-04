@@ -1,6 +1,7 @@
 package com.kevin.astra.domain.voice
 
 import android.content.Context
+import com.kevin.astra.app.di.androidAppContext
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -8,15 +9,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.Locale
 
-private lateinit var applicationContext: Context
-
-fun initializeAndroidTextToSpeechService(context: Context) {
-    applicationContext = context.applicationContext
-}
-
 actual fun createTextToSpeechService(): TextToSpeechService =
-    if (::applicationContext.isInitialized) AndroidTextToSpeechService(applicationContext)
-    else UnavailableTextToSpeechService
+    AndroidTextToSpeechService(androidAppContext())
 
 private class AndroidTextToSpeechService(context: Context) : TextToSpeechService {
 

@@ -1,6 +1,7 @@
 package com.kevin.astra.domain.vision
 
 import android.content.Context
+import com.kevin.astra.app.di.androidAppContext
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import com.kevin.astra.domain.vision.ImagenetLabels.LABELS
@@ -9,18 +10,10 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-private lateinit var applicationContext: Context
-
-fun initializeAndroidImageClassifier(context: Context) {
-    applicationContext = context.applicationContext
+actual fun createImageClassifier(): ImageClassifier {
+    val model = tryLoadModel(androidAppContext())
+    return if (model != null) TfLiteImageClassifier(model) else MockImageClassifier
 }
-
-actual fun createImageClassifier(): ImageClassifier =
-    if (::applicationContext.isInitialized) {
-        val model = tryLoadModel(applicationContext)
-        if (model != null) TfLiteImageClassifier(model)
-        else MockImageClassifier
-    } else MockImageClassifier
 
 private fun tryLoadModel(context: Context): Interpreter? = runCatching {
     // Try filesDir first (downloaded via Model Manager), then assets

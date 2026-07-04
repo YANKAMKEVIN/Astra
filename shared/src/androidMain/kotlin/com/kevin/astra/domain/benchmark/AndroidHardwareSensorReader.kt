@@ -1,15 +1,10 @@
 package com.kevin.astra.domain.benchmark
 
 import android.content.Context
+import com.kevin.astra.app.di.androidAppContext
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
-
-private var applicationContext: Context? = null
-
-fun initializeAndroidHardwareSensorReader(context: Context) {
-    applicationContext = context.applicationContext
-}
 
 class AndroidHardwareSensorReader(private val context: Context) : HardwareSensorReader {
     override fun read(): HardwareSnapshot {
@@ -36,6 +31,5 @@ class MockHardwareSensorReader : HardwareSensorReader {
 }
 
 actual fun createHardwareSensorReader(): HardwareSensorReader {
-    val ctx = applicationContext
-    return if (ctx != null) AndroidHardwareSensorReader(ctx) else MockHardwareSensorReader()
+    return AndroidHardwareSensorReader(androidAppContext())
 }

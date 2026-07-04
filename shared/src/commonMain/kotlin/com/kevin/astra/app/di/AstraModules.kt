@@ -59,6 +59,7 @@ import com.kevin.astra.domain.onboarding.OnboardingRepository
 import com.kevin.astra.presentation.overview.ProjectOverviewViewModel
 import com.kevin.astra.presentation.settings.SettingsViewModel
 import org.koin.core.KoinApplication
+import org.koin.dsl.KoinAppDeclaration
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 
@@ -87,6 +88,9 @@ val astraRootModule = module {
     single<com.kevin.astra.domain.documents.EmailExtractor> { com.kevin.astra.domain.documents.createEmailExtractor() }
     single<EmbeddingEngine> { createEmbeddingEngine() }
     single { SmartTextChunker() }
+    single<com.kevin.astra.domain.documents.DocumentIndexer> { get<SmartTextChunker>() }
+    single { com.kevin.astra.domain.documents.IndexEmailFileUseCase(emailExtractor = get(), indexer = get()) }
+    single { com.kevin.astra.domain.documents.FetchGmailUseCase(gmailSource = get(), indexer = get()) }
     single<DocumentContextRetriever> { HybridContextRetriever(embeddingEngine = get()) }
     single<com.kevin.astra.domain.gmail.GmailMessageSource> {
         com.kevin.astra.domain.gmail.GmailRepository(
@@ -137,13 +141,13 @@ val astraRootModule = module {
             notificationService = get(),
             conversationRepository = get(),
             pdfExtractor = get(),
-            emailExtractor = get(),
+            indexEmailFile = get(),
+            fetchGmailUseCase = get(),
             chunker = get(),
             contextRetriever = get(),
             imageClassifier = get(),
             speechRecognitionService = get(),
             shareHelper = get(),
-            gmailSource = get(),
         )
     }
     single {
@@ -167,7 +171,8 @@ val astraRootModule = module {
     single {
         DocumentsViewModel(
             pdfExtractor = get(),
-            emailExtractor = get(),
+            indexEmailFile = get(),
+            fetchGmailUseCase = get(),
             chunker = get(),
             contextRetriever = get(),
             askLocalAssistant = get(),
@@ -176,7 +181,6 @@ val astraRootModule = module {
             backendCatalog = get(),
             promptPipeline = get(),
             notificationService = get(),
-            gmailSource = get(),
         )
     }
     single {
@@ -216,9 +220,10 @@ val astraRootModule = module {
 
 private var koinApp: KoinApplication? = null
 
-fun initializeKoin(): KoinApplication {
+fun initializeKoin(appDeclaration: KoinAppDeclaration = {}): KoinApplication {
     if (koinApp == null) {
         koinApp = startKoin {
+            appDeclaration()
             modules(astraRootModule)
         }
     }

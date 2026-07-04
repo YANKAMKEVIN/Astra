@@ -72,8 +72,10 @@ class AndroidGmailAuthenticator(
             redirectUri,
         )
             .setScope(GMAIL_SCOPE)
-            // access_type=offline + prompt=consent guarantees a refresh token is issued.
-            .setAdditionalParameters(mapOf("access_type" to "offline", "prompt" to "consent"))
+            // `prompt` is a reserved AppAuth parameter (rejected by setAdditionalParameters), so it
+            // must go through setPromptValues; access_type=offline guarantees a refresh token.
+            .setPromptValues(AuthorizationRequest.Prompt.CONSENT)
+            .setAdditionalParameters(mapOf("access_type" to "offline"))
             .build()
         return authService.getAuthorizationRequestIntent(request)
     }

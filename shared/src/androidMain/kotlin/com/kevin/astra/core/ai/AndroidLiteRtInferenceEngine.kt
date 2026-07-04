@@ -1,6 +1,7 @@
 package com.kevin.astra.core.ai
 
 import android.content.Context
+import com.kevin.astra.app.di.androidAppContext
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
@@ -12,14 +13,8 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.TimeSource
 
-private var applicationContext: Context? = null
-
-fun initializeAndroidEdgeAiRuntime(context: Context) {
-    applicationContext = context.applicationContext
-}
-
 actual fun createInferenceEngine(): InferenceEngine {
-    val context = applicationContext
+    val context: Context = androidAppContext()
     val mockEngine = MockInferenceEngine()
     return RoutingInferenceEngine(
         mockEngine = mockEngine,
@@ -277,7 +272,11 @@ class AndroidLiteRtLmRuntimeSession(
         val runtime = inference ?: error("LiteRT-LM session was not initialized.")
         val generationMark = TimeSource.Monotonic.markNow()
 
-        val inputText = request.userMessage.ifBlank { request.prompt }
+        // Guard against oversized input: LiteRT-LM aborts the whole process natively (SIGABRT) when
+        // input + output exceed the model context, and that native crash bypasses Kotlin try/catch.
+        // So the prompt MUST be trimmed to fit before the native call.
+        val rawInput = request.userMessage.ifBlank { request.prompt }
+        val inputText = trimToContext(runtime, rawInput, request.maxTokens)
         val text = runtime.generateResponse(inputText)
             .trim()
             .ifBlank { "LiteRT-LM returned an empty response." }
@@ -314,6 +313,29 @@ class AndroidLiteRtLmRuntimeSession(
         inference = null
         activeModelPath = null
         lastModelLoadTimeMillis = 0L
+    }
+
+    /**
+     * Trims [text] so that input tokens leave room for the model to generate a response within its
+     * context window. Uses the runtime's own tokenizer to measure, then trims proportionally with a
+     * safety margin (a few passes to converge). Prevents the native oversize crash.
+     */
+    private fun trimToContext(runtime: LlmInference, text: String, maxTokens: Int): String {
+        val context = maxTokens.takeIf { it > 0 } ?: 4_096
+        val outputReserve = (context / 4).coerceIn(256, 1_024)
+        val inputBudget = (context - outputReserve).coerceAtLeast(256)
+
+        var current = text
+        repeat(4) {
+            val tokens = runCatching { runtime.sizeInTokens(current) }
+                .getOrElse { current.length / 4 } // ~4 chars per token fallback
+            if (tokens <= inputBudget) return current
+            // keep budget/tokens of the text, with a 10% margin, and re-measure
+            val keep = (current.length.toLong() * inputBudget * 9 / (tokens.toLong() * 10))
+                .toInt().coerceIn(0, current.length)
+            current = current.take(keep)
+        }
+        return current
     }
 
     private fun ensureInference(

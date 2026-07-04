@@ -1,6 +1,7 @@
 package com.kevin.astra.domain.documents
 
 import android.content.Context
+import com.kevin.astra.app.di.androidAppContext
 import com.kevin.astra.data.documents.BowEmbeddingEngine
 import org.tensorflow.lite.Interpreter
 import java.io.File
@@ -8,16 +9,8 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.sqrt
 
-private lateinit var applicationContext: Context
-
-fun initializeAndroidEmbeddingEngine(context: Context) {
-    applicationContext = context.applicationContext
-}
-
 actual fun createEmbeddingEngine(): EmbeddingEngine =
-    if (::applicationContext.isInitialized) {
-        tryLoadTfLiteEngine(applicationContext) ?: BowEmbeddingEngine()
-    } else BowEmbeddingEngine()
+    tryLoadTfLiteEngine(androidAppContext()) ?: BowEmbeddingEngine()
 
 private fun tryLoadTfLiteEngine(context: Context): TfLiteEmbeddingEngine? = runCatching {
     val downloadedFile = context.filesDir.resolve("astra-models/minilm-l6/model.tflite")

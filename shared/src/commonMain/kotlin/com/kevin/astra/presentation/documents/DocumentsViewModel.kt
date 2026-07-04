@@ -14,10 +14,10 @@ import com.kevin.astra.data.documents.SmartTextChunker
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import com.kevin.astra.domain.documents.DocumentContextRetriever
 import com.kevin.astra.domain.documents.DocumentStatus
-import com.kevin.astra.domain.documents.EmailExtractor
+import com.kevin.astra.domain.documents.FetchGmailUseCase
+import com.kevin.astra.domain.documents.IndexEmailFileUseCase
 import com.kevin.astra.domain.documents.PdfExtractor
 import com.kevin.astra.domain.gmail.GmailIntegration
-import com.kevin.astra.domain.gmail.GmailMessageSource
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +28,8 @@ import kotlinx.coroutines.withContext
 
 class DocumentsViewModel(
     private val pdfExtractor: PdfExtractor,
-    private val emailExtractor: EmailExtractor,
+    private val indexEmailFile: IndexEmailFileUseCase,
+    private val fetchGmailUseCase: FetchGmailUseCase,
     private val chunker: SmartTextChunker,
     private val contextRetriever: DocumentContextRetriever,
     private val askLocalAssistant: AskLocalAssistantUseCase,
@@ -37,7 +38,6 @@ class DocumentsViewModel(
     private val backendCatalog: BackendCatalog,
     private val promptPipeline: PromptPipeline,
     private val notificationService: NotificationService,
-    private val gmailSource: GmailMessageSource? = null,
     private val workScope: CoroutineScope? = null,
 ) : AstraViewModel<DocumentsState, DocumentsIntent, DocumentsEffect>(
     initialState = DocumentsState(
@@ -84,7 +84,7 @@ class DocumentsViewModel(
     }
 
     private fun fetchGmail(query: String?) {
-        val source = gmailSource ?: return
+        if (!fetchGmailUseCase.isAvailable) return
         generationJob?.cancel()
         generationJob = null
         (workScope ?: viewModelScope).launch {
@@ -106,24 +106,19 @@ class DocumentsViewModel(
                 )
             }
             try {
-                val doc = withContext(Dispatchers.Default) {
-                    source.fetchAsSingleDocument(query = query, maxResults = 20, label = "Gmail")
-                }
-                if (doc.rawText.isBlank()) {
-                    updateState { copy(isFetchingGmail = false, error = "No Gmail messages found for this request.") }
-                    return@launch
-                }
+                val indexed = withContext(Dispatchers.Default) { fetchGmailUseCase(query = query) }
                 updateState {
                     copy(
                         isFetchingGmail = false,
-                        loadedFileName = doc.fileName,
-                        emailCount = doc.emailCount,
-                        documentStatus = DocumentStatus.NotIndexed,
+                        loadedFileName = indexed.label,
+                        emailCount = indexed.emailCount,
+                        indexedChunks = indexed.chunks,
+                        documentStatus = DocumentStatus.Indexed,
                     )
                 }
-                indexEmailInternal(doc.rawText, doc.fileName, doc.emailCount)
+                generateSummaryInternal(indexed.chunks)
             } catch (e: Exception) {
-                updateState { copy(isFetchingGmail = false, error = "Failed to fetch Gmail: ${e.message}") }
+                updateState { copy(isFetchingGmail = false, error = e.message ?: "Failed to fetch Gmail.") }
             }
         }
     }
@@ -190,49 +185,19 @@ class DocumentsViewModel(
                 )
             }
             try {
-                val email = withContext(Dispatchers.Default) {
-                    if (fileName.endsWith(".mbox", ignoreCase = true)) {
-                        emailExtractor.extractMbox(bytes, fileName)
-                    } else {
-                        emailExtractor.extractEml(bytes, fileName)
-                    }
-                }
-                if (email.rawText.isBlank()) {
-                    updateState { copy(isLoading = false, error = "Could not extract text from this email file.") }
-                    return@launch
-                }
+                val indexed = withContext(Dispatchers.Default) { indexEmailFile(bytes, fileName) }
                 updateState {
                     copy(
                         isLoading = false,
-                        loadedFileName = email.fileName,
-                        emailCount = email.emailCount,
-                        documentStatus = DocumentStatus.NotIndexed,
-                    )
-                }
-                indexEmailInternal(email.rawText, email.fileName, email.emailCount)
-            } catch (e: Exception) {
-                updateState { copy(isLoading = false, error = "Failed to read email file: ${e.message}") }
-            }
-        }
-    }
-
-    private fun indexEmailInternal(rawText: String, fileName: String, emailCount: Int) {
-        (workScope ?: viewModelScope).launch {
-            updateState { copy(isIndexing = true, error = null) }
-            try {
-                val chunks = withContext(Dispatchers.Default) {
-                    chunker.indexPdf(com.kevin.astra.domain.documents.LoadedPdfDocument(fileName, rawText, emailCount))
-                }
-                updateState {
-                    copy(
-                        isIndexing = false,
-                        indexedChunks = chunks,
+                        loadedFileName = indexed.label,
+                        emailCount = indexed.emailCount,
+                        indexedChunks = indexed.chunks,
                         documentStatus = DocumentStatus.Indexed,
                     )
                 }
-                generateSummaryInternal(chunks)
+                generateSummaryInternal(indexed.chunks)
             } catch (e: Exception) {
-                updateState { copy(isIndexing = false, error = "Indexing failed: ${e.message}") }
+                updateState { copy(isLoading = false, error = e.message ?: "Failed to read email file.") }
             }
         }
     }

@@ -18,4 +18,14 @@ class SimpleDocumentIndexer : DocumentIndexer {
             )
         }
     }
+
+    override fun indexText(text: String, sourceId: String): List<IndexedDocumentChunk> =
+        listOf(
+            IndexedDocumentChunk(
+                id = "$sourceId-chunk-1",
+                documentId = sourceId,
+                title = "Chunk 1",
+                content = text,
+            ),
+        )
 }

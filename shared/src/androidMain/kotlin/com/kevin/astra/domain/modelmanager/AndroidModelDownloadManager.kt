@@ -1,6 +1,7 @@
 package com.kevin.astra.domain.modelmanager
 
 import android.content.Context
+import com.kevin.astra.app.di.androidAppContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,19 +15,8 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
-private var downloadManagerContext: Context? = null
-
-fun initializeAndroidModelDownloadManager(context: Context) {
-    downloadManagerContext = context.applicationContext
-}
-
 actual fun createModelDownloadManager(): ModelDownloadManager {
-    val context = downloadManagerContext
-    return if (context != null) {
-        AndroidModelDownloadManager(context)
-    } else {
-        UnavailableModelDownloadManager("Android context is not initialized yet.")
-    }
+    return AndroidModelDownloadManager(androidAppContext())
 }
 
 class AndroidModelDownloadManager(

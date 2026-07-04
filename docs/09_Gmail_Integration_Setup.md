@@ -61,7 +61,14 @@ needs. Everything here is done in the browser on the Google Cloud Console — no
 - Name: `ASTRA Android (debug)`
 - Package name: `com.kevin.astra`
 - SHA-1 certificate fingerprint: `43:6A:AC:75:04:7B:23:8B:B7:AC:6A:2C:3B:93:CD:B0:5B:92:80:09`
+- Under **Advanced settings**, turn ON **Enable Custom URI scheme**.
 - **Create**.
+
+> ⚠️ **Custom URI scheme is required for AppAuth and OFF by default.** Newer Android OAuth clients
+> disable the custom-scheme redirect (`com.googleusercontent.apps.<id>:/oauth2redirect`). If it is
+> not enabled, the consent screen fails with:
+> `Error 400: invalid_request — Custom URI scheme is not enabled for your Android Client.`
+> Enable it in the client's **Advanced settings** (it may take a few minutes to propagate).
 
 > Android OAuth clients have **no client secret** — identity is proven by package name + SHA-1.
 > Repeat this step later with the release SHA-1 for production builds.
