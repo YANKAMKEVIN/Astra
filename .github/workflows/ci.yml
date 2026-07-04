@@ -40,7 +40,7 @@ jobs:
           if-no-files-found: ignore
 
   ios:
-    name: iOS compile (Kotlin/Native)
+    name: iOS unit tests (Kotlin/Native)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -54,7 +54,22 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # Kotlin/Native iOS compilation requires macOS. Compiling both targets catches
-      # cinterop/API breakages that the Android build cannot (e.g. AVFAudio, AuthenticationServices).
-      - name: Compile iOS targets
-        run: ./gradlew :shared:compileKotlinIosSimulatorArm64 :shared:compileKotlinIosArm64 --stacktrace
+      # Kotlin/Native iOS work requires macOS. Running the simulator test suite compiles the
+      # iOS test sources (which the Android host job never does) and executes them, so an iOS
+      # test can no longer break in silence.
+      - name: Shared unit tests (iOS simulator)
+        run: ./gradlew :shared:iosSimulatorArm64Test --stacktrace
+
+      # Also compile the device target (can't be run without a device) to catch cinterop/API
+      # breakages that neither the simulator nor the Android build surface (e.g. AVFAudio,
+      # AuthenticationServices).
+      - name: Compile iOS device target
+        run: ./gradlew :shared:compileKotlinIosArm64 --stacktrace
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-test-report
+          path: shared/build/reports/tests/
+          if-no-files-found: ignore
