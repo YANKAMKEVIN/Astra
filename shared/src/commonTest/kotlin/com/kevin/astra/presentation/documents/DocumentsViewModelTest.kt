@@ -23,6 +23,7 @@ import com.kevin.astra.domain.documents.EmailExtractor
 import com.kevin.astra.domain.documents.LoadedEmailDocument
 import com.kevin.astra.domain.documents.LoadedPdfDocument
 import com.kevin.astra.domain.documents.PdfExtractor
+import com.kevin.astra.domain.gmail.GmailMessageSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -82,6 +83,31 @@ class DocumentsViewModelTest {
         assertTrue(state.indexedChunks.isNotEmpty())
         assertTrue(state.emailCount >= 1)
         assertFalse(state.isIndexing)
+    }
+
+    @Test
+    fun fetchingGmailRecentIndexesResultAsEmailSource() = runBlocking {
+        val gmailDoc = LoadedEmailDocument(
+            fileName = "Gmail (latest 20)",
+            emailCount = 3,
+            rawText = "Subject: Invoice. Payment is due next week. ".repeat(60),
+        )
+        val viewModel = testViewModel(
+            workScope = CoroutineScope(coroutineContext),
+            gmailSource = FakeGmailSource(gmailDoc),
+        )
+
+        viewModel.dispatch(DocumentsIntent.FetchGmailRecent)
+        yield()
+        delay(200)
+
+        val state = viewModel.state.value
+        assertEquals("Gmail (latest 20)", state.loadedFileName)
+        assertEquals(DocumentSourceType.Email, state.sourceType)
+        assertEquals(DocumentStatus.Indexed, state.documentStatus)
+        assertTrue(state.indexedChunks.isNotEmpty())
+        assertEquals(3, state.emailCount)
+        assertFalse(state.isFetchingGmail)
     }
 
     @Test
@@ -215,6 +241,7 @@ class DocumentsViewModelTest {
                 )
         },
         workScope: CoroutineScope? = null,
+        gmailSource: GmailMessageSource? = null,
     ): DocumentsViewModel =
         DocumentsViewModel(
             pdfExtractor = FakePdfExtractor(),
@@ -227,8 +254,19 @@ class DocumentsViewModelTest {
             backendCatalog = DefaultBackendCatalog(),
             promptPipeline = DefaultPromptPipeline(DefaultPromptBuilder()),
             notificationService = NoOpNotificationService(),
+            gmailSource = gmailSource,
             workScope = workScope,
         )
+}
+
+private class FakeGmailSource(private val doc: LoadedEmailDocument) : GmailMessageSource {
+    var lastQuery: String? = null
+        private set
+
+    override suspend fun fetchAsSingleDocument(query: String?, maxResults: Int, label: String): LoadedEmailDocument {
+        lastQuery = query
+        return doc
+    }
 }
 
 private class FakePdfExtractor : PdfExtractor {

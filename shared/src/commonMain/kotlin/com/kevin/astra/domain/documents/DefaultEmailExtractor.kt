@@ -11,7 +11,9 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 class DefaultEmailExtractor : EmailExtractor {
 
     override fun extractEml(bytes: ByteArray, fileName: String): LoadedEmailDocument {
-        val text = bytes.decodeToString()
+        // Decode byte-for-byte (Latin-1) so the charset can be applied later; decoding the whole
+        // message as UTF-8 upfront would corrupt legacy 8-bit bodies before we know their charset.
+        val text = latin1Decode(bytes)
         val parsed = parseEmlMessage(text)
         return LoadedEmailDocument(
             fileName = fileName,
@@ -21,7 +23,7 @@ class DefaultEmailExtractor : EmailExtractor {
     }
 
     override fun extractMbox(bytes: ByteArray, fileName: String): LoadedEmailDocument {
-        val text = bytes.decodeToString()
+        val text = latin1Decode(bytes)
         // mbox messages are separated by lines starting with "From "
         val messages = text.split(Regex("(?m)^From .+$"))
             .filter { it.isNotBlank() }
@@ -71,16 +73,18 @@ class DefaultEmailExtractor : EmailExtractor {
         val contentType = headerMap["content-type"] ?: "text/plain"
         val boundary = Regex("boundary=\"?([^\"\\s;]+)\"?", RegexOption.IGNORE_CASE)
             .find(contentType)?.groupValues?.get(1)
+        val charset = charsetOf(contentType)
 
         val body = when {
             boundary != null -> extractMultipartBody(bodyLines.joinToString("\n"), boundary)
             contentType.contains("base64", ignoreCase = true) ||
                 headerMap["content-transfer-encoding"]?.contains("base64", ignoreCase = true) == true ->
-                decodeBase64Body(bodyLines.joinToString("\n"))
+                decodeBase64Body(bodyLines.joinToString("\n"), charset)
             contentType.contains("quoted-printable", ignoreCase = true) ||
                 headerMap["content-transfer-encoding"]?.contains("quoted-printable", ignoreCase = true) == true ->
-                decodeQuotedPrintable(bodyLines.joinToString("\n"))
-            else -> bodyLines.joinToString("\n").trim()
+                decodeQuotedPrintable(bodyLines.joinToString("\n"), charset)
+            // Unencoded (possibly 8-bit) body: re-decode the raw bytes with the declared charset.
+            else -> decodeBytes(latin1Encode(bodyLines.joinToString("\n")), charset).trim()
         }
 
         val strippedBody = stripHtml(body).trim()
@@ -105,23 +109,24 @@ class DefaultEmailExtractor : EmailExtractor {
                 ?: return@mapNotNull null
             val partHeaders = part.substring(0, blankIdx).lowercase()
             val partBody = part.substring(blankIdx).trim()
+            val partCharset = charsetOf(partHeaders)
 
             when {
                 // Prefer text/plain parts
                 partHeaders.contains("text/plain") -> {
                     val decoded = when {
-                        partHeaders.contains("base64") -> decodeBase64Body(partBody)
-                        partHeaders.contains("quoted-printable") -> decodeQuotedPrintable(partBody)
-                        else -> partBody
+                        partHeaders.contains("base64") -> decodeBase64Body(partBody, partCharset)
+                        partHeaders.contains("quoted-printable") -> decodeQuotedPrintable(partBody, partCharset)
+                        else -> decodeBytes(latin1Encode(partBody), partCharset)
                     }
                     decoded.trim()
                 }
                 // Fall back to text/html if no plain part found
                 partHeaders.contains("text/html") -> {
                     val decoded = when {
-                        partHeaders.contains("base64") -> decodeBase64Body(partBody)
-                        partHeaders.contains("quoted-printable") -> decodeQuotedPrintable(partBody)
-                        else -> partBody
+                        partHeaders.contains("base64") -> decodeBase64Body(partBody, partCharset)
+                        partHeaders.contains("quoted-printable") -> decodeQuotedPrintable(partBody, partCharset)
+                        else -> decodeBytes(latin1Encode(partBody), partCharset)
                     }
                     stripHtml(decoded).trim()
                 }
@@ -131,18 +136,18 @@ class DefaultEmailExtractor : EmailExtractor {
     }
 
     @OptIn(ExperimentalEncodingApi::class)
-    private fun decodeBase64Body(encoded: String): String {
+    private fun decodeBase64Body(encoded: String, charset: String = "utf-8"): String {
         return try {
             // Base64.Mime tolerates the line breaks/whitespace common in email bodies.
-            Base64.Mime.decode(encoded).decodeToString()
+            decodeBytes(Base64.Mime.decode(encoded), charset)
         } catch (e: Exception) {
             encoded
         }
     }
 
-    private fun decodeQuotedPrintable(encoded: String): String {
-        // Collect raw bytes first, then decode as UTF-8 so multi-byte sequences like
-        // "=C3=A9" (é) are reassembled correctly instead of turning into mojibake.
+    private fun decodeQuotedPrintable(encoded: String, charset: String = "utf-8"): String {
+        // Collect raw bytes first, then decode with the declared charset — so multi-byte UTF-8
+        // sequences ("=C3=A9") AND single-byte Latin-1 bytes ("=E9") both render correctly.
         val bytes = ArrayList<Byte>(encoded.length)
         var i = 0
         val clean = encoded.replace("=\r\n", "").replace("=\n", "")
@@ -162,8 +167,20 @@ class DefaultEmailExtractor : EmailExtractor {
                 i++
             }
         }
-        return bytes.toByteArray().decodeToString()
+        return decodeBytes(bytes.toByteArray(), charset)
     }
+
+    private fun charsetOf(headers: String): String =
+        Regex("charset=\"?([^\";\\s]+)\"?", RegexOption.IGNORE_CASE)
+            .find(headers)?.groupValues?.get(1) ?: "utf-8"
+
+    // Byte-preserving decode/encode: every byte 0..255 maps to the code point of the same value,
+    // so the original bytes survive until the real charset is applied to the body.
+    private fun latin1Decode(bytes: ByteArray): String =
+        buildString(bytes.size) { for (b in bytes) append((b.toInt() and 0xFF).toChar()) }
+
+    private fun latin1Encode(text: String): ByteArray =
+        ByteArray(text.length) { (text[it].code and 0xFF).toByte() }
 
     /**
      * Decodes RFC 2047 "encoded-words" found in headers, e.g. `=?UTF-8?B?Q29udHJhdA==?=`

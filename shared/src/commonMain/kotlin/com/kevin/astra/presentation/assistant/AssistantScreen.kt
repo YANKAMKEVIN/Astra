@@ -63,6 +63,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.design.AstraButton
@@ -81,6 +83,7 @@ import com.kevin.astra.domain.demo.DemoScenario
 import com.kevin.astra.domain.export.ExportFormat
 import com.kevin.astra.domain.history.ChatConversation
 import com.kevin.astra.domain.settings.DemoModeHolder
+import com.kevin.astra.presentation.documents.rememberEmailPickerLauncher
 import com.kevin.astra.presentation.documents.rememberPdfPickerLauncher
 import com.kevin.astra.presentation.vision.rememberImageCaptureLauncher
 import kotlinx.coroutines.launch
@@ -96,6 +99,11 @@ fun AssistantScreen(
     val haptic = LocalHapticFeedback.current
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+
+    // Refresh Gmail connection state on resume (e.g. returning from the consent screen).
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.dispatch(AssistantIntent.RefreshGmailState)
+    }
 
     LaunchedEffect(state.isGenerating) {
         if (!state.isGenerating && state.messages.lastOrNull()?.role == ChatRole.Assistant) {
@@ -664,14 +672,19 @@ private fun AssistantContent(
             voiceState = state.voiceState,
             attachedPdf = state.attachedPdf,
             attachedImage = state.attachedImage,
+            attachedEmail = state.attachedEmail,
+            gmailSupported = state.gmailSupported,
             error = state.error,
             onQuestionChanged = { onIntent(AssistantIntent.UpdateQuestion(it)) },
             onAsk = { onIntent(AssistantIntent.AskQuestion) },
             onStop = { onIntent(AssistantIntent.CancelGeneration) },
             onPdfAttached = { bytes, name -> onIntent(AssistantIntent.PdfAttached(bytes, name)) },
             onImageAttached = { bytes -> onIntent(AssistantIntent.ImageAttached(bytes)) },
+            onEmailAttached = { bytes, name -> onIntent(AssistantIntent.EmailFileAttached(bytes, name)) },
+            onAttachGmail = { onIntent(AssistantIntent.AttachGmail) },
             onRemovePdf = { onIntent(AssistantIntent.RemovePdf) },
             onRemoveImage = { onIntent(AssistantIntent.RemoveImage) },
+            onRemoveEmail = { onIntent(AssistantIntent.RemoveEmail) },
             onToggleVoice = { onIntent(AssistantIntent.ToggleVoiceInput) },
         )
     }
@@ -1062,18 +1075,24 @@ private fun InputBar(
     voiceState: com.kevin.astra.domain.voice.SpeechRecognitionState,
     attachedPdf: AttachedPdf?,
     attachedImage: AttachedImage?,
+    attachedEmail: AttachedEmail?,
+    gmailSupported: Boolean,
     error: String?,
     onQuestionChanged: (String) -> Unit,
     onAsk: () -> Unit,
     onStop: () -> Unit,
     onPdfAttached: (ByteArray, String) -> Unit,
     onImageAttached: (ByteArray) -> Unit,
+    onEmailAttached: (ByteArray, String) -> Unit,
+    onAttachGmail: () -> Unit,
     onRemovePdf: () -> Unit,
     onRemoveImage: () -> Unit,
+    onRemoveEmail: () -> Unit,
     onToggleVoice: () -> Unit,
 ) {
     val pdfLauncher = rememberPdfPickerLauncher(onPdfPicked = onPdfAttached)
     val imageLauncher = rememberImageCaptureLauncher(onImageCaptured = onImageAttached)
+    val emailLauncher = rememberEmailPickerLauncher(onEmailPicked = onEmailAttached)
     var showAttachmentOptions by remember { mutableStateOf(false) }
 
     Column(
@@ -1089,8 +1108,19 @@ private fun InputBar(
         }
 
         // Attachment chips
-        AnimatedVisibility(visible = attachedPdf != null || attachedImage != null) {
+        AnimatedVisibility(visible = attachedPdf != null || attachedImage != null || attachedEmail != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+                attachedEmail?.let { email ->
+                    AttachmentChip(
+                        label = when (email.status) {
+                            AttachmentStatus.Indexing -> "⏳ Fetching…"
+                            AttachmentStatus.Ready -> "📧 ${email.label}"
+                            else -> "⚠ Email"
+                        },
+                        color = if (email.status == AttachmentStatus.Ready) AstraColors.Secondary else AstraColors.Error,
+                        onRemove = onRemoveEmail,
+                    )
+                }
                 attachedPdf?.let { pdf ->
                     AttachmentChip(
                         label = when (pdf.status) {
@@ -1138,6 +1168,20 @@ private fun InputBar(
                     active = attachedImage != null,
                     onClick = { imageLauncher(); showAttachmentOptions = false },
                 )
+                AttachmentOption(
+                    icon = "📧",
+                    label = "Email",
+                    active = attachedEmail != null,
+                    onClick = { emailLauncher(); showAttachmentOptions = false },
+                )
+                if (gmailSupported) {
+                    AttachmentOption(
+                        icon = "🔗",
+                        label = "Gmail",
+                        active = false,
+                        onClick = { onAttachGmail(); showAttachmentOptions = false },
+                    )
+                }
                 AttachmentOption(
                     icon = if (isListening) "⏹" else "🎤",
                     label = if (isListening) "Stop" else "Voice",

@@ -22,9 +22,15 @@ import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import com.kevin.astra.domain.assistant.StreamEvent
 import com.kevin.astra.domain.demo.DemoScenarioCatalog
 import com.kevin.astra.domain.documents.DocumentContextRetriever
+import com.kevin.astra.domain.documents.EmailExtractor
 import com.kevin.astra.domain.documents.IndexedDocumentChunk
+import com.kevin.astra.domain.documents.LoadedEmailDocument
 import com.kevin.astra.domain.documents.LoadedPdfDocument
 import com.kevin.astra.domain.documents.PdfExtractor
+import com.kevin.astra.domain.gmail.GmailController
+import com.kevin.astra.domain.gmail.GmailIntegration
+import com.kevin.astra.domain.gmail.GmailMessageSource
+import com.kevin.astra.domain.gmail.GmailTokenProvider
 import com.kevin.astra.domain.documents.RetrievedDocumentContext
 import com.kevin.astra.domain.export.ConversationShareHelper
 import com.kevin.astra.domain.export.ExportFormat
@@ -256,12 +262,57 @@ class AssistantViewModelTest {
         assertEquals("How do I restart the pump safely?", recordingRetriever.lastQuestion)
     }
 
+    @Test
+    fun attachingEmailFileIndexesAsAttachedEmailAndUnblocksAsk() = runBlocking {
+        val viewModel = testViewModel(generationScope = CoroutineScope(coroutineContext))
+        val eml = "Subject: Invoice\nFrom: billing@shop.com\n\nAmount due is 42 euros. ".repeat(40)
+
+        viewModel.dispatch(AssistantIntent.UpdateQuestion("How much do I owe?"))
+        viewModel.dispatch(AssistantIntent.EmailFileAttached(eml.encodeToByteArray(), "invoice.eml"))
+        yield()
+        delay(100)
+
+        val state = viewModel.state.value
+        assertEquals(AttachmentStatus.Ready, state.attachedEmail?.status)
+        assertEquals("invoice.eml", state.attachedEmail?.label)
+        assertTrue(state.attachedEmail?.chunks.orEmpty().isNotEmpty())
+        assertTrue(state.canAsk)
+    }
+
+    @Test
+    fun attachingGmailFetchesAndIndexesWhenConnected() = runBlocking {
+        val gmailDoc = LoadedEmailDocument(
+            fileName = "Gmail",
+            emailCount = 2,
+            rawText = "Subject: Bank statement. Your balance is 1000. ".repeat(40),
+        )
+        GmailIntegration.controller = FakeConnectedGmailController
+        try {
+            val viewModel = testViewModel(
+                gmailSource = FakeGmailSource(gmailDoc),
+                generationScope = CoroutineScope(coroutineContext),
+            )
+            viewModel.dispatch(AssistantIntent.UpdateQuestion("What is my balance?"))
+            viewModel.dispatch(AssistantIntent.AttachGmail)
+            yield()
+            delay(100)
+
+            val state = viewModel.state.value
+            assertEquals(AttachmentStatus.Ready, state.attachedEmail?.status)
+            assertEquals("Gmail", state.attachedEmail?.label)
+            assertTrue(state.attachedEmail?.chunks.orEmpty().isNotEmpty())
+        } finally {
+            GmailIntegration.controller = null
+        }
+    }
+
     private fun testViewModel(
         useCase: AskLocalAssistantUseCase = testUseCase(),
         configurationRepository: AiConfigurationRepository = testAiConfigurationRepository(),
         demoScenarioCatalog: DemoScenarioCatalog = StaticDemoScenarioCatalog(),
         imageClassifier: ImageClassifier = FakeImageClassifier(),
         contextRetriever: DocumentContextRetriever = TfIdfContextRetriever(),
+        gmailSource: GmailMessageSource? = null,
         generationScope: CoroutineScope? = null,
     ): AssistantViewModel =
         AssistantViewModel(
@@ -274,11 +325,13 @@ class AssistantViewModelTest {
             notificationService = NoOpNotificationService(),
             conversationRepository = NoOpConversationRepository(),
             pdfExtractor = FakePdfExtractor(),
+            emailExtractor = FakeEmailExtractor(),
             chunker = SmartTextChunker(),
             contextRetriever = contextRetriever,
             imageClassifier = imageClassifier,
             speechRecognitionService = FakeSpeechRecognitionService(),
             shareHelper = NoOpConversationShareHelper(),
+            gmailSource = gmailSource,
             generationScope = generationScope,
         )
 
@@ -330,6 +383,26 @@ private class NoOpConversationRepository : ConversationRepository {
 private class FakePdfExtractor : PdfExtractor {
     override fun extract(pdfBytes: ByteArray, fileName: String): LoadedPdfDocument =
         LoadedPdfDocument(fileName = fileName, rawText = pdfBytes.decodeToString(), pageCount = 1)
+}
+
+private class FakeEmailExtractor : EmailExtractor {
+    override fun extractEml(bytes: ByteArray, fileName: String): LoadedEmailDocument =
+        LoadedEmailDocument(fileName = fileName, emailCount = 1, rawText = bytes.decodeToString())
+
+    override fun extractMbox(bytes: ByteArray, fileName: String): LoadedEmailDocument =
+        LoadedEmailDocument(fileName = fileName, emailCount = 1, rawText = bytes.decodeToString())
+}
+
+private class FakeGmailSource(private val doc: LoadedEmailDocument) : GmailMessageSource {
+    override suspend fun fetchAsSingleDocument(query: String?, maxResults: Int, label: String): LoadedEmailDocument = doc
+}
+
+private object FakeConnectedGmailController : GmailController {
+    override val isSupported: Boolean = true
+    override fun isConnected(): Boolean = true
+    override fun connect() = Unit
+    override fun disconnect() = Unit
+    override fun tokenProvider(): GmailTokenProvider = GmailTokenProvider { "token" }
 }
 
 private class FakeImageClassifier(

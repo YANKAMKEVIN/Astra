@@ -30,6 +30,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
@@ -55,6 +57,11 @@ fun DocumentsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val haptic = LocalHapticFeedback.current
+
+    // Refresh on every resume so returning from the Gmail consent screen updates the connection state.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.dispatch(DocumentsIntent.RefreshGmailState)
+    }
 
     LaunchedEffect(state.isGenerating) {
         if (!state.isGenerating && state.answer != null) {
@@ -100,6 +107,20 @@ private fun DocumentsContent(
             onPickEmail = emailLauncher,
             onClear = { onIntent(DocumentsIntent.ClearDocument) },
         )
+
+        if (state.gmailSupported) {
+            GmailCard(
+                connected = state.gmailConnected,
+                query = state.gmailQuery,
+                isFetching = state.isFetchingGmail,
+                enabled = !state.isFetchingGmail && !state.isIndexing && !state.isLoading,
+                onConnect = { onIntent(DocumentsIntent.ConnectGmail) },
+                onDisconnect = { onIntent(DocumentsIntent.DisconnectGmail) },
+                onQueryChange = { onIntent(DocumentsIntent.UpdateGmailQuery(it)) },
+                onFetchRecent = { onIntent(DocumentsIntent.FetchGmailRecent) },
+                onFetchSearch = { onIntent(DocumentsIntent.FetchGmailSearch) },
+            )
+        }
 
         if (state.availableModels.size > 1) {
             RagModelSelector(
@@ -275,6 +296,112 @@ private fun DocumentCard(
                     style = AstraButtonStyle.Ghost,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun GmailCard(
+    connected: Boolean,
+    query: String,
+    isFetching: Boolean,
+    enabled: Boolean,
+    onConnect: () -> Unit,
+    onDisconnect: () -> Unit,
+    onQueryChange: (String) -> Unit,
+    onFetchRecent: () -> Unit,
+    onFetchSearch: () -> Unit,
+) {
+    AstraCard(
+        title = "Gmail",
+        subtitle = "Fetched from Google, then analyzed only on this device.",
+        status = if (connected) "CONNECTED" else "OFF",
+    ) {
+        Spacer(Modifier.height(AstraSpacing.M))
+        if (!connected) {
+            Text(
+                text = "Connect your Gmail (read-only) to query your inbox with on-device RAG. " +
+                    "Messages are retrieved from Google, then processed locally — nothing is sent anywhere else.",
+                style = AstraTypography.Caption,
+                color = AstraColors.TextSecondary,
+            )
+            Spacer(Modifier.height(AstraSpacing.M))
+            AstraButton(
+                text = "🔗 Connect Gmail",
+                onClick = onConnect,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                enabled = enabled,
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .alpha(if (enabled) 1f else 0.64f),
+                textStyle = AstraTypography.Body.copy(color = AstraColors.TextPrimary),
+                cursorBrush = SolidColor(AstraColors.Secondary),
+                decorationBox = { innerTextField ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(AstraColors.SurfaceElevated, RoundedCornerShape(16.dp))
+                            .border(1.dp, AstraColors.Border, RoundedCornerShape(16.dp))
+                            .padding(AstraSpacing.M),
+                    ) {
+                        if (query.isBlank()) {
+                            Text(
+                                text = "Gmail search — e.g. from:bank invoice",
+                                style = AstraTypography.Body,
+                                color = AstraColors.TextDisabled,
+                            )
+                        }
+                        innerTextField()
+                    }
+                },
+            )
+
+            AnimatedVisibility(visible = isFetching) {
+                Column {
+                    Spacer(Modifier.height(AstraSpacing.S))
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = AstraColors.Secondary,
+                        trackColor = AstraColors.Border,
+                    )
+                    Spacer(Modifier.height(AstraSpacing.XS))
+                    Text(
+                        text = "Fetching from Gmail…",
+                        style = AstraTypography.Caption,
+                        color = AstraColors.TextSecondary,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(AstraSpacing.M))
+            Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+                AstraButton(
+                    text = if (isFetching) "Fetching…" else "📥 Latest 20",
+                    onClick = onFetchRecent,
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f),
+                )
+                AstraButton(
+                    text = "🔍 Search",
+                    onClick = onFetchSearch,
+                    enabled = enabled && query.isNotBlank(),
+                    style = AstraButtonStyle.Secondary,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Spacer(Modifier.height(AstraSpacing.S))
+            AstraButton(
+                text = "Disconnect",
+                onClick = onDisconnect,
+                enabled = enabled,
+                style = AstraButtonStyle.Ghost,
+            )
         }
     }
 }
