@@ -43,6 +43,7 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.litert)
             implementation(libs.mediapipe.tasks.genai)
+            implementation(libs.mlkit.image.labeling)
             implementation(libs.androidx.activity.compose)
             implementation(libs.pdfbox.android)
             implementation(libs.ktor.client.android)

@@ -62,7 +62,7 @@ private val slides = listOf(
     OnboardingSlide(
         icon = "🎙",
         title = "Voice · Vision · RAG",
-        description = "Speak to ASTRA, analyze images with on-device EfficientNet, and query local PDFs with TF-IDF retrieval — all processed in real time.",
+        description = "Speak to ASTRA, analyze images with on-device recognition (Apple Vision on iOS, ML Kit on Android), and query local PDFs with TF-IDF retrieval — all processed in real time.",
         badge = "MULTIMODAL",
     ),
     OnboardingSlide(
