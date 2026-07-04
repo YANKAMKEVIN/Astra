@@ -35,12 +35,13 @@ class SettingsViewModelTest {
         assertTrue(state.availableModels.map { it.displayName }.containsAll(
             listOf("Mock Model", "Gemma 3 1B", "Phi-3 Mini", "Llama 3.2 3B", "Qwen 2.5 1.5B")
         ))
-        assertEquals("mock-engine", state.selectedBackend?.id)
+        assertEquals("litert-lm", state.selectedBackend?.id)
         assertTrue(state.modelReadiness.any { it.status == ModelReadinessStatus.Installed })
         assertTrue(state.modelReadiness.any { it.status == ModelReadinessStatus.UnsupportedPlatform || it.status == ModelReadinessStatus.ComingSoon })
-        assertTrue(state.availableBackends.map { it.displayName }.containsAll(
-            listOf("Mock Engine", "LiteRT", "LiteRT-LM")
-        ))
+        assertEquals(
+            listOf("Mock Engine", "LiteRT-LM"),
+            state.availableBackends.map { it.displayName },
+        )
         // Industry persona is optional and unset by default.
         assertNull(state.selectedIndustry)
         assertEquals(0.3, state.temperature)
@@ -58,16 +59,17 @@ class SettingsViewModelTest {
             delay(50)
 
             viewModel.dispatch(SettingsIntent.SelectModel("gemma-3-1b"))
+            // A backend that is no longer in the catalog is rejected, leaving the default untouched.
             viewModel.dispatch(SettingsIntent.SelectBackend("onnx-runtime"))
             delay(150)
 
             val state = viewModel.state.value
             assertEquals("gemma-3-1b", state.selectedModel?.id)
-            assertEquals("mock-engine", state.selectedBackend?.id)
+            assertEquals("litert-lm", state.selectedBackend?.id)
 
-            viewModel.dispatch(SettingsIntent.SelectBackend("litert-lm"))
+            viewModel.dispatch(SettingsIntent.SelectBackend("mock-engine"))
             delay(150)
-            assertEquals("litert-lm", viewModel.state.value.selectedBackend?.id)
+            assertEquals("mock-engine", viewModel.state.value.selectedBackend?.id)
         } finally {
             observationScope.cancel()
         }

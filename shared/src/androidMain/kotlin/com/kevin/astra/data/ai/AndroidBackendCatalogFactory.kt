@@ -1,13 +1,8 @@
 package com.kevin.astra.data.ai
 
 import com.kevin.astra.core.ai.BackendCatalog
-import com.kevin.astra.core.ai.BackendStatus
 
-actual fun createBackendCatalog(): BackendCatalog =
-    DefaultBackendCatalog(
-        statusOverrides = mapOf(
-            "litert" to BackendStatus.Installed,
-            "litert-lm" to BackendStatus.Installed,
-            "core-ml" to BackendStatus.Unsupported,
-        ),
-    )
+// Android ships both catalog backends unconditionally: the Mock engine and the MediaPipe-backed
+// LiteRT-LM runtime (a compile-time dependency), so their default Installed status needs no
+// platform override.
+actual fun createBackendCatalog(): BackendCatalog = DefaultBackendCatalog()

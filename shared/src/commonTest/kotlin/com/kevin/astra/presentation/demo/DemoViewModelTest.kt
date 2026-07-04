@@ -31,7 +31,7 @@ class DemoViewModelTest {
             assertFalse(state.isLoadingCapabilities)
             assertEquals("TestOS", state.capabilities?.platform)
             assertEquals("Mock Model", state.selectedModel?.displayName)
-            assertEquals("Mock Engine", state.selectedBackend?.displayName)
+            assertEquals("LiteRT-LM", state.selectedBackend?.displayName)
             assertEquals(
                 listOf("Device Ready", "Runtime Ready", "Model Ready", "Benchmark Ready", "Documents Ready"),
                 state.readinessIndicators.map { it.label },

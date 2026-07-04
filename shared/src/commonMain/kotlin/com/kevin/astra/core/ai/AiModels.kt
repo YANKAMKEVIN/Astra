@@ -98,6 +98,13 @@ interface BackendCatalog {
     fun currentBackend(): InferenceBackendInfo
     fun selectBackend(backendId: String): Boolean
     fun backendById(backendId: String): InferenceBackendInfo?
+
+    /**
+     * Backend to select when the user has not made an explicit choice (fresh install) or their
+     * saved choice is no longer usable: the real LiteRT-LM runtime when it is installed/detected,
+     * otherwise the always-available Mock engine.
+     */
+    fun preferredDefaultBackend(): InferenceBackendInfo
 }
 
 enum class InferenceBackend(val label: String) {

@@ -1,5 +1,8 @@
 package com.kevin.astra.data.settings
 
+import com.kevin.astra.core.ai.BackendCatalog
+import com.kevin.astra.data.ai.DefaultBackendCatalog
+
 class TestAiConfigurationKeyValueStore : AiConfigurationKeyValueStore {
     private val values = mutableMapOf<String, Any>()
 
@@ -26,7 +29,8 @@ class TestAiConfigurationKeyValueStore : AiConfigurationKeyValueStore {
 
 fun testAiConfigurationRepository(
     keyValueStore: AiConfigurationKeyValueStore = TestAiConfigurationKeyValueStore(),
+    backendCatalog: BackendCatalog = DefaultBackendCatalog(),
 ): PersistentAiConfigurationRepository =
     PersistentAiConfigurationRepository(
-        localDataSource = AiConfigurationLocalDataSource(keyValueStore),
+        localDataSource = AiConfigurationLocalDataSource(keyValueStore, backendCatalog),
     )

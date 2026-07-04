@@ -73,7 +73,7 @@ val astraRootModule = module {
     single<DeviceCapabilityProvider> { createDeviceCapabilityProvider() }
     single { createNotificationService() }
     single { createAiConfigurationKeyValueStore() }
-    single { AiConfigurationLocalDataSource(keyValueStore = get()) }
+    single { AiConfigurationLocalDataSource(keyValueStore = get(), backendCatalog = get()) }
     single { OnboardingRepository(store = get()) }
     single<PromptBuilder> { DefaultPromptBuilder() }
     single<PromptPipeline> { DefaultPromptPipeline(promptBuilder = get()) }

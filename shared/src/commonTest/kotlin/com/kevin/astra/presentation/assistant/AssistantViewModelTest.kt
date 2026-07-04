@@ -200,7 +200,8 @@ class AssistantViewModelTest {
         delay(20)
 
         assertEquals(AiModel.Mock, capturedRequest?.model)
-        assertEquals(InferenceBackend.Mock, capturedRequest?.backend)
+        // The default configuration now selects the real LiteRT-LM runtime when it is detected.
+        assertEquals(InferenceBackend.LiteRtLm, capturedRequest?.backend)
         assertEquals(1_024, capturedRequest?.maxTokens)
         assertEquals(0.8, capturedRequest?.temperature)
         assertTrue(capturedRequest?.prompt.orEmpty().contains("System role"))

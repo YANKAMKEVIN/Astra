@@ -41,8 +41,8 @@ class BenchmarkViewModelTest {
         assertEquals(DefaultBenchmarkPrompt, state.prompt)
         assertEquals(setOf("mock-model"), state.selectedModelIds)
         assertEquals(10, state.availableModels.size)
-        assertTrue(state.availableBackends.size >= 6)
-        assertEquals("mock-engine", state.selectedBackend?.id)
+        assertEquals(2, state.availableBackends.size)
+        assertEquals("litert-lm", state.selectedBackend?.id)
         assertFalse(state.isRunning)
     }
 

@@ -37,9 +37,9 @@ class ProjectOverviewViewModelTest {
             val state = viewModel.state.value
             assertFalse(state.isLoadingCapabilities)
             assertEquals("TestOS", state.capabilities?.platform)
-            assertEquals("Mock Engine", state.selectedBackend?.displayName)
+            assertEquals("LiteRT-LM", state.selectedBackend?.displayName)
             assertEquals("Mock Model", state.selectedModel?.displayName)
-            assertEquals("Mock Engine", state.currentRuntime)
+            assertEquals("LiteRT-LM", state.currentRuntime)
             assertEquals(1, state.installedModels.size)
             assertEquals(10, state.availableModels.size)
             assertTrue(state.architectureItems.any { it.title == "RoutingInferenceEngine" })
