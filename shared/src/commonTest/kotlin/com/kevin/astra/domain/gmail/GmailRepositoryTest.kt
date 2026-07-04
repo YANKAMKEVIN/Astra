@@ -107,7 +107,7 @@ class GmailRepositoryTest {
             ),
         )
 
-        val doc = repo.fetchAsSingleDocument(maxResults = 20)
+        val doc = repo.fetchAsSingleDocument(query = null, maxResults = 20, label = "Gmail")
 
         assertEquals(2, doc.emailCount)
         assertContains(doc.rawText, "First.")

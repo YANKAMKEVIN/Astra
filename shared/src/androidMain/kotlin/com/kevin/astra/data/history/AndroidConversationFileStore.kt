@@ -1,17 +1,11 @@
 package com.kevin.astra.data.history
 
 import android.content.Context
+import com.kevin.astra.app.di.androidAppContext
 import com.kevin.astra.domain.history.ChatConversation
 
-private lateinit var applicationContext: Context
-
-fun initializeAndroidConversationFileStore(context: Context) {
-    applicationContext = context.applicationContext
-}
-
 actual fun createConversationFileStore(): ConversationFileStore =
-    if (::applicationContext.isInitialized) AndroidConversationFileStore(applicationContext)
-    else NoOpConversationFileStore
+    AndroidConversationFileStore(androidAppContext())
 
 private class AndroidConversationFileStore(private val context: Context) : ConversationFileStore {
 
