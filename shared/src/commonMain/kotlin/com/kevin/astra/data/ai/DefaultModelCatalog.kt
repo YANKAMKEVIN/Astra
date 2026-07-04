@@ -7,8 +7,11 @@ import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.ai.ModelProvider
 import com.kevin.astra.core.ai.ModelStatus
 
-class DefaultModelCatalog(preInstalledIds: Set<String> = emptySet()) : ModelCatalog {
-    private val baseModels = listOf(
+class DefaultModelCatalog(
+    preInstalledIds: Set<String> = emptySet(),
+    usableBackends: Set<InferenceBackend> = InferenceBackend.entries.toSet(),
+) : ModelCatalog {
+    private val allModels = listOf(
         LocalModel(
             id = "mock-model",
             displayName = "Mock Model",
@@ -141,6 +144,14 @@ class DefaultModelCatalog(preInstalledIds: Set<String> = emptySet()) : ModelCata
             runtimeModel = AiModel.Llama,
         ),
     )
+
+    // Only surface models the current platform can actually run: those declaring at least one
+    // backend this build provides (see BackendCatalog). Models whose only backends are ONNX or
+    // llama.cpp have no real runtime here, so rather than listing them as permanently
+    // "unavailable"/"coming soon" they are hidden on platforms that can't use them.
+    private val baseModels = allModels.filter { model ->
+        model.supportedBackends.any { it in usableBackends }
+    }
 
     private val statusOverrides = mutableMapOf<String, ModelStatus>().apply {
         preInstalledIds

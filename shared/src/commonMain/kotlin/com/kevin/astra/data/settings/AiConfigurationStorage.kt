@@ -2,6 +2,7 @@ package com.kevin.astra.data.settings
 
 import com.kevin.astra.core.ai.BackendCatalog
 import com.kevin.astra.core.ai.BackendStatus
+import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.domain.settings.AiConfiguration
 import com.kevin.astra.domain.settings.DefaultSelectedModelId
@@ -22,10 +23,11 @@ expect fun createAiConfigurationKeyValueStore(): AiConfigurationKeyValueStore
 class AiConfigurationLocalDataSource(
     private val keyValueStore: AiConfigurationKeyValueStore,
     private val backendCatalog: BackendCatalog,
+    private val modelCatalog: ModelCatalog,
 ) {
     fun loadConfiguration(): AiConfiguration =
         AiConfiguration(
-            selectedModelId = keyValueStore.getString(SelectedModelIdKey) ?: DefaultSelectedModelId,
+            selectedModelId = resolveSelectedModelId(keyValueStore.getString(SelectedModelIdKey)),
             selectedBackendId = resolveSelectedBackendId(keyValueStore.getString(SelectedBackendIdKey)),
             selectedIndustry = keyValueStore.getString(SelectedIndustryKey)
                 ?.takeIf { it.isNotEmpty() }
@@ -65,6 +67,14 @@ class AiConfigurationLocalDataSource(
             ?.status == BackendStatus.Installed
         return if (savedIsUsable) savedBackendId!! else backendCatalog.preferredDefaultBackend().id
     }
+
+    /**
+     * Keeps the user's saved model only while it is still in the catalog. A model that this platform
+     * can't run is no longer listed, so a previously-saved selection of it falls back to the default
+     * (Mock) instead of leaving the app pointing at a model that no longer exists.
+     */
+    private fun resolveSelectedModelId(savedModelId: String?): String =
+        savedModelId?.takeIf { modelCatalog.modelById(it) != null } ?: DefaultSelectedModelId
 }
 
 private const val SelectedModelIdKey = "ai.selected_model_id"
