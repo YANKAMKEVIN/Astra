@@ -28,9 +28,13 @@ class IosModelReadinessProvider : ModelReadinessProvider {
     override fun readinessFor(models: List<LocalModel>): List<ModelReadiness> =
         models.map { model ->
             when {
-                model.status == ModelStatus.Installed -> model.installedReadiness()
+                // Real backends first: a downloaded LiteRT-LM model also flips to
+                // ModelStatus.Installed (and is seeded as installed at startup), so it must be
+                // reported via liteRtLmReadiness() — which finds the file in Documents, sets
+                // isDownloadedToFilesDir=true and enables delete — not as the built-in mock runtime.
                 InferenceBackend.LiteRtLm in model.supportedBackends -> model.liteRtLmReadiness()
                 InferenceBackend.LiteRt in model.supportedBackends -> model.unsupportedTensorReadiness()
+                model.status == ModelStatus.Installed -> model.installedReadiness()
                 model.status == ModelStatus.DownloadRequired -> model.downloadableReadiness()
                 else -> model.comingSoonReadiness()
             }
