@@ -13,6 +13,7 @@ import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
 import com.kevin.astra.data.demo.StaticDemoScenarioCatalog
 import com.kevin.astra.data.settings.testAiConfigurationRepository
+import com.kevin.astra.test.awaitCondition
 import com.kevin.astra.domain.benchmark.BenchmarkRecommendation
 import com.kevin.astra.domain.benchmark.BenchmarkReport
 import com.kevin.astra.domain.benchmark.BenchmarkRequest
@@ -40,9 +41,9 @@ class BenchmarkViewModelTest {
 
         assertEquals(DefaultBenchmarkPrompt, state.prompt)
         assertEquals(setOf("mock-model"), state.selectedModelIds)
-        assertEquals(10, state.availableModels.size)
-        assertTrue(state.availableBackends.size >= 6)
-        assertEquals("mock-engine", state.selectedBackend?.id)
+        assertEquals(12, state.availableModels.size)
+        assertEquals(2, state.availableBackends.size)
+        assertEquals("litert-lm", state.selectedBackend?.id)
         assertFalse(state.isRunning)
     }
 
@@ -65,7 +66,7 @@ class BenchmarkViewModelTest {
         val viewModel = testViewModel()
 
         viewModel.dispatch(BenchmarkIntent.SelectAllModels)
-        assertEquals(10, viewModel.state.value.selectedModelIds.size)
+        assertEquals(12, viewModel.state.value.selectedModelIds.size)
 
         viewModel.dispatch(BenchmarkIntent.ClearModelSelection)
         assertTrue(viewModel.state.value.selectedModelIds.isEmpty())
@@ -94,8 +95,7 @@ class BenchmarkViewModelTest {
         viewModel.dispatch(BenchmarkIntent.ToggleModel("gemma-3-1b"))
         viewModel.dispatch(BenchmarkIntent.ToggleModel("phi-3-mini"))
         viewModel.dispatch(BenchmarkIntent.RunBenchmark)
-        yield()
-        delay(200)
+        awaitCondition { !viewModel.state.value.isRunning && viewModel.state.value.results.isNotEmpty() }
 
         val state = viewModel.state.value
         assertFalse(state.isRunning)
@@ -119,7 +119,7 @@ class BenchmarkViewModelTest {
         )
 
         viewModel.dispatch(BenchmarkIntent.RunBenchmark)
-        delay(100)
+        awaitCondition { !viewModel.state.value.isRunning && viewModel.state.value.results.isNotEmpty() }
 
         val result = viewModel.state.value.results.firstOrNull()
         assertTrue(result?.hardwareBefore != null)

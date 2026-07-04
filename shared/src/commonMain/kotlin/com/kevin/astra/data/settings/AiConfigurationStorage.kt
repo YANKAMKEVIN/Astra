@@ -1,8 +1,10 @@
 package com.kevin.astra.data.settings
 
+import com.kevin.astra.core.ai.BackendCatalog
+import com.kevin.astra.core.ai.BackendStatus
+import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.domain.settings.AiConfiguration
-import com.kevin.astra.domain.settings.DefaultSelectedBackendId
 import com.kevin.astra.domain.settings.DefaultSelectedModelId
 
 interface AiConfigurationKeyValueStore {
@@ -20,11 +22,13 @@ expect fun createAiConfigurationKeyValueStore(): AiConfigurationKeyValueStore
 
 class AiConfigurationLocalDataSource(
     private val keyValueStore: AiConfigurationKeyValueStore,
+    private val backendCatalog: BackendCatalog,
+    private val modelCatalog: ModelCatalog,
 ) {
     fun loadConfiguration(): AiConfiguration =
         AiConfiguration(
-            selectedModelId = keyValueStore.getString(SelectedModelIdKey) ?: DefaultSelectedModelId,
-            selectedBackendId = keyValueStore.getString(SelectedBackendIdKey) ?: DefaultSelectedBackendId,
+            selectedModelId = resolveSelectedModelId(keyValueStore.getString(SelectedModelIdKey)),
+            selectedBackendId = resolveSelectedBackendId(keyValueStore.getString(SelectedBackendIdKey)),
             selectedIndustry = keyValueStore.getString(SelectedIndustryKey)
                 ?.takeIf { it.isNotEmpty() }
                 ?.let { saved -> PromptIndustry.entries.firstOrNull { it.name == saved } },
@@ -51,6 +55,26 @@ class AiConfigurationLocalDataSource(
         keyValueStore.putBoolean(LightThemeEnabledKey, configuration.lightThemeEnabled)
         keyValueStore.putString(HuggingFaceTokenKey, configuration.huggingFaceToken ?: "")
     }
+
+    /**
+     * Keeps the user's saved backend only while it is still installed/detected; otherwise (fresh
+     * install, or a previously-selected backend that is no longer available) falls back to the
+     * catalog's preferred default — the real LiteRT-LM runtime when ready, else the Mock engine.
+     */
+    private fun resolveSelectedBackendId(savedBackendId: String?): String {
+        val savedIsUsable = savedBackendId
+            ?.let { backendCatalog.backendById(it) }
+            ?.status == BackendStatus.Installed
+        return if (savedIsUsable) savedBackendId!! else backendCatalog.preferredDefaultBackend().id
+    }
+
+    /**
+     * Keeps the user's saved model only while it is still in the catalog. A model that this platform
+     * can't run is no longer listed, so a previously-saved selection of it falls back to the default
+     * (Mock) instead of leaving the app pointing at a model that no longer exists.
+     */
+    private fun resolveSelectedModelId(savedModelId: String?): String =
+        savedModelId?.takeIf { modelCatalog.modelById(it) != null } ?: DefaultSelectedModelId
 }
 
 private const val SelectedModelIdKey = "ai.selected_model_id"

@@ -4,6 +4,8 @@ enum class AiModel(val label: String, val filesystemId: String) {
     Mock("Mock Model", "mock-model"),
     Gemma("Gemma", "gemma-3-1b"),
     Gemma3_4B("Gemma 3 4B", "gemma-3-4b"),
+    Gemma4E2B("Gemma 4 E2B", "gemma-4-e2b"),
+    Gemma4E4B("Gemma 4 E4B", "gemma-4-e4b"),
     Phi("Phi", "phi-3-mini"),
     Phi4Mini("Phi-4 Mini", "phi-4-mini"),
     Llama("Llama", "llama-3-2-3b"),
@@ -98,6 +100,13 @@ interface BackendCatalog {
     fun currentBackend(): InferenceBackendInfo
     fun selectBackend(backendId: String): Boolean
     fun backendById(backendId: String): InferenceBackendInfo?
+
+    /**
+     * Backend to select when the user has not made an explicit choice (fresh install) or their
+     * saved choice is no longer usable: the real LiteRT-LM runtime when it is installed/detected,
+     * otherwise the always-available Mock engine.
+     */
+    fun preferredDefaultBackend(): InferenceBackendInfo
 }
 
 enum class InferenceBackend(val label: String) {

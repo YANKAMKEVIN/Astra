@@ -17,7 +17,8 @@ class PersistentAiConfigurationRepositoryTest {
         val configuration = repository.getConfiguration()
 
         assertEquals("mock-model", configuration.selectedModelId)
-        assertEquals("mock-engine", configuration.selectedBackendId)
+        // Fresh install defaults to the real LiteRT-LM runtime when it is installed/detected.
+        assertEquals("litert-lm", configuration.selectedBackendId)
         // Industry persona is optional and unset by default.
         assertNull(configuration.selectedIndustry)
         assertEquals(0.3, configuration.temperature)
@@ -32,7 +33,7 @@ class PersistentAiConfigurationRepositoryTest {
         val repository = testAiConfigurationRepository()
 
         repository.updateSelectedModel("gemma-3-1b")
-        repository.updateSelectedBackend("onnx-runtime")
+        repository.updateSelectedBackend("litert-lm")
         repository.updateIndustry(PromptIndustry.Energy)
         repository.updateTemperature(0.7)
         repository.updateMaxTokens(1_024)
@@ -42,7 +43,7 @@ class PersistentAiConfigurationRepositoryTest {
 
         val configuration = repository.observeConfiguration().first()
         assertEquals("gemma-3-1b", configuration.selectedModelId)
-        assertEquals("onnx-runtime", configuration.selectedBackendId)
+        assertEquals("litert-lm", configuration.selectedBackendId)
         assertEquals(PromptIndustry.Energy, configuration.selectedIndustry)
         assertEquals(0.7, configuration.temperature)
         assertEquals(1_024, configuration.maxTokens)

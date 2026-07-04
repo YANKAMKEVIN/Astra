@@ -7,8 +7,11 @@ import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.ai.ModelProvider
 import com.kevin.astra.core.ai.ModelStatus
 
-class DefaultModelCatalog(preInstalledIds: Set<String> = emptySet()) : ModelCatalog {
-    private val baseModels = listOf(
+class DefaultModelCatalog(
+    preInstalledIds: Set<String> = emptySet(),
+    usableBackends: Set<InferenceBackend> = InferenceBackend.entries.toSet(),
+) : ModelCatalog {
+    private val allModels = listOf(
         LocalModel(
             id = "mock-model",
             displayName = "Mock Model",
@@ -47,6 +50,35 @@ class DefaultModelCatalog(preInstalledIds: Set<String> = emptySet()) : ModelCata
             runtimeModel = AiModel.Gemma3_4B,
             // litert-community/Gemma3-4B-IT only has -web.task files (WASM, not Android-compatible)
             downloadUrl = null,
+        ),
+        LocalModel(
+            id = "gemma-4-e2b",
+            displayName = "Gemma 4 E2B",
+            provider = ModelProvider.Google,
+            parameterCount = "E2B",
+            quantization = "int4",
+            contextWindow = 8_192,
+            supportedBackends = listOf(InferenceBackend.LiteRtLm),
+            minimumMemoryMb = 4_096,
+            status = ModelStatus.DownloadRequired,
+            runtimeModel = AiModel.Gemma4E2B,
+            // Ungated Apache-2.0 LiteRT-LM build; vendor-neutral CPU .litertlm (~2.6 GB). This is the
+            // model the iOS LiteRTLMSwift bridge's generate() targets (Gemma-4 turn markers).
+            downloadUrl = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm",
+        ),
+        LocalModel(
+            id = "gemma-4-e4b",
+            displayName = "Gemma 4 E4B",
+            provider = ModelProvider.Google,
+            parameterCount = "E4B",
+            quantization = "int4",
+            contextWindow = 8_192,
+            supportedBackends = listOf(InferenceBackend.LiteRtLm),
+            minimumMemoryMb = 6_144,
+            status = ModelStatus.DownloadRequired,
+            runtimeModel = AiModel.Gemma4E4B,
+            // Ungated Apache-2.0 LiteRT-LM build; vendor-neutral CPU .litertlm (~3.7 GB).
+            downloadUrl = "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm",
         ),
         LocalModel(
             id = "phi-4-mini",
@@ -141,6 +173,14 @@ class DefaultModelCatalog(preInstalledIds: Set<String> = emptySet()) : ModelCata
             runtimeModel = AiModel.Llama,
         ),
     )
+
+    // Only surface models the current platform can actually run: those declaring at least one
+    // backend this build provides (see BackendCatalog). Models whose only backends are ONNX or
+    // llama.cpp have no real runtime here, so rather than listing them as permanently
+    // "unavailable"/"coming soon" they are hidden on platforms that can't use them.
+    private val baseModels = allModels.filter { model ->
+        model.supportedBackends.any { it in usableBackends }
+    }
 
     private val statusOverrides = mutableMapOf<String, ModelStatus>().apply {
         preInstalledIds

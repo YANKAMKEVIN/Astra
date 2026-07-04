@@ -67,13 +67,15 @@ val astraRootModule = module {
     single { AstraNavigator() }
     single<ModelCatalog> {
         val preInstalled = get<ModelDownloadManager>().getInstalledModelPaths().keys
-        DefaultModelCatalog(preInstalledIds = preInstalled)
+        // Only list models this platform can actually run — the backends its BackendCatalog ships.
+        val usableBackends = get<BackendCatalog>().availableBackends().map { it.runtimeBackend }.toSet()
+        DefaultModelCatalog(preInstalledIds = preInstalled, usableBackends = usableBackends)
     }
     single<BackendCatalog> { createBackendCatalog() }
     single<DeviceCapabilityProvider> { createDeviceCapabilityProvider() }
     single { createNotificationService() }
     single { createAiConfigurationKeyValueStore() }
-    single { AiConfigurationLocalDataSource(keyValueStore = get()) }
+    single { AiConfigurationLocalDataSource(keyValueStore = get(), backendCatalog = get(), modelCatalog = get()) }
     single { OnboardingRepository(store = get()) }
     single<PromptBuilder> { DefaultPromptBuilder() }
     single<PromptPipeline> { DefaultPromptPipeline(promptBuilder = get()) }

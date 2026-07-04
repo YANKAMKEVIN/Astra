@@ -15,10 +15,14 @@ class AndroidModelReadinessProvider(
     override fun readinessFor(models: List<LocalModel>): List<ModelReadiness> =
         models.map { model ->
             when {
-                // Mock model is always installed by definition — no file check needed
-                model.status == ModelStatus.Installed -> model.installedReadiness()
+                // Real backends first: a downloaded LiteRT-LM model also flips to
+                // ModelStatus.Installed (and is seeded as installed at startup), so it must be
+                // reported via liteRtLmReadiness() — which finds the downloaded file and enables
+                // delete — not as the built-in mock runtime. The mock model has only the Mock
+                // backend, so it still falls through to installedReadiness() below.
                 InferenceBackend.LiteRtLm in model.supportedBackends -> model.liteRtLmReadiness()
                 InferenceBackend.LiteRt in model.supportedBackends -> model.liteRtReadiness()
+                model.status == ModelStatus.Installed -> model.installedReadiness()
                 model.status == ModelStatus.DownloadRequired -> model.downloadableReadiness()
                 else -> model.comingSoonReadiness()
             }
