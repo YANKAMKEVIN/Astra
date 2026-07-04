@@ -191,6 +191,11 @@ private fun documentsDirectory(): String =
  * `NSURLSessionDownloadDelegate` implementation backing the download. Reports progress via
  * [onProgress], and either [onComplete] (success/failure) or [onAuthFailure] (401/403 — mirrors
  * the HuggingFace gated-model case already handled on Android) exactly once per download.
+ *
+ * Any non-success HTTP status (>= 400) is rejected rather than treated as a completed download:
+ * NSURLSession still routes error responses (404, 500, …) to `didFinishDownloadingToURL` with the
+ * error page as the "downloaded" body, so without this guard that HTML/error content would be
+ * moved into the model directory and reported as installed.
  */
 private class DownloadDelegate(
     private val destinationPath: String,
@@ -199,6 +204,20 @@ private class DownloadDelegate(
     private val onAuthFailure: (Long) -> Unit,
 ) : NSObject(), NSURLSessionDownloadDelegateProtocol {
 
+    /**
+     * Routes a non-success HTTP status to the right terminal callback and returns true when it did
+     * (so the caller stops). 401/403 surface as an auth failure; every other >= 400 status becomes
+     * a plain download failure. Returns false for a missing status or any 2xx/3xx.
+     */
+    private fun rejectIfHttpError(statusCode: Long?): Boolean {
+        if (statusCode == null || statusCode < 400L) return false
+        when (statusCode) {
+            401L, 403L -> onAuthFailure(statusCode)
+            else -> onComplete(null, "Download failed: the server returned HTTP $statusCode.")
+        }
+        return true
+    }
+
     override fun URLSession(
         session: NSURLSession,
         downloadTask: NSURLSessionDownloadTask,
@@ -206,9 +225,7 @@ private class DownloadDelegate(
         totalBytesWritten: Long,
         totalBytesExpectedToWrite: Long,
     ) {
-        val statusCode = (downloadTask.response as? platform.Foundation.NSHTTPURLResponse)?.statusCode
-        if (statusCode != null && (statusCode == 401L || statusCode == 403L)) {
-            onAuthFailure(statusCode)
+        if (rejectIfHttpError((downloadTask.response as? platform.Foundation.NSHTTPURLResponse)?.statusCode)) {
             downloadTask.cancel()
             return
         }
@@ -227,9 +244,7 @@ private class DownloadDelegate(
         downloadTask: NSURLSessionDownloadTask,
         didFinishDownloadingToURL: NSURL,
     ) {
-        val statusCode = (downloadTask.response as? platform.Foundation.NSHTTPURLResponse)?.statusCode
-        if (statusCode != null && (statusCode == 401L || statusCode == 403L)) {
-            onAuthFailure(statusCode)
+        if (rejectIfHttpError((downloadTask.response as? platform.Foundation.NSHTTPURLResponse)?.statusCode)) {
             return
         }
         val sourcePath = didFinishDownloadingToURL.path
