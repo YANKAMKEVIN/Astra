@@ -4,6 +4,11 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- Voice Assistant: iOS hard-crashes if the mic / speech APIs are used without these. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>ASTRA uses the microphone so you can talk to the local assistant. Audio is processed on-device.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>ASTRA transcribes your speech on-device to send your question to the local assistant.</string>
 	<!-- Gmail OAuth (read from Kotlin via NSBundle "GIDClientID"). Not a secret. -->
 	<key>GIDClientID</key>
 	<string>12573789762-oc525l5qlg0fr7u9c5piiogdd5bpphfl.apps.googleusercontent.com</string>
