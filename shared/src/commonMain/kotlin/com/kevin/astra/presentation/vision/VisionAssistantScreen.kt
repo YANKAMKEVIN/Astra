@@ -187,14 +187,14 @@ private fun MockWarningBanner() {
             .padding(AstraSpacing.M),
     ) {
         Text(
-            text = "⚙ Mock vision mode",
+            text = "⚠ Vision unavailable",
             style = AstraTypography.Caption,
             color = AstraColors.Secondary,
             fontWeight = FontWeight.Bold,
         )
         Spacer(Modifier.height(AstraSpacing.XS))
         Text(
-            text = "Add EfficientNet-Lite0 (model.tflite + labels.txt) to assets/models/vision/ for real on-device inference.",
+            text = "On-device image classification isn't available on this device.",
             style = AstraTypography.Caption,
             color = AstraColors.TextSecondary,
         )

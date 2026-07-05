@@ -13,13 +13,14 @@ ASTRA demonstrates how critical-operation assistants can be designed without dep
 
 - a guided Demo Mode for five-minute stakeholder walkthroughs;
 - a device dashboard for platform capability inspection;
-- a local assistant powered by a deterministic Mock runtime;
-- an embedded Documents Assistant for local context retrieval;
+- a local assistant backed by real LiteRT-LM inference, with transparent Mock fallback;
+- an embedded Documents Assistant for local context retrieval, plus Gmail/email RAG;
+- a Vision Assistant that classifies images on-device (Apple Vision / ML Kit);
 - a Benchmark Lab with runtime metrics and task evaluation;
-- a Model Manager that explains local file readiness and fallback status;
+- a Model Manager that lists only the models the platform can run and explains readiness/fallback;
 - a Project Overview screen for architecture discussions.
 
-The v1.0.0 release candidate is presentation-ready. Real local model downloads (HTTP streaming, progress, cancel/delete, storage accounting) and real generative inference via LiteRT-LM are implemented and working end-to-end on Android; cloud inference and remote model registries remain out of scope.
+The v1.0.0 release candidate is presentation-ready. Real local model downloads (HTTP streaming, progress, cancel/delete, storage accounting) and real generative inference via LiteRT-LM are implemented on **both Android and iOS** — verified end-to-end on Android, while the iOS path builds, downloads and links end-to-end with on-device generation still to be run on a physical device. On-device image classification is real on both platforms. Cloud inference and remote model registries remain out of scope.
 
 ## Screenshots
 
@@ -101,6 +102,14 @@ Runs curated operational prompts through the prompt pipeline and local inference
 
 Indexes an embedded maintenance document and retrieves relevant context locally before asking ASTRA.
 
+### Vision Assistant
+
+Classifies a captured image entirely on-device — Apple Vision (`VNClassifyImageRequest`) on iOS, ML Kit image labeling on Android — then feeds the detected labels into the prompt pipeline so the assistant can reason about the image.
+
+### Email & Gmail
+
+Connects Gmail through native OAuth (AppAuth on Android, `ASWebAuthenticationSession` on iOS) and indexes emails and attachments for local RAG alongside PDFs.
+
 ### Benchmark
 
 Compares catalog models against demo scenarios and reports latency, time to first token, memory usage, runtime mode and task evaluation quality.
@@ -111,7 +120,7 @@ Scores responses against safety, procedure completeness, technical accuracy, dom
 
 ### Model Manager
 
-Shows model readiness, required files, supported backends, expected size and why fallback is active when local model bundles are missing.
+Lists only the models the current platform can actually run, shows their readiness, required files, supported backends and expected size, and explains why fallback is active when a local model bundle is missing. Defaults to the real LiteRT-LM runtime when it is detected, otherwise the Mock engine.
 
 ### Demo Mode
 
@@ -125,8 +134,8 @@ Provides a read-only technical architecture explorer directly inside the app.
 
 | Platform | Status | Notes |
 |---|---|---|
-| Android | Supported | Compose UI, device capability provider, Mock runtime, LiteRT/LiteRT-LM foundations. |
-| iOS | Supported | Compose UI, Mock runtime, real model download, and real LiteRT-LM generative inference via a Swift bridge (see below). |
+| Android | Supported | Compose UI, device capability provider, Mock + real LiteRT-LM runtime, real model download, on-device image classification (ML Kit). |
+| iOS | Supported | Compose UI, Mock runtime, real model download, real LiteRT-LM generative inference via a Swift bridge (see below), on-device image classification (Apple Vision). |
 | Desktop | Future | Not part of v1.0.0. |
 
 ## Runtime and model status
@@ -134,13 +143,10 @@ Provides a read-only technical architecture explorer directly inside the app.
 | Runtime | Status |
 |---|---|
 | Mock Engine | Installed and demo-ready. |
-| LiteRT | Real TFLite `Interpreter` load/execute pass on Android only. Proves model loading and measures real latency, but currently runs on a zeroed input tensor rather than the encoded prompt, so its output is a tensor-shape report, not a generated answer. Not implemented on iOS. |
-| LiteRT-LM | Real generative local inference on **both** platforms: Android via MediaPipe `LlmInference`, iOS via a community Swift package ([mylovelycodes/LiteRTLM-Swift](https://github.com/mylovelycodes/LiteRTLM-Swift)) bridged into the shared Kotlin code — Google's own official Swift package hit three separate upstream build bugs, documented in [iOS LiteRT-LM Setup](docs/10_iOS_LiteRT_LM_Setup.md). Both load a downloaded or bundled model and generate an actual response to the user's prompt, with real latency/token metrics. The iOS build is confirmed compiling and linking end-to-end in Xcode; on-device generation with a real model still needs to be run. That doc covers the manual Xcode steps required (adding the package + an entitlement) and what's still unverified. |
-| ONNX Runtime | Cataloged for future work. |
-| Core ML | Cataloged for future work. |
-| llama.cpp | Cataloged for future work. |
+| LiteRT-LM | Real generative local inference on **both** platforms: Android via MediaPipe `LlmInference`, iOS via a community Swift package ([mylovelycodes/LiteRTLM-Swift](https://github.com/mylovelycodes/LiteRTLM-Swift)) bridged into the shared Kotlin code — Google's own official Swift package hit three separate upstream build bugs, documented in [iOS LiteRT-LM Setup](docs/10_iOS_LiteRT_LM_Setup.md). Both load a downloaded or bundled model and generate an actual response to the user's prompt, with real latency/token metrics. The iOS build is confirmed compiling, downloading and linking end-to-end; on-device generation with a real model still needs to be run on a physical device. The default backend when LiteRT-LM is detected. |
+| LiteRT (tensor) / ONNX / Core ML / llama.cpp | Removed from the Backend Configuration picker. LiteRT tensor had an Android-only TFLite pass but no generative output; the others never shipped a runtime. Rather than showing them as permanently "unavailable", models that only target them are hidden per platform. The `InferenceBackend` enum keeps them for routing metadata only. |
 
-Model downloads are implemented on both platforms: models are fetched over HTTP with progress reporting, can be cancelled and deleted, and on-device storage usage is tracked. Downloaded LiteRT-LM bundles are picked up automatically ahead of any bundled asset.
+Model downloads are implemented on both platforms: models are fetched over HTTP with progress reporting, can be cancelled and deleted, non-success responses (404/500) are rejected instead of installing an error body, and on-device storage usage is tracked. Downloaded LiteRT-LM bundles are picked up automatically ahead of any bundled asset. The catalog includes the ungated **Gemma 4 E2B/E4B** LiteRT-LM builds (the model the iOS bridge targets), so a real download works without a HuggingFace token.
 
 ## Build instructions
 
@@ -194,11 +200,8 @@ xcodebuild \
 
 ASTRA v1.0.0 is a polished demonstration baseline. Future work may include:
 
-- feeding the real encoded prompt into the plain LiteRT (non-LM) engine instead of a zeroed input tensor;
-- running the iOS LiteRT-LM Swift bridge on a physical device with a real downloaded model — the build itself is confirmed compiling and linking (see [iOS LiteRT-LM Setup](docs/10_iOS_LiteRT_LM_Setup.md));
-- ONNX Runtime integration;
-- Core ML integration;
-- llama.cpp/GGUF experiments;
+- running the iOS LiteRT-LM Swift bridge on a physical device with a real Gemma 4 model to confirm on-device generation output (see [iOS LiteRT-LM Setup](docs/10_iOS_LiteRT_LM_Setup.md));
+- automated test coverage for the platform runtime adapters (download managers, inference engines, readiness providers, image classifiers);
 - exportable benchmark reports;
 - accessibility pass and localization;
 - CI release automation.
