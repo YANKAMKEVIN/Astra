@@ -42,6 +42,12 @@ The screenshots below are documentation panels stored in `docs/images/` for rele
 |:--:|
 | ![Demo Mode](docs/images/demo-mode.svg) |
 
+### Android capture
+
+<p align="center">
+  <img src="images/screenshot-home.png" alt="ASTRA Android dashboard screenshot" width="300" />
+</p>
+
 ## Architecture
 
 ASTRA follows Clean Architecture with an MVI presentation layer:
