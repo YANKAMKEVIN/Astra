@@ -45,7 +45,7 @@ The screenshots below are documentation panels stored in `docs/images/` for rele
 ### Android capture
 
 <p align="center">
-  <img src="images/screenshot-home.png" alt="ASTRA Android dashboard screenshot" width="300" />
+  <img src="images/screenshot-home.png" alt="ASTRA Android dashboard screenshot" width="240" />
 </p>
 
 ## Architecture
