@@ -33,8 +33,8 @@ fun AstraScreen(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
+            verticalAlignment = Alignment.Top,
         ) {
             Text(
                 text = title,
@@ -43,7 +43,9 @@ fun AstraScreen(
                 modifier = Modifier.weight(1f),
             )
             if (showDemoIndicator) {
-                AstraDemoModeIndicator()
+                // Align with the first title line (the chip used to float mid-height when the
+                // title wrapped to two lines).
+                AstraDemoModeIndicator(modifier = Modifier.padding(top = AstraSpacing.XS))
             }
         }
         if (!description.isNullOrBlank()) {
