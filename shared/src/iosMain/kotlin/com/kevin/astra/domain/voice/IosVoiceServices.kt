@@ -49,6 +49,18 @@ private class IosSpeechRecognitionService : SpeechRecognitionService {
 
     private fun beginRecognition() {
         if (isListening) return
+
+        // ASTRA is zero-cloud: only recognize speech on-device. Apple's default recognizer streams
+        // audio to its servers on locales/devices without on-device support, which would contradict
+        // the privacy promise in the mic/speech usage descriptions — so refuse rather than fall back.
+        if (recognizer?.supportsOnDeviceRecognition != true) {
+            _state.value = SpeechRecognitionState.Error(
+                "On-device speech recognition isn't available for this device or language, " +
+                    "and ASTRA won't send audio to the cloud.",
+            )
+            return
+        }
+
         isListening = true
         _state.value = SpeechRecognitionState.Listening
 
@@ -59,6 +71,8 @@ private class IosSpeechRecognitionService : SpeechRecognitionService {
 
         val req = SFSpeechAudioBufferRecognitionRequest()
         req.shouldReportPartialResults = true
+        // Enforce on-device transcription so audio never leaves the device (guarded above).
+        req.requiresOnDeviceRecognition = true
         request = req
 
         val inputNode = audioEngine.inputNode
