@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -55,7 +56,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -524,52 +527,87 @@ private fun AssistantContent(
         ModalBottomSheet(
             onDismissRequest = { showToolsSheet = false },
             sheetState = sheetState,
-            containerColor = AstraColors.Surface,
+            containerColor = Color.Transparent,
+            scrimColor = Color.Black.copy(alpha = 0.55f),
+            dragHandle = null,
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(horizontal = AstraSpacing.S)
+                    .navigationBarsPadding()
+                    .padding(bottom = AstraSpacing.S)
+                    .shadow(30.dp, RoundedCornerShape(32.dp), clip = false)
+                    .clip(RoundedCornerShape(32.dp))
+                    .background(AstraColors.SurfaceElevated.copy(alpha = 0.94f))
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.White.copy(alpha = 0.06f), Color.Transparent),
+                        ),
+                    )
+                    .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(32.dp))
                     .padding(horizontal = AstraSpacing.L)
-                    .padding(bottom = AstraSpacing.XL),
-                verticalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
+                    .padding(top = AstraSpacing.M, bottom = AstraSpacing.L),
+                verticalArrangement = Arrangement.spacedBy(AstraSpacing.S),
             ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .size(width = 40.dp, height = 4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(AstraColors.TextSecondary.copy(alpha = 0.35f)),
+                )
+                Spacer(Modifier.height(AstraSpacing.XS))
                 Text(
                     text = "Tools",
                     style = AstraTypography.Title,
                     color = AstraColors.TextPrimary,
                     fontWeight = FontWeight.SemiBold,
                 )
-                Spacer(Modifier.height(AstraSpacing.S))
+                Spacer(Modifier.height(AstraSpacing.XS))
                 AstraDestination.secondaryNavDestinations.forEach { dest ->
+                    val icon = when (dest) {
+                        AstraDestination.VoiceAssistant -> "🎤"
+                        AstraDestination.VisionAssistant -> "📷"
+                        AstraDestination.History -> "🕐"
+                        AstraDestination.Demo -> "🚀"
+                        else -> "›"
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(AstraColors.SurfaceElevated, RoundedCornerShape(14.dp))
-                            .border(1.dp, AstraColors.Border, RoundedCornerShape(14.dp))
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(AstraColors.Surface)
+                            .border(1.dp, AstraColors.Border, RoundedCornerShape(18.dp))
                             .clickable {
                                 showToolsSheet = false
                                 onNavigate(dest)
                             }
-                            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.M),
+                            .padding(horizontal = AstraSpacing.M, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
                     ) {
-                        val icon = when (dest) {
-                            AstraDestination.VoiceAssistant -> "🎤"
-                            AstraDestination.VisionAssistant -> "📷"
-                            AstraDestination.History -> "🕐"
-                            AstraDestination.Demo -> "🚀"
-                            else -> "›"
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(AstraColors.Secondary.copy(alpha = 0.14f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(text = icon, style = AstraTypography.Body)
                         }
-                        Text(text = icon, style = AstraTypography.Body)
-                        Column {
-                            Text(
-                                text = dest.label,
-                                style = AstraTypography.Body,
-                                color = AstraColors.TextPrimary,
-                                fontWeight = FontWeight.Medium,
-                            )
-                        }
+                        Text(
+                            text = dest.label,
+                            style = AstraTypography.Body,
+                            color = AstraColors.TextPrimary,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text = "›",
+                            style = AstraTypography.Title,
+                            color = AstraColors.TextSecondary,
+                        )
                     }
                 }
             }
