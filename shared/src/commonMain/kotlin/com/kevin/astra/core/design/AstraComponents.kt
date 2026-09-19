@@ -19,6 +19,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -291,57 +295,74 @@ fun AstraDemoModeIndicator(modifier: Modifier = Modifier) {
     }
 }
 
+/** Floating glass dock surface color (approx. #152033 translucent). */
+private val DockGlass = Color(0xFF152033)
+
 @Composable
 fun AstraNavigationBar(
     selectedDestination: AstraDestination,
     onDestinationSelected: (AstraDestination) -> Unit,
 ) {
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(AstraColors.Surface)
-            .border(1.dp, AstraColors.Border)
             .navigationBarsPadding()
-            .padding(horizontal = AstraSpacing.S, vertical = AstraSpacing.S),
-        horizontalArrangement = Arrangement.SpaceEvenly,
+            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
     ) {
-        AstraDestination.primaryNavDestinations.forEach { destination ->
-            NavBarItem(
-                label = destination.shortLabel,
-                selected = destination == selectedDestination,
-                onClick = { onDestinationSelected(destination) },
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(68.dp)
+                .shadow(20.dp, RoundedCornerShape(28.dp), clip = false)
+                .clip(RoundedCornerShape(28.dp))
+                .background(DockGlass.copy(alpha = 0.92f))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.White.copy(alpha = 0.05f), Color.Transparent),
+                    ),
+                )
+                .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(28.dp))
+                .padding(horizontal = AstraSpacing.S),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AstraDestination.primaryNavDestinations.forEach { destination ->
+                NavBarItem(
+                    glyph = destination.navGlyph,
+                    label = destination.shortLabel,
+                    selected = destination == selectedDestination,
+                    onClick = { onDestinationSelected(destination) },
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun NavBarItem(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun NavBarItem(glyph: String, label: String, selected: Boolean, onClick: () -> Unit) {
     Column(
         modifier = Modifier
-            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .background(
-                color = if (selected) AstraColors.Primary.copy(alpha = 0.16f) else Color.Transparent,
+                color = if (selected) AstraColors.Primary.copy(alpha = 0.18f) else Color.Transparent,
                 shape = RoundedCornerShape(16.dp),
             )
             .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .size(5.dp)
-                .background(
-                    if (selected) AstraColors.Secondary else AstraColors.TextDisabled,
-                    RoundedCornerShape(50),
-                ),
+        Text(
+            text = glyph,
+            fontSize = 18.sp,
+            color = if (selected) AstraColors.Secondary else AstraColors.TextSecondary,
         )
         Spacer(Modifier.height(AstraSpacing.XS))
         Text(
             text = label,
-            style = AstraTypography.Caption,
+            style = AstraTypography.Caption.copy(fontSize = 11.sp),
             color = if (selected) AstraColors.TextPrimary else AstraColors.TextSecondary,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
         )
     }
 }

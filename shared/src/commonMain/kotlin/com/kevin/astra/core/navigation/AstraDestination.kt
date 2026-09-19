@@ -7,6 +7,8 @@ sealed class AstraDestination(
     val showsNavigationBar: Boolean = true,
     /** Shown directly in the bottom bar. False = accessible via the "More" sheet. */
     val isPrimaryNav: Boolean = false,
+    /** Monochrome glyph shown above the label in the floating dock. */
+    val navGlyph: String = "",
 ) {
     data object Splash : AstraDestination(
         id = "splash",
@@ -32,35 +34,40 @@ sealed class AstraDestination(
         id = "overview",
         label = "Home",
         shortLabel = "Home",
-        isPrimaryNav = true
+        isPrimaryNav = true,
+        navGlyph = "⌂",
     )
 
     data object Assistant : AstraDestination(
         id = "assistant",
         label = "Assistant",
         shortLabel = "Chat",
-        isPrimaryNav = true
+        isPrimaryNav = true,
+        navGlyph = "✦",
     )
 
     data object Documents : AstraDestination(
         id = "documents",
         label = "Documents",
         shortLabel = "Docs",
-        isPrimaryNav = true
+        isPrimaryNav = true,
+        navGlyph = "▤",
     )
 
     data object Benchmark : AstraDestination(
         id = "benchmark",
         label = "Benchmark",
         shortLabel = "Bench",
-        isPrimaryNav = true
+        isPrimaryNav = true,
+        navGlyph = "◫",
     )
 
     data object Settings : AstraDestination(
         id = "settings",
         label = "Settings",
-        shortLabel = "Config",
-        isPrimaryNav = true
+        shortLabel = "System",
+        isPrimaryNav = true,
+        navGlyph = "⬡",
     )
 
     data object VoiceAssistant : AstraDestination(
