@@ -492,7 +492,7 @@ private fun AssistantContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = AstraSpacing.L)
-                .padding(top = if (isDemoMode) AstraSpacing.S else AstraSpacing.L),
+                .padding(top = if (isDemoMode) AstraSpacing.S else AstraSpacing.M),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
         ) {
@@ -506,11 +506,18 @@ private fun AssistantContent(
                     color = AstraColors.TextPrimary,
                     fontWeight = FontWeight.SemiBold,
                 )
-                Text(
-                    text = "${state.selectedIndustry?.label ?: "General"} · ${state.sessionModel?.displayName ?: "Local AI"}",
-                    style = AstraTypography.Caption,
-                    color = AstraColors.TextSecondary,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+                ) {
+                    Text(
+                        text = "${state.selectedIndustry?.label ?: "General"} · ${state.sessionModel?.displayName ?: "Local AI"}",
+                        style = AstraTypography.Caption,
+                        color = AstraColors.TextSecondary,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    HeaderLocalBadge()
+                }
             }
 
             if (state.messages.isNotEmpty()) {
@@ -744,6 +751,28 @@ private fun HeaderIconButton(icon: String, onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Text(text = icon, style = AstraTypography.Body, color = AstraColors.TextPrimary)
+    }
+}
+
+/** Compact on-device indicator shown in the Chat header next to the model name. */
+@Composable
+private fun HeaderLocalBadge() {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(AstraColors.Secondary.copy(alpha = 0.12f))
+            .border(1.dp, AstraColors.Secondary.copy(alpha = 0.30f), RoundedCornerShape(50))
+            .padding(horizontal = AstraSpacing.S, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(text = "●", fontSize = 8.sp, color = AstraColors.Secondary)
+        Text(
+            text = "LOCAL",
+            style = AstraTypography.Caption.copy(fontSize = 10.sp, letterSpacing = 0.8.sp),
+            color = AstraColors.Secondary,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
