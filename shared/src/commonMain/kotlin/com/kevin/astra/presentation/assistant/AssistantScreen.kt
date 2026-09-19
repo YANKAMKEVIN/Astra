@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -185,21 +186,30 @@ private fun AssistantDrawer(
             .background(AstraColors.Surface)
             .border(width = 1.dp, color = AstraColors.Border)
             .verticalScroll(rememberScrollState())
+            .statusBarsPadding()
             .padding(AstraSpacing.L),
         verticalArrangement = Arrangement.spacedBy(AstraSpacing.M),
     ) {
         // Header
-        Text(
-            text = "ASTRA",
-            style = AstraTypography.Headline,
-            color = AstraColors.Primary,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = "Local Edge AI",
-            style = AstraTypography.Caption,
-            color = AstraColors.TextSecondary,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+        ) {
+            AstraCore(coreSize = 30.dp)
+            Column {
+                Text(
+                    text = "ASTRA",
+                    style = AstraTypography.Title,
+                    color = AstraColors.TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "Local Edge AI",
+                    style = AstraTypography.Caption,
+                    color = AstraColors.TextSecondary,
+                )
+            }
+        }
 
         Spacer(Modifier.height(AstraSpacing.S))
 
