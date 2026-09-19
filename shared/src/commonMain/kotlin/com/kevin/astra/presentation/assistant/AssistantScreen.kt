@@ -37,7 +37,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -77,6 +76,8 @@ import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraColors
 import com.kevin.astra.core.design.AstraErrorView
+import com.kevin.astra.core.design.AstraGlassRow
+import com.kevin.astra.core.design.AstraGlassSheet
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
 import com.kevin.astra.core.design.DemoModeBanner
@@ -534,146 +535,55 @@ private fun AssistantContent(
 
     // ── Tools bottom sheet ─────────────────────────────────────────────
     if (showToolsSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showToolsSheet = false },
+        AstraGlassSheet(
+            title = "Tools",
+            subtitle = "On-device capabilities",
+            onDismiss = { showToolsSheet = false },
             sheetState = sheetState,
-            containerColor = Color.Transparent,
-            scrimColor = Color.Black.copy(alpha = 0.55f),
-            dragHandle = null,
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = AstraSpacing.S)
-                    .navigationBarsPadding()
-                    .padding(bottom = AstraSpacing.S)
-                    .shadow(30.dp, RoundedCornerShape(32.dp), clip = false)
-                    .clip(RoundedCornerShape(32.dp))
-                    .background(AstraColors.SurfaceElevated.copy(alpha = 0.94f))
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color.White.copy(alpha = 0.06f), Color.Transparent),
-                        ),
-                    )
-                    .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(32.dp))
-                    .padding(horizontal = AstraSpacing.L)
-                    .padding(top = AstraSpacing.M, bottom = AstraSpacing.L),
-                verticalArrangement = Arrangement.spacedBy(AstraSpacing.S),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .size(width = 40.dp, height = 4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(AstraColors.TextSecondary.copy(alpha = 0.35f)),
-                )
-                Spacer(Modifier.height(AstraSpacing.XS))
-                Text(
-                    text = "Tools",
-                    style = AstraTypography.Title,
-                    color = AstraColors.TextPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.height(AstraSpacing.XS))
-                AstraDestination.secondaryNavDestinations.forEach { dest ->
-                    val icon = when (dest) {
-                        AstraDestination.VoiceAssistant -> "🎤"
-                        AstraDestination.VisionAssistant -> "📷"
-                        AstraDestination.History -> "🕐"
-                        AstraDestination.Demo -> "🚀"
-                        else -> "›"
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(AstraColors.Surface)
-                            .border(1.dp, AstraColors.Border, RoundedCornerShape(18.dp))
-                            .clickable {
-                                showToolsSheet = false
-                                onNavigate(dest)
-                            }
-                            .padding(horizontal = AstraSpacing.M, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(AstraColors.Secondary.copy(alpha = 0.14f)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(text = icon, style = AstraTypography.Body)
-                        }
-                        Text(
-                            text = dest.label,
-                            style = AstraTypography.Body,
-                            color = AstraColors.TextPrimary,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            text = "›",
-                            style = AstraTypography.Title,
-                            color = AstraColors.TextSecondary,
-                        )
-                    }
+            AstraDestination.secondaryNavDestinations.forEach { dest ->
+                val icon = when (dest) {
+                    AstraDestination.VoiceAssistant -> "🎤"
+                    AstraDestination.VisionAssistant -> "📷"
+                    AstraDestination.History -> "🕐"
+                    AstraDestination.Demo -> "🚀"
+                    else -> "›"
                 }
+                AstraGlassRow(
+                    glyph = icon,
+                    label = dest.label,
+                    onClick = {
+                        showToolsSheet = false
+                        onNavigate(dest)
+                    },
+                )
             }
         }
     }
 
     // ── Share format picker ────────────────────────────────────────────────
     if (shareTargetBubbleId != null) {
-        ModalBottomSheet(
-            onDismissRequest = { shareTargetBubbleId = null },
+        AstraGlassSheet(
+            title = "Share as…",
+            onDismiss = { shareTargetBubbleId = null },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = AstraColors.Surface,
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = AstraSpacing.L)
-                    .padding(bottom = AstraSpacing.XL),
-                verticalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
-            ) {
-                Text(
-                    text = "Share as…",
-                    style = AstraTypography.Title,
-                    color = AstraColors.TextPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.height(AstraSpacing.S))
-                ExportFormat.entries.forEach { format ->
-                    val icon = when (format) {
-                        ExportFormat.PlainText -> "📝"
-                        ExportFormat.Markdown -> "✍️"
-                        ExportFormat.Pdf -> "📄"
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(AstraColors.SurfaceElevated, RoundedCornerShape(14.dp))
-                            .border(1.dp, AstraColors.Border, RoundedCornerShape(14.dp))
-                            .clickable {
-                                val id = shareTargetBubbleId ?: return@clickable
-                                shareTargetBubbleId = null
-                                onIntent(AssistantIntent.ShareBubble(id, format))
-                            }
-                            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.M),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
-                    ) {
-                        Text(text = icon, style = AstraTypography.Body)
-                        Text(
-                            text = format.label,
-                            style = AstraTypography.Body,
-                            color = AstraColors.TextPrimary,
-                            fontWeight = FontWeight.Medium,
-                        )
-                    }
+            ExportFormat.entries.forEach { format ->
+                val icon = when (format) {
+                    ExportFormat.PlainText -> "📝"
+                    ExportFormat.Markdown -> "✍️"
+                    ExportFormat.Pdf -> "📄"
                 }
+                AstraGlassRow(
+                    glyph = icon,
+                    label = format.label,
+                    trailing = "",
+                    onClick = {
+                        val id = shareTargetBubbleId ?: return@AstraGlassRow
+                        shareTargetBubbleId = null
+                        onIntent(AssistantIntent.ShareBubble(id, format))
+                    },
+                )
             }
         }
     }

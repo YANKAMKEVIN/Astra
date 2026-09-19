@@ -27,7 +27,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -297,6 +300,115 @@ fun AstraDemoModeIndicator(modifier: Modifier = Modifier) {
 
 /** Floating glass dock surface color (approx. #152033 translucent). */
 private val DockGlass = Color(0xFF152033)
+
+/**
+ * Reusable floating "frosted glass" bottom sheet: a translucent, suspended
+ * panel (deep scrim + sheen + white edge + drop shadow) with a custom drag
+ * handle and a title. Content is laid out in a Column with S spacing.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AstraGlassSheet(
+    title: String,
+    onDismiss: () -> Unit,
+    sheetState: SheetState,
+    subtitle: String? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color.Transparent,
+        scrimColor = Color.Black.copy(alpha = 0.55f),
+        dragHandle = null,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = AstraSpacing.S)
+                .navigationBarsPadding()
+                .padding(bottom = AstraSpacing.S)
+                .shadow(30.dp, RoundedCornerShape(32.dp), clip = false)
+                .clip(RoundedCornerShape(32.dp))
+                .background(AstraColors.SurfaceElevated.copy(alpha = 0.94f))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.White.copy(alpha = 0.06f), Color.Transparent),
+                    ),
+                )
+                .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(32.dp))
+                .padding(horizontal = AstraSpacing.L)
+                .padding(top = AstraSpacing.M, bottom = AstraSpacing.L),
+            verticalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .size(width = 40.dp, height = 4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(AstraColors.TextSecondary.copy(alpha = 0.35f)),
+            )
+            Spacer(Modifier.height(AstraSpacing.XS))
+            Text(
+                text = title,
+                style = AstraTypography.Title,
+                color = AstraColors.TextPrimary,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = AstraTypography.Caption,
+                    color = AstraColors.TextSecondary,
+                )
+            }
+            Spacer(Modifier.height(AstraSpacing.XS))
+            content()
+        }
+    }
+}
+
+/** A frosted-glass row used inside sheets: icon-chip + label + trailing chevron. */
+@Composable
+fun AstraGlassRow(
+    glyph: String,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    trailing: String = "›",
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(AstraColors.Surface.copy(alpha = 0.6f))
+            .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = AstraSpacing.M, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(AstraColors.Secondary.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(text = glyph, style = AstraTypography.Body)
+        }
+        Text(
+            text = label,
+            style = AstraTypography.Body,
+            color = AstraColors.TextPrimary,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.weight(1f),
+        )
+        if (trailing.isNotEmpty()) {
+            Text(text = trailing, style = AstraTypography.Title, color = AstraColors.TextSecondary)
+        }
+    }
+}
 
 @Composable
 fun AstraNavigationBar(
