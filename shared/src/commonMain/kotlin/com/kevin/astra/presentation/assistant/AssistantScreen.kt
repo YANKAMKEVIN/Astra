@@ -913,19 +913,24 @@ private fun MessageBubble(
             )
             Box(
                 modifier = Modifier
-                    .background(
-                        if (isUser) AstraColors.Primary.copy(alpha = 0.18f) else AstraColors.SurfaceElevated,
-                        bubbleShape,
-                    )
-                    .border(
-                        1.dp,
-                        if (isUser) AstraColors.Primary.copy(alpha = 0.25f) else AstraColors.Border,
-                        bubbleShape,
+                    .then(
+                        if (isUser) {
+                            Modifier.background(
+                                Brush.linearGradient(
+                                    listOf(AstraColors.Primary, AstraColors.Secondary),
+                                ),
+                                bubbleShape,
+                            )
+                        } else {
+                            Modifier
+                                .background(AstraColors.SurfaceElevated, bubbleShape)
+                                .border(1.dp, AstraColors.Border, bubbleShape)
+                        },
                     )
                     .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
             ) {
                 if (isUser) {
-                    Text(text = bubble.text, style = AstraTypography.Body, color = AstraColors.TextPrimary)
+                    Text(text = bubble.text, style = AstraTypography.Body, color = Color.White)
                 } else {
                     MarkdownText(text = bubble.text)
                 }
@@ -1242,8 +1247,15 @@ private fun InputBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(AstraColors.SurfaceElevated, RoundedCornerShape(20.dp))
-                .border(1.dp, AstraColors.Border, RoundedCornerShape(20.dp))
+                .shadow(12.dp, RoundedCornerShape(28.dp), clip = false)
+                .clip(RoundedCornerShape(28.dp))
+                .background(AstraColors.SurfaceElevated)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.White.copy(alpha = 0.05f), Color.Transparent),
+                    ),
+                )
+                .border(1.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(28.dp))
                 .padding(horizontal = AstraSpacing.S, vertical = AstraSpacing.XS),
             verticalAlignment = Alignment.Bottom,
         ) {
@@ -1341,15 +1353,23 @@ private fun SendButton(canAsk: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(44.dp)
-            .alpha(if (canAsk) 1f else 0.35f)
-            .background(
-                if (canAsk) AstraColors.Primary else AstraColors.SurfaceElevated,
-                RoundedCornerShape(14.dp),
+            .alpha(if (canAsk) 1f else 0.4f)
+            .then(
+                if (canAsk) {
+                    Modifier.background(
+                        Brush.linearGradient(
+                            listOf(AstraColors.Primary, AstraColors.Secondary),
+                        ),
+                        CircleShape,
+                    )
+                } else {
+                    Modifier.background(AstraColors.SurfaceElevated, CircleShape)
+                },
             )
             .clickable(enabled = canAsk, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = "↑", style = AstraTypography.Title, color = AstraColors.TextPrimary)
+        Text(text = "↑", style = AstraTypography.Title, color = Color.White)
     }
 }
 
