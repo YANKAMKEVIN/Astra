@@ -56,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
@@ -65,6 +66,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -760,44 +762,36 @@ private fun EmptyChat(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(AstraSpacing.M),
     ) {
-        Spacer(Modifier.height(AstraSpacing.XL))
-        // ── Hero: glowing gradient badge ────────────────────────────────────
+        Spacer(Modifier.height(AstraSpacing.L))
+        // ── Hero: ASTRA Core (breathing orb + rings + radial halo) ──────────
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Box(
-                modifier = Modifier
-                    .size(76.dp)
-                    .shadow(
-                        elevation = 28.dp,
-                        shape = CircleShape,
-                        clip = false,
-                        ambientColor = AstraColors.Primary,
-                        spotColor = AstraColors.Secondary,
-                    )
-                    .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(listOf(AstraColors.Primary, AstraColors.Secondary)),
-                    )
-                    .border(1.dp, Color.White.copy(alpha = 0.20f), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(text = "✦", fontSize = 34.sp, color = Color.White)
-            }
+            AstraCore(coreSize = 96.dp)
         }
         Text(
             text = "How can I help you?",
-            style = AstraTypography.Title,
+            style = AstraTypography.Title.copy(fontSize = 28.sp, lineHeight = 34.sp),
             color = AstraColors.TextPrimary,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            text = "Ask anything, attach a PDF or a photo, or use the mic — everything runs on-device.",
+            text = "Private AI. Running entirely on this device.",
             style = AstraTypography.Body,
             color = AstraColors.TextSecondary,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth().padding(horizontal = AstraSpacing.S),
         )
+        Spacer(Modifier.height(AstraSpacing.XS))
+        // ── On-device status pills ──────────────────────────────────────────
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S, Alignment.CenterHorizontally),
+        ) {
+            EmptyStatePill(glyph = "●", label = "OFFLINE READY", tint = AstraColors.Success)
+            EmptyStatePill(glyph = "●", label = "PRIVATE", tint = AstraColors.Secondary)
+            EmptyStatePill(glyph = "●", label = "LOCAL", tint = AstraColors.Primary)
+        }
         Spacer(Modifier.height(AstraSpacing.S))
         Text(
             text = "SUGGESTIONS",
@@ -812,16 +806,16 @@ private fun EmptyChat(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
+                    .clip(RoundedCornerShape(20.dp))
                     .background(AstraColors.SurfaceElevated.copy(alpha = 0.55f))
                     .background(
                         Brush.verticalGradient(
                             listOf(Color.White.copy(alpha = 0.04f), Color.Transparent),
                         ),
                     )
-                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
+                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
                     .clickable { onSuggestionSelected(suggestion) }
-                    .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.M),
+                    .padding(horizontal = AstraSpacing.M, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
             ) {
@@ -846,6 +840,95 @@ private fun EmptyChat(
             }
         }
         Spacer(Modifier.height(AstraSpacing.M))
+    }
+}
+
+/**
+ * ASTRA Core — the signature "living" orb: a Primary→Secondary gradient core
+ * inside two ultra-subtle rings, over a soft radial halo, with a very slow
+ * breathing + halo pulse. No backdrop blur required.
+ */
+@Composable
+private fun AstraCore(coreSize: Dp = 96.dp) {
+    val transition = rememberInfiniteTransition(label = "astra-core")
+    val scale by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.035f,
+        animationSpec = infiniteRepeatable(tween(2200), RepeatMode.Reverse),
+        label = "core-scale",
+    )
+    val halo by transition.animateFloat(
+        initialValue = 0.07f,
+        targetValue = 0.14f,
+        animationSpec = infiniteRepeatable(tween(2600), RepeatMode.Reverse),
+        label = "core-halo",
+    )
+    Box(
+        modifier = Modifier.size(coreSize * 1.9f),
+        contentAlignment = Alignment.Center,
+    ) {
+        // radial halo
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(
+                    Brush.radialGradient(
+                        listOf(AstraColors.Secondary.copy(alpha = halo), Color.Transparent),
+                    ),
+                ),
+        )
+        // outer ring
+        Box(
+            modifier = Modifier
+                .size(coreSize * 1.48f)
+                .border(1.dp, AstraColors.Primary.copy(alpha = 0.10f), CircleShape),
+        )
+        // inner ring
+        Box(
+            modifier = Modifier
+                .size(coreSize * 1.23f)
+                .border(1.dp, AstraColors.Secondary.copy(alpha = 0.16f), CircleShape),
+        )
+        // core
+        Box(
+            modifier = Modifier
+                .size(coreSize)
+                .scale(scale)
+                .shadow(
+                    elevation = 26.dp,
+                    shape = CircleShape,
+                    clip = false,
+                    ambientColor = AstraColors.Primary,
+                    spotColor = AstraColors.Secondary,
+                )
+                .clip(CircleShape)
+                .background(Brush.linearGradient(listOf(AstraColors.Primary, AstraColors.Secondary)))
+                .border(1.dp, Color.White.copy(alpha = 0.20f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(text = "✦", fontSize = 34.sp, color = Color.White)
+        }
+    }
+}
+
+@Composable
+private fun EmptyStatePill(glyph: String, label: String, tint: Color) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(AstraColors.SurfaceElevated.copy(alpha = 0.55f))
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(50))
+            .padding(horizontal = AstraSpacing.S + 2.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(text = glyph, fontSize = 9.sp, color = tint)
+        Text(
+            text = label,
+            style = AstraTypography.Caption.copy(fontSize = 10.sp, letterSpacing = 0.8.sp),
+            color = AstraColors.TextSecondary,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
