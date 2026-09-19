@@ -259,7 +259,7 @@ private fun PrivateComputeStrip() {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
         ) {
-            Text(text = "◆", fontSize = 12.sp, color = AstraColors.Secondary)
+            AstraIcon(icon = AstraIcons.Shield, tint = AstraColors.Secondary, size = 18.dp)
             Text(
                 text = "PRIVATE COMPUTE",
                 style = AstraTypography.Caption.copy(

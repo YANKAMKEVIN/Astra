@@ -85,6 +85,43 @@ object AstraIcons {
         moveTo(12.5f, 14.5f); lineTo(16.5f, 14.5f)
     }
 
+    /** House — Home tab. */
+    val Home: ImageVector = lineIcon("Home") {
+        moveTo(4f, 10.5f); lineTo(12f, 4f); lineTo(20f, 10.5f)
+        moveTo(6f, 9f); lineTo(6f, 20f); lineTo(18f, 20f); lineTo(18f, 9f)
+        moveTo(10f, 20f); lineTo(10f, 14f); lineTo(14f, 14f); lineTo(14f, 20f)
+    }
+
+    /** Four-point spark — Chat / assistant. */
+    val Sparkle: ImageVector = lineIcon("Sparkle") {
+        moveTo(12f, 4f); lineTo(13.6f, 10.4f); lineTo(20f, 12f); lineTo(13.6f, 13.6f)
+        lineTo(12f, 20f); lineTo(10.4f, 13.6f); lineTo(4f, 12f); lineTo(10.4f, 10.4f); close()
+    }
+
+    /** Page with lines — Docs. */
+    val Article: ImageVector = lineIcon("Article") {
+        moveTo(5f, 4f); lineTo(19f, 4f); lineTo(19f, 20f); lineTo(5f, 20f); close()
+        moveTo(8f, 8.5f); lineTo(16f, 8.5f)
+        moveTo(8f, 12f); lineTo(16f, 12f)
+        moveTo(8f, 15.5f); lineTo(13f, 15.5f)
+    }
+
+    /** Bar chart — Benchmark. */
+    val BarChart: ImageVector = lineIcon("BarChart") {
+        moveTo(4f, 20f); lineTo(20f, 20f)
+        moveTo(7f, 20f); lineTo(7f, 13f)
+        moveTo(12f, 20f); lineTo(12f, 8f)
+        moveTo(17f, 20f); lineTo(17f, 11f)
+    }
+
+    /** Sliders — System / settings. */
+    val Tune: ImageVector = lineIcon("Tune") {
+        moveTo(4f, 8f); lineTo(20f, 8f)
+        moveTo(4f, 16f); lineTo(20f, 16f)
+        moveTo(13f, 6.2f); lineTo(15f, 6.2f); lineTo(15f, 9.8f); lineTo(13f, 9.8f); close()
+        moveTo(8f, 14.2f); lineTo(10f, 14.2f); lineTo(10f, 17.8f); lineTo(8f, 17.8f); close()
+    }
+
     /** Shield with check — private compute. */
     val Shield: ImageVector = lineIcon("Shield") {
         moveTo(12f, 3f); lineTo(19f, 6f); lineTo(19f, 11f)

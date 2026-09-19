@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -598,7 +599,7 @@ fun AstraNavigationBar(
         ) {
             AstraDestination.primaryNavDestinations.forEach { destination ->
                 NavBarItem(
-                    glyph = destination.navGlyph,
+                    icon = navIconFor(destination),
                     label = destination.shortLabel,
                     selected = destination == selectedDestination,
                     onClick = { onDestinationSelected(destination) },
@@ -608,8 +609,17 @@ fun AstraNavigationBar(
     }
 }
 
+private fun navIconFor(destination: AstraDestination): ImageVector = when (destination) {
+    AstraDestination.ProjectOverview -> AstraIcons.Home
+    AstraDestination.Assistant -> AstraIcons.Sparkle
+    AstraDestination.Documents -> AstraIcons.Article
+    AstraDestination.Benchmark -> AstraIcons.BarChart
+    AstraDestination.Settings -> AstraIcons.Tune
+    else -> AstraIcons.Sparkle
+}
+
 @Composable
-private fun NavBarItem(glyph: String, label: String, selected: Boolean, onClick: () -> Unit) {
+private fun NavBarItem(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
@@ -622,10 +632,10 @@ private fun NavBarItem(glyph: String, label: String, selected: Boolean, onClick:
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(
-            text = glyph,
-            fontSize = 18.sp,
-            color = if (selected) AstraColors.Secondary else AstraColors.TextSecondary,
+        AstraIcon(
+            icon = icon,
+            tint = if (selected) AstraColors.Secondary else AstraColors.TextSecondary,
+            size = 22.dp,
         )
         Spacer(Modifier.height(AstraSpacing.XS))
         Text(
