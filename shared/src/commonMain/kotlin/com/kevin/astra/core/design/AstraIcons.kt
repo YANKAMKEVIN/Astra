@@ -172,6 +172,22 @@ object AstraIcons {
         moveTo(9f, 20.5f); lineTo(15f, 20.5f)
     }
 
+    /** Clock — history. */
+    val Clock: ImageVector = lineIcon("Clock") {
+        moveTo(12f, 4.5f)
+        curveTo(16.1f, 4.5f, 19.5f, 7.9f, 19.5f, 12f)
+        curveTo(19.5f, 16.1f, 16.1f, 19.5f, 12f, 19.5f)
+        curveTo(7.9f, 19.5f, 4.5f, 16.1f, 4.5f, 12f)
+        curveTo(4.5f, 7.9f, 7.9f, 4.5f, 12f, 4.5f)
+        close()
+        moveTo(12f, 8f); lineTo(12f, 12f); lineTo(15f, 14f)
+    }
+
+    /** Play triangle — demo. */
+    val Play: ImageVector = lineIcon("Play") {
+        moveTo(8f, 6f); lineTo(18f, 12f); lineTo(8f, 18f); close()
+    }
+
     /** Camera — vision. */
     val Camera: ImageVector = lineIcon("Camera") {
         moveTo(4f, 8f); lineTo(8f, 8f); lineTo(9.5f, 5.5f); lineTo(14.5f, 5.5f); lineTo(16f, 8f)

@@ -77,6 +77,8 @@ import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraColors
 import com.kevin.astra.core.design.AstraCore
 import com.kevin.astra.core.design.AstraErrorView
+import com.kevin.astra.core.design.AstraIcon
+import com.kevin.astra.core.design.AstraIcons
 import com.kevin.astra.core.design.AstraGlassRow
 import com.kevin.astra.core.design.AstraGlassSheet
 import com.kevin.astra.core.design.AstraSpacing
@@ -542,22 +544,23 @@ private fun AssistantContent(
             onDismiss = { showToolsSheet = false },
             sheetState = sheetState,
         ) {
-            AstraDestination.secondaryNavDestinations.forEach { dest ->
-                val icon = when (dest) {
-                    AstraDestination.VoiceAssistant -> "🎤"
-                    AstraDestination.VisionAssistant -> "📷"
-                    AstraDestination.History -> "🕐"
-                    AstraDestination.Demo -> "🚀"
-                    else -> "›"
+            AstraDestination.secondaryNavDestinations.chunked(2).forEach { rowItems ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+                ) {
+                    rowItems.forEach { dest ->
+                        ToolTile(
+                            dest = dest,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                showToolsSheet = false
+                                onNavigate(dest)
+                            },
+                        )
+                    }
+                    if (rowItems.size == 1) Spacer(Modifier.weight(1f))
                 }
-                AstraGlassRow(
-                    glyph = icon,
-                    label = dest.label,
-                    onClick = {
-                        showToolsSheet = false
-                        onNavigate(dest)
-                    },
-                )
             }
         }
     }
@@ -662,6 +665,63 @@ private fun HeaderIconButton(icon: String, onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Text(text = icon, style = AstraTypography.Body, color = AstraColors.TextPrimary)
+    }
+}
+
+@Composable
+private fun ToolTile(dest: AstraDestination, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val icon = when (dest) {
+        AstraDestination.VoiceAssistant -> AstraIcons.Mic
+        AstraDestination.VisionAssistant -> AstraIcons.Camera
+        AstraDestination.History -> AstraIcons.Clock
+        AstraDestination.Demo -> AstraIcons.Play
+        AstraDestination.Models -> AstraIcons.Cube
+        else -> AstraIcons.Sparkle
+    }
+    val subtitle = when (dest) {
+        AstraDestination.VoiceAssistant -> "Speech-to-text & TTS"
+        AstraDestination.VisionAssistant -> "Analyze images on device"
+        AstraDestination.History -> "Past conversations"
+        AstraDestination.Demo -> "Guided offline demo"
+        AstraDestination.Models -> "Manage models & runtimes"
+        else -> "On-device"
+    }
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(AstraColors.Surface.copy(alpha = 0.6f))
+            .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick)
+            .padding(AstraSpacing.M),
+        verticalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(AstraColors.Secondary.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                AstraIcon(icon = icon, tint = AstraColors.Secondary, size = 20.dp)
+            }
+            AstraIcon(icon = AstraIcons.ChevronRight, tint = AstraColors.TextDisabled, size = 16.dp)
+        }
+        Text(
+            text = dest.label,
+            style = AstraTypography.Body,
+            color = AstraColors.TextPrimary,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = subtitle,
+            style = AstraTypography.Caption,
+            color = AstraColors.TextDisabled,
+        )
     }
 }
 
