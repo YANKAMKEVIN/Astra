@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -41,6 +42,8 @@ import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraChip
 import com.kevin.astra.core.design.AstraColors
 import com.kevin.astra.core.design.AstraCore
+import com.kevin.astra.core.design.AstraIcon
+import com.kevin.astra.core.design.AstraIcons
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
@@ -307,21 +310,22 @@ private fun LiveMetricsGrid(state: ProjectOverviewState) {
         horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
     ) {
         MetricTile(
-            icon = "💾",
+            icon = AstraIcons.Memory,
             label = "RAM avail.",
             value = caps?.availableMemoryMb?.let { "$it MB" } ?: "—",
             modifier = Modifier.weight(1f),
         )
         MetricTile(
-            icon = "🖥",
+            icon = AstraIcons.Smartphone,
             label = "Platform",
             value = caps?.platform ?: "—",
             modifier = Modifier.weight(1f),
         )
         MetricTile(
-            icon = if (caps?.npuAvailable == true) "🟢" else "⚪",
+            icon = AstraIcons.Cpu,
             label = "NPU",
             value = if (caps?.npuAvailable == true) "Ready" else "None",
+            tint = if (caps?.npuAvailable == true) AstraColors.Success else AstraColors.Secondary,
             modifier = Modifier.weight(1f),
         )
     }
@@ -331,19 +335,19 @@ private fun LiveMetricsGrid(state: ProjectOverviewState) {
         horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
     ) {
         MetricTile(
-            icon = "📦",
+            icon = AstraIcons.Layers,
             label = "Storage",
             value = caps?.storageAvailableGb?.let { "${(it * 10).toLong() / 10.0} GB" } ?: "—",
             modifier = Modifier.weight(1f),
         )
         MetricTile(
-            icon = "🧠",
+            icon = AstraIcons.Memory,
             label = "RAM total",
             value = caps?.totalMemoryMb?.let { "$it MB" } ?: "—",
             modifier = Modifier.weight(1f),
         )
         MetricTile(
-            icon = "⚙",
+            icon = AstraIcons.Terminal,
             label = "Runtime",
             value = state.currentRuntime,
             modifier = Modifier.weight(1f),
@@ -352,15 +356,30 @@ private fun LiveMetricsGrid(state: ProjectOverviewState) {
 }
 
 @Composable
-private fun MetricTile(icon: String, label: String, value: String, modifier: Modifier = Modifier) {
+private fun MetricTile(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    tint: Color = AstraColors.Secondary,
+) {
     Column(
         modifier = modifier
-            .background(AstraColors.Surface, RoundedCornerShape(16.dp))
-            .border(1.dp, AstraColors.Border, RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(18.dp))
+            .background(AstraColors.SurfaceElevated.copy(alpha = 0.55f))
+            .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(18.dp))
             .padding(AstraSpacing.M),
-        verticalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
+        verticalArrangement = Arrangement.spacedBy(AstraSpacing.S),
     ) {
-        Text(text = icon, style = AstraTypography.Body)
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(tint.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            AstraIcon(icon = icon, tint = tint, size = 18.dp)
+        }
         Text(text = value, style = AstraTypography.Caption, color = AstraColors.TextPrimary, fontWeight = FontWeight.SemiBold, maxLines = 1)
         Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextDisabled)
     }

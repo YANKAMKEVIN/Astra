@@ -1,0 +1,112 @@
+package com.kevin.astra.core.design
+
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.PathBuilder
+import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
+/**
+ * ASTRA's bespoke line-icon set — thin, monochrome stroked vectors on a 24×24
+ * viewport, tinted by the caller. No icon dependency: the app draws its own
+ * pictograms so the whole UI shares one crisp, premium visual language.
+ */
+object AstraIcons {
+
+    private fun lineIcon(name: String, block: PathBuilder.() -> Unit): ImageVector =
+        ImageVector.Builder(
+            name = name,
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f,
+        ).apply {
+            path(
+                stroke = SolidColor(Color(0xFF000000)),
+                strokeLineWidth = 1.8f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+            ) { block() }
+        }.build()
+
+    /** Memory chip — RAM. */
+    val Memory: ImageVector = lineIcon("Memory") {
+        moveTo(7f, 7f); lineTo(17f, 7f); lineTo(17f, 17f); lineTo(7f, 17f); close()
+        moveTo(10f, 10f); lineTo(14f, 10f); lineTo(14f, 14f); lineTo(10f, 14f); close()
+        moveTo(10f, 7f); lineTo(10f, 4.5f)
+        moveTo(14f, 7f); lineTo(14f, 4.5f)
+        moveTo(10f, 17f); lineTo(10f, 19.5f)
+        moveTo(14f, 17f); lineTo(14f, 19.5f)
+        moveTo(7f, 10f); lineTo(4.5f, 10f)
+        moveTo(7f, 14f); lineTo(4.5f, 14f)
+        moveTo(17f, 10f); lineTo(19.5f, 10f)
+        moveTo(17f, 14f); lineTo(19.5f, 14f)
+    }
+
+    /** Stacked layers — storage. */
+    val Layers: ImageVector = lineIcon("Layers") {
+        moveTo(12f, 4f); lineTo(20f, 8f); lineTo(12f, 12f); lineTo(4f, 8f); close()
+        moveTo(4f, 12f); lineTo(12f, 16f); lineTo(20f, 12f)
+        moveTo(4f, 16f); lineTo(12f, 20f); lineTo(20f, 16f)
+    }
+
+    /** Smartphone — platform. */
+    val Smartphone: ImageVector = lineIcon("Smartphone") {
+        moveTo(7f, 3.5f); lineTo(17f, 3.5f); lineTo(17f, 20.5f); lineTo(7f, 20.5f); close()
+        moveTo(10f, 18f); lineTo(14f, 18f)
+    }
+
+    /** Processor — CPU / NPU. */
+    val Cpu: ImageVector = lineIcon("Cpu") {
+        moveTo(7f, 7f); lineTo(17f, 7f); lineTo(17f, 17f); lineTo(7f, 17f); close()
+        moveTo(9.5f, 9.5f); lineTo(14.5f, 9.5f); lineTo(14.5f, 14.5f); lineTo(9.5f, 14.5f); close()
+        moveTo(9f, 7f); lineTo(9f, 4.5f)
+        moveTo(15f, 7f); lineTo(15f, 4.5f)
+        moveTo(9f, 17f); lineTo(9f, 19.5f)
+        moveTo(15f, 17f); lineTo(15f, 19.5f)
+        moveTo(7f, 9f); lineTo(4.5f, 9f)
+        moveTo(7f, 15f); lineTo(4.5f, 15f)
+        moveTo(17f, 9f); lineTo(19.5f, 9f)
+        moveTo(17f, 15f); lineTo(19.5f, 15f)
+    }
+
+    /** Terminal — runtime. */
+    val Terminal: ImageVector = lineIcon("Terminal") {
+        moveTo(4f, 5f); lineTo(20f, 5f); lineTo(20f, 19f); lineTo(4f, 19f); close()
+        moveTo(7.5f, 9.5f); lineTo(10.5f, 12f); lineTo(7.5f, 14.5f)
+        moveTo(12.5f, 14.5f); lineTo(16.5f, 14.5f)
+    }
+
+    /** Shield with check — private compute. */
+    val Shield: ImageVector = lineIcon("Shield") {
+        moveTo(12f, 3f); lineTo(19f, 6f); lineTo(19f, 11f)
+        curveTo(19f, 16f, 16f, 19.5f, 12f, 21f)
+        curveTo(8f, 19.5f, 5f, 16f, 5f, 11f)
+        lineTo(5f, 6f); close()
+        moveTo(9f, 12f); lineTo(11.2f, 14.2f); lineTo(15f, 9.8f)
+    }
+}
+
+/** Convenience wrapper to render an [AstraIcons] vector at a consistent size/tint. */
+@Composable
+fun AstraIcon(
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    tint: Color = AstraColors.TextSecondary,
+    size: Dp = 20.dp,
+) {
+    Icon(
+        imageVector = icon,
+        contentDescription = null,
+        tint = tint,
+        modifier = modifier.size(size),
+    )
+}
