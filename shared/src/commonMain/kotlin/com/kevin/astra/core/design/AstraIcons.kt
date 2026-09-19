@@ -195,6 +195,14 @@ object AstraIcons {
         moveTo(7f, 7f); lineTo(17f, 7f); lineTo(17f, 17f); lineTo(7f, 17f); close()
     }
 
+    /** Speaker with waves — audio output. */
+    val Speaker: ImageVector = lineIcon("Speaker") {
+        moveTo(5f, 9f); lineTo(9f, 9f); lineTo(13f, 5.5f); lineTo(13f, 18.5f)
+        lineTo(9f, 15f); lineTo(5f, 15f); close()
+        moveTo(16f, 9.5f); curveTo(17.5f, 11f, 17.5f, 13f, 16f, 14.5f)
+        moveTo(18f, 7.5f); curveTo(20.5f, 10f, 20.5f, 14f, 18f, 16.5f)
+    }
+
     /** Clock — history. */
     val Clock: ImageVector = lineIcon("Clock") {
         moveTo(12f, 4.5f)

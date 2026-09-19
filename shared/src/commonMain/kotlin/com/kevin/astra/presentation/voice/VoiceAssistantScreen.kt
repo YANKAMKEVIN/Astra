@@ -43,6 +43,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraColors
+import com.kevin.astra.core.design.AstraIcon
+import com.kevin.astra.core.design.AstraIcons
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
 import com.kevin.astra.core.design.DemoModeBanner
@@ -291,15 +293,15 @@ private fun MicButton(phase: VoicePhase, onClick: () -> Unit) {
                 .border(2.dp, bgColor, CircleShape)
                 .clickable(enabled = !isBusy, onClick = onClick),
         ) {
-            Text(
-                text = when (phase) {
-                    VoicePhase.Idle -> "🎤"
-                    VoicePhase.Listening -> "⏹"
-                    VoicePhase.Processing -> "⏳"
-                    VoicePhase.Speaking -> "🔊"
+            AstraIcon(
+                icon = when (phase) {
+                    VoicePhase.Idle -> AstraIcons.Mic
+                    VoicePhase.Listening -> AstraIcons.Stop
+                    VoicePhase.Processing -> AstraIcons.Mic
+                    VoicePhase.Speaking -> AstraIcons.Speaker
                 },
-                style = AstraTypography.Title,
-                textAlign = TextAlign.Center,
+                tint = Color.White,
+                size = 30.dp,
             )
         }
     }

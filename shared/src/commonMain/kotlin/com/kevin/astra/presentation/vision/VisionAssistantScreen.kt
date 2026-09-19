@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -35,6 +36,8 @@ import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraCard
 import com.kevin.astra.core.design.AstraColors
+import com.kevin.astra.core.design.AstraIcon
+import com.kevin.astra.core.design.AstraIcons
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
@@ -136,7 +139,15 @@ fun VisionAssistantScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(AstraSpacing.M),
             ) {
-                Text("📷", style = AstraTypography.DisplayLarge, textAlign = TextAlign.Center)
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(AstraColors.Secondary.copy(alpha = 0.14f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AstraIcon(icon = AstraIcons.Camera, tint = AstraColors.Secondary, size = 32.dp)
+                }
                 Text(
                     text = "No photo yet",
                     style = AstraTypography.Title,
