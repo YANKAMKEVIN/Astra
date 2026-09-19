@@ -60,6 +60,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
@@ -1265,33 +1266,33 @@ private fun InputBar(
                 horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
             ) {
                 AttachmentOption(
-                    icon = "📄",
+                    icon = AstraIcons.Article,
                     label = "PDF",
                     active = attachedPdf != null,
                     onClick = { pdfLauncher(); showAttachmentOptions = false },
                 )
                 AttachmentOption(
-                    icon = "📷",
+                    icon = AstraIcons.Camera,
                     label = "Photo",
                     active = attachedImage != null,
                     onClick = { imageLauncher(); showAttachmentOptions = false },
                 )
                 AttachmentOption(
-                    icon = "📧",
+                    icon = AstraIcons.Mail,
                     label = "Email",
                     active = attachedEmail != null,
                     onClick = { emailLauncher(); showAttachmentOptions = false },
                 )
                 if (gmailSupported) {
                     AttachmentOption(
-                        icon = "🔗",
+                        icon = AstraIcons.Cloud,
                         label = "Gmail",
                         active = false,
                         onClick = { onAttachGmail(); showAttachmentOptions = false },
                     )
                 }
                 AttachmentOption(
-                    icon = if (isListening) "⏹" else "🎤",
+                    icon = if (isListening) AstraIcons.Stop else AstraIcons.Mic,
                     label = if (isListening) "Stop" else "Voice",
                     active = isListening,
                     onClick = { onToggleVoice(); if (!isListening) showAttachmentOptions = false },
@@ -1378,28 +1379,33 @@ private fun InputBar(
 
 @Composable
 private fun AttachmentOption(
-    icon: String,
+    icon: ImageVector,
     label: String,
     active: Boolean,
     onClick: () -> Unit,
 ) {
+    val tint = if (active) AstraColors.Primary else AstraColors.Secondary
     Column(
         modifier = Modifier
-            .background(
-                if (active) AstraColors.Primary.copy(alpha = 0.12f) else Color.Transparent,
-                RoundedCornerShape(10.dp),
-            )
-            .border(
-                1.dp,
-                if (active) AstraColors.Primary.copy(alpha = 0.4f) else Color.Transparent,
-                RoundedCornerShape(10.dp),
-            )
             .clickable(onClick = onClick)
-            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.XS),
+            .padding(horizontal = AstraSpacing.XS, vertical = AstraSpacing.XS),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(text = icon, style = AstraTypography.Body)
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(tint.copy(alpha = if (active) 0.18f else 0.12f))
+                .border(
+                    1.dp,
+                    if (active) AstraColors.Primary.copy(alpha = 0.4f) else Color.Transparent,
+                    RoundedCornerShape(12.dp),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            AstraIcon(icon = icon, tint = tint, size = 20.dp)
+        }
         Text(
             text = label,
             style = AstraTypography.Caption,

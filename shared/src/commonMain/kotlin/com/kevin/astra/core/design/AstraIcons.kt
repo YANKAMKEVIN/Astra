@@ -172,6 +172,29 @@ object AstraIcons {
         moveTo(9f, 20.5f); lineTo(15f, 20.5f)
     }
 
+    /** Envelope — email. */
+    val Mail: ImageVector = lineIcon("Mail") {
+        moveTo(4f, 6f); lineTo(20f, 6f); lineTo(20f, 18f); lineTo(4f, 18f); close()
+        moveTo(4f, 7f); lineTo(12f, 13f); lineTo(20f, 7f)
+    }
+
+    /** Cloud — connected service. */
+    val Cloud: ImageVector = lineIcon("Cloud") {
+        moveTo(7f, 17f)
+        curveTo(4.8f, 17f, 3f, 15.2f, 3f, 13f)
+        curveTo(3f, 10.8f, 4.8f, 9f, 7f, 9f)
+        curveTo(7.3f, 6.7f, 9.3f, 5f, 11.7f, 5f)
+        curveTo(14.3f, 5f, 16.4f, 6.9f, 16.9f, 9.3f)
+        curveTo(19.2f, 9.3f, 21f, 11.1f, 21f, 13.2f)
+        curveTo(21f, 15.3f, 19.2f, 17f, 17f, 17f)
+        close()
+    }
+
+    /** Stop square. */
+    val Stop: ImageVector = lineIcon("Stop") {
+        moveTo(7f, 7f); lineTo(17f, 7f); lineTo(17f, 17f); lineTo(7f, 17f); close()
+    }
+
     /** Clock — history. */
     val Clock: ImageVector = lineIcon("Clock") {
         moveTo(12f, 4.5f)
