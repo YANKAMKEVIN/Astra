@@ -64,6 +64,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -759,17 +760,43 @@ private fun EmptyChat(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(AstraSpacing.M),
     ) {
-        Spacer(Modifier.height(AstraSpacing.L))
+        Spacer(Modifier.height(AstraSpacing.XL))
+        // ── Hero: glowing gradient badge ────────────────────────────────────
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(76.dp)
+                    .shadow(
+                        elevation = 28.dp,
+                        shape = CircleShape,
+                        clip = false,
+                        ambientColor = AstraColors.Primary,
+                        spotColor = AstraColors.Secondary,
+                    )
+                    .clip(CircleShape)
+                    .background(
+                        Brush.linearGradient(listOf(AstraColors.Primary, AstraColors.Secondary)),
+                    )
+                    .border(1.dp, Color.White.copy(alpha = 0.20f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(text = "✦", fontSize = 34.sp, color = Color.White)
+            }
+        }
         Text(
             text = "How can I help you?",
             style = AstraTypography.Title,
             color = AstraColors.TextPrimary,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            text = "Type a question, attach a PDF or a photo, or use the mic.\nOpen ☰ to configure domain & model.",
+            text = "Ask anything, attach a PDF or a photo, or use the mic — everything runs on-device.",
             style = AstraTypography.Body,
             color = AstraColors.TextSecondary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = AstraSpacing.S),
         )
         Spacer(Modifier.height(AstraSpacing.S))
         Text(
@@ -782,21 +809,43 @@ private fun EmptyChat(
             fontWeight = FontWeight.Bold,
         )
         quickSuggestions(industry).forEach { suggestion ->
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(AstraColors.Surface, RoundedCornerShape(12.dp))
-                    .border(1.dp, AstraColors.Border, RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(AstraColors.SurfaceElevated.copy(alpha = 0.55f))
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.White.copy(alpha = 0.04f), Color.Transparent),
+                        ),
+                    )
+                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
                     .clickable { onSuggestionSelected(suggestion) }
-                    .padding(AstraSpacing.M),
+                    .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.M),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
             ) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .background(
+                            AstraColors.Secondary.copy(alpha = 0.14f),
+                            RoundedCornerShape(11.dp),
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(text = "✦", fontSize = 15.sp, color = AstraColors.Secondary)
+                }
                 Text(
                     text = suggestion,
                     style = AstraTypography.Body,
                     color = AstraColors.TextPrimary,
+                    modifier = Modifier.weight(1f),
                 )
+                Text(text = "›", fontSize = 22.sp, color = AstraColors.TextDisabled)
             }
         }
+        Spacer(Modifier.height(AstraSpacing.M))
     }
 }
 
