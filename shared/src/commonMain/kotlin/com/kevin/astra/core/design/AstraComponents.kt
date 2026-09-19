@@ -1,6 +1,7 @@
 package com.kevin.astra.core.design
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,9 +20,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -90,6 +96,84 @@ fun AstraCard(
             }
             content()
         }
+    }
+}
+
+/** Signature CTA: a full-width Primary→Secondary gradient button. */
+@Composable
+fun AstraGradientButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(54.dp)
+            .alpha(if (enabled) 1f else 0.45f)
+            .clip(RoundedCornerShape(18.dp))
+            .then(
+                if (enabled) {
+                    Modifier.background(
+                        Brush.linearGradient(listOf(AstraColors.Primary, AstraColors.Secondary)),
+                    )
+                } else {
+                    Modifier.background(AstraColors.SurfaceElevated)
+                },
+            )
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            style = AstraTypography.Body,
+            color = Color.White,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+/** Minimal line chart (no dependency) for a small series of values. */
+@Composable
+fun AstraSparkline(
+    values: List<Float>,
+    modifier: Modifier = Modifier,
+    lineColor: Color = AstraColors.Secondary,
+) {
+    Canvas(modifier = modifier) {
+        if (values.size < 2) return@Canvas
+        val maxV = values.max()
+        val minV = values.min()
+        val range = (maxV - minV).takeIf { it > 0f } ?: 1f
+        val stepX = size.width / (values.size - 1)
+        val fill = Path()
+        val line = Path()
+        values.forEachIndexed { i, v ->
+            val x = i * stepX
+            val y = size.height - ((v - minV) / range) * (size.height * 0.9f) - size.height * 0.05f
+            if (i == 0) {
+                line.moveTo(x, y)
+                fill.moveTo(x, size.height)
+                fill.lineTo(x, y)
+            } else {
+                line.lineTo(x, y)
+                fill.lineTo(x, y)
+            }
+        }
+        fill.lineTo(size.width, size.height)
+        fill.close()
+        drawPath(
+            path = fill,
+            brush = Brush.verticalGradient(
+                listOf(lineColor.copy(alpha = 0.22f), Color.Transparent),
+            ),
+        )
+        drawPath(
+            path = line,
+            color = lineColor,
+            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+        )
     }
 }
 

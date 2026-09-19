@@ -26,7 +26,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -42,7 +47,9 @@ import com.kevin.astra.core.design.AstraChip
 import com.kevin.astra.core.design.AstraColors
 import com.kevin.astra.core.design.AstraEmptyView
 import com.kevin.astra.core.design.AstraErrorView
+import com.kevin.astra.core.design.AstraGradientButton
 import com.kevin.astra.core.design.AstraMetricCard
+import com.kevin.astra.core.design.AstraSparkline
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
@@ -83,6 +90,7 @@ private fun BenchmarkContent(
         description = "Compare on-device AI models — tokens/s, latency, RAM, battery, temperature.",
         contentPadding = contentPadding,
     ) {
+        BenchmarkHeroCard(results = state.results, isRunning = state.isRunning)
         ScenarioSelector(
             scenarios = state.availableScenarios,
             onScenarioSelected = { onIntent(BenchmarkIntent.SelectScenario(it)) },
@@ -144,6 +152,107 @@ private fun BenchmarkContent(
             results = state.results,
             recommendedModelId = state.recommendedModel?.model?.id,
         )
+    }
+}
+
+@Composable
+private fun BenchmarkHeroCard(results: List<BenchmarkResult>, isRunning: Boolean) {
+    val best = results.maxByOrNull { it.tokensPerSecond ?: 0 }
+    val series = results.mapNotNull { it.tokensPerSecond?.toFloat() }
+    val status = when {
+        isRunning -> "RUNNING"
+        best != null -> "COMPLETED"
+        else -> "IDLE"
+    }
+    val statusColor = when (status) {
+        "RUNNING" -> AstraColors.Secondary
+        "COMPLETED" -> AstraColors.Success
+        else -> AstraColors.TextDisabled
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(AstraColors.SurfaceElevated.copy(alpha = 0.6f))
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color.White.copy(alpha = 0.05f), Color.Transparent),
+                ),
+            )
+            .border(1.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(24.dp))
+            .padding(AstraSpacing.L),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = "INFERENCE SPEED",
+                style = AstraTypography.Caption.copy(fontFamily = FontFamily.Monospace, letterSpacing = 1.5.sp),
+                color = AstraColors.TextSecondary,
+                fontWeight = FontWeight.Bold,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AstraSpacing.XS)) {
+                Text(text = "●", fontSize = 9.sp, color = statusColor)
+                Text(
+                    text = status,
+                    style = AstraTypography.Caption.copy(fontSize = 11.sp, letterSpacing = 0.8.sp),
+                    color = statusColor,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+        Spacer(Modifier.height(AstraSpacing.M))
+        if (best?.tokensPerSecond != null) {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = "${best.tokensPerSecond}",
+                    style = AstraTypography.Metric.copy(fontSize = 46.sp, lineHeight = 48.sp),
+                    color = AstraColors.TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "  TOKENS/S",
+                    style = AstraTypography.Metric,
+                    color = AstraColors.Secondary,
+                    modifier = Modifier.padding(bottom = 6.dp),
+                )
+            }
+            Text(
+                text = best.model.displayName,
+                style = AstraTypography.Caption,
+                color = AstraColors.TextSecondary,
+            )
+            if (series.size >= 2) {
+                Spacer(Modifier.height(AstraSpacing.M))
+                AstraSparkline(
+                    values = series,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                )
+            }
+            Spacer(Modifier.height(AstraSpacing.M))
+            Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+                AstraMetricCard(
+                    best.timeToFirstTokenMillis.displayNum(),
+                    best.timeToFirstTokenMillis.displayUnit("ms"),
+                    "TTFT",
+                    Modifier.weight(1f),
+                )
+                AstraMetricCard(
+                    best.memoryUsageMb.displayNum(),
+                    best.memoryUsageMb.displayUnit("MB"),
+                    "Peak RAM",
+                    Modifier.weight(1f),
+                )
+            }
+        } else {
+            Text(
+                text = if (isRunning) "Capturing live on-device metrics…" else "Run a benchmark to capture live on-device performance.",
+                style = AstraTypography.Body,
+                color = AstraColors.TextSecondary,
+            )
+        }
     }
 }
 
@@ -334,11 +443,10 @@ private fun RunBenchmarkCard(state: BenchmarkState, onRun: () -> Unit) {
             AstraMetricCard(state.results.size.toString(), "", "Completed", Modifier.weight(1f))
         }
         Spacer(Modifier.height(AstraSpacing.M))
-        AstraButton(
-            text = if (state.isRunning) "Running…" else "Run Benchmark",
+        AstraGradientButton(
+            text = if (state.isRunning) "Running…" else "✦  Run Local Benchmark",
             onClick = onRun,
             enabled = state.canRun,
-            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
