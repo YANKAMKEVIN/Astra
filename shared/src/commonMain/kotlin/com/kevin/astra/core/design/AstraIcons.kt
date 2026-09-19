@@ -130,6 +130,59 @@ object AstraIcons {
         lineTo(5f, 6f); close()
         moveTo(9f, 12f); lineTo(11.2f, 14.2f); lineTo(15f, 9.8f)
     }
+
+    /** Isometric cube — a model. */
+    val Cube: ImageVector = lineIcon("Cube") {
+        moveTo(12f, 3.5f); lineTo(20f, 7.5f); lineTo(20f, 16.5f); lineTo(12f, 20.5f)
+        lineTo(4f, 16.5f); lineTo(4f, 7.5f); close()
+        moveTo(4f, 7.5f); lineTo(12f, 11.5f); lineTo(20f, 7.5f)
+        moveTo(12f, 11.5f); lineTo(12f, 20.5f)
+    }
+
+    /** Magnifier — search. */
+    val Search: ImageVector = lineIcon("Search") {
+        moveTo(11f, 4.5f)
+        curveTo(14.6f, 4.5f, 17.5f, 7.4f, 17.5f, 11f)
+        curveTo(17.5f, 14.6f, 14.6f, 17.5f, 11f, 17.5f)
+        curveTo(7.4f, 17.5f, 4.5f, 14.6f, 4.5f, 11f)
+        curveTo(4.5f, 7.4f, 7.4f, 4.5f, 11f, 4.5f)
+        close()
+        moveTo(15.8f, 15.8f); lineTo(20f, 20f)
+    }
+
+    /** Chevron pointing right. */
+    val ChevronRight: ImageVector = lineIcon("ChevronRight") {
+        moveTo(9f, 5f); lineTo(16f, 12f); lineTo(9f, 19f)
+    }
+
+    /** Microphone — voice. */
+    val Mic: ImageVector = lineIcon("Mic") {
+        moveTo(12f, 3.5f)
+        curveTo(13.5f, 3.5f, 14.5f, 4.6f, 14.5f, 6f)
+        lineTo(14.5f, 11f)
+        curveTo(14.5f, 12.4f, 13.5f, 13.5f, 12f, 13.5f)
+        curveTo(10.5f, 13.5f, 9.5f, 12.4f, 9.5f, 11f)
+        lineTo(9.5f, 6f)
+        curveTo(9.5f, 4.6f, 10.5f, 3.5f, 12f, 3.5f)
+        close()
+        moveTo(6f, 11f)
+        curveTo(6f, 14.3f, 8.7f, 17f, 12f, 17f)
+        curveTo(15.3f, 17f, 18f, 14.3f, 18f, 11f)
+        moveTo(12f, 17f); lineTo(12f, 20.5f)
+        moveTo(9f, 20.5f); lineTo(15f, 20.5f)
+    }
+
+    /** Camera — vision. */
+    val Camera: ImageVector = lineIcon("Camera") {
+        moveTo(4f, 8f); lineTo(8f, 8f); lineTo(9.5f, 5.5f); lineTo(14.5f, 5.5f); lineTo(16f, 8f)
+        lineTo(20f, 8f); lineTo(20f, 19f); lineTo(4f, 19f); close()
+        moveTo(12f, 10f)
+        curveTo(13.9f, 10f, 15.5f, 11.6f, 15.5f, 13.5f)
+        curveTo(15.5f, 15.4f, 13.9f, 17f, 12f, 17f)
+        curveTo(10.1f, 17f, 8.5f, 15.4f, 8.5f, 13.5f)
+        curveTo(8.5f, 11.6f, 10.1f, 10f, 12f, 10f)
+        close()
+    }
 }
 
 /** Convenience wrapper to render an [AstraIcons] vector at a consistent size/tint. */

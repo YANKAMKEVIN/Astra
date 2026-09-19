@@ -34,6 +34,7 @@ import com.kevin.astra.presentation.vision.VisionAssistantScreen
 import com.kevin.astra.presentation.vision.VisionAssistantViewModel
 import com.kevin.astra.presentation.voice.VoiceAssistantScreen
 import com.kevin.astra.presentation.voice.VoiceAssistantViewModel
+import com.kevin.astra.presentation.models.ModelsScreen
 import com.kevin.astra.presentation.overview.ProjectOverviewScreen
 import com.kevin.astra.presentation.overview.ProjectOverviewViewModel
 import com.kevin.astra.presentation.settings.SettingsScreen
@@ -118,6 +119,11 @@ fun AstraApp(
                             viewModel = demoViewModel,
                         )
                         AstraDestination.ProjectOverview -> ProjectOverviewScreen(
+                            contentPadding = contentPadding,
+                            viewModel = projectOverviewViewModel,
+                            onNavigate = navigator::navigateTo,
+                        )
+                        AstraDestination.Models -> ModelsScreen(
                             contentPadding = contentPadding,
                             viewModel = projectOverviewViewModel,
                         )

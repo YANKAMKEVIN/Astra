@@ -88,12 +88,18 @@ sealed class AstraDestination(
         shortLabel = "History"
     )
 
+    data object Models : AstraDestination(
+        id = "models",
+        label = "Models",
+        shortLabel = "Models"
+    )
+
     companion object {
         val all: List<AstraDestination>
             get() = listOf(
                 Splash, Onboarding,
                 ProjectOverview, Assistant, Documents, Benchmark, Settings,
-                VoiceAssistant, VisionAssistant, History, Demo,
+                VoiceAssistant, VisionAssistant, History, Demo, Models,
             )
 
         val primaryDestinations: List<AstraDestination>

@@ -7,6 +7,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,6 +48,7 @@ import com.kevin.astra.core.design.AstraIcons
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
+import com.kevin.astra.core.navigation.AstraDestination
 import com.kevin.astra.domain.modelmanager.ModelReadinessStatus
 import com.kevin.astra.domain.settings.DemoModeHolder
 
@@ -54,6 +56,7 @@ import com.kevin.astra.domain.settings.DemoModeHolder
 fun ProjectOverviewScreen(
     contentPadding: PaddingValues,
     viewModel: ProjectOverviewViewModel,
+    onNavigate: (AstraDestination) -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val isDemoMode by DemoModeHolder.enabled.collectAsStateWithLifecycle()
@@ -66,7 +69,7 @@ fun ProjectOverviewScreen(
         StatusHeader(state = state, isDemoMode = isDemoMode)
         PrivateComputeStrip()
         LiveMetricsGrid(state = state)
-        ModelsCard(state = state)
+        ModelsCard(state = state, onSeeAll = { onNavigate(AstraDestination.Models) })
         AiFeaturesSection(features = state.aiFeatures)
         if (!state.isLoadingCapabilities) {
             DeviceDetailSection(state = state)
@@ -388,8 +391,38 @@ private fun MetricTile(
 // ── Models card ───────────────────────────────────────────────────────────────
 
 @Composable
-private fun ModelsCard(state: ProjectOverviewState) {
-    SectionLabel("Models  ·  ${state.installedModels.size} installed")
+private fun ModelsCard(state: ProjectOverviewState, onSeeAll: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(bottom = AstraSpacing.XS),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "MODELS  ·  ${state.installedModels.size} INSTALLED",
+            style = AstraTypography.Caption.copy(
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 1.5.sp,
+            ),
+            color = AstraColors.TextDisabled,
+            fontWeight = FontWeight.Bold,
+        )
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .clickable(onClick = onSeeAll)
+                .padding(horizontal = AstraSpacing.S, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = "See all",
+                style = AstraTypography.Caption,
+                color = AstraColors.Secondary,
+                fontWeight = FontWeight.SemiBold,
+            )
+            AstraIcon(icon = AstraIcons.ChevronRight, tint = AstraColors.Secondary, size = 14.dp)
+        }
+    }
     Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
         state.modelReadiness.forEach { readiness ->
             val isInstalled = readiness.status == ModelReadinessStatus.Installed
