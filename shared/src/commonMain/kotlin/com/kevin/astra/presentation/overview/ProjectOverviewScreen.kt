@@ -28,6 +28,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,6 +40,7 @@ import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraChip
 import com.kevin.astra.core.design.AstraColors
+import com.kevin.astra.core.design.AstraCore
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
@@ -57,6 +61,7 @@ fun ProjectOverviewScreen(
         contentPadding = contentPadding,
     ) {
         StatusHeader(state = state, isDemoMode = isDemoMode)
+        PrivateComputeStrip()
         LiveMetricsGrid(state = state)
         ModelsCard(state = state)
         AiFeaturesSection(features = state.aiFeatures)
@@ -87,8 +92,14 @@ private fun StatusHeader(state: ProjectOverviewState, isDemoMode: Boolean) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(AstraColors.Surface, RoundedCornerShape(20.dp))
-            .border(1.dp, AstraColors.Border, RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(24.dp))
+            .background(AstraColors.SurfaceElevated.copy(alpha = 0.6f))
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color.White.copy(alpha = 0.05f), Color.Transparent),
+                ),
+            )
+            .border(1.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(24.dp))
             .padding(AstraSpacing.L),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.M)) {
@@ -98,23 +109,29 @@ private fun StatusHeader(state: ProjectOverviewState, isDemoMode: Boolean) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column {
-                    Text(
-                        text = "Edge AI Platform",
-                        style = AstraTypography.Caption.copy(
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = 2.sp,
-                        ),
-                        color = AstraColors.Secondary,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Spacer(Modifier.height(AstraSpacing.XS))
-                    Text(
-                        text = "ASTRA",
-                        style = AstraTypography.Headline,
-                        color = AstraColors.TextPrimary,
-                        fontWeight = FontWeight.Bold,
-                    )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+                ) {
+                    AstraCore(coreSize = 34.dp)
+                    Column {
+                        Text(
+                            text = "EDGE AI CORE",
+                            style = AstraTypography.Caption.copy(
+                                fontFamily = FontFamily.Monospace,
+                                letterSpacing = 2.sp,
+                            ),
+                            color = AstraColors.Secondary,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.height(AstraSpacing.XS))
+                        Text(
+                            text = "ASTRA",
+                            style = AstraTypography.Headline,
+                            color = AstraColors.TextPrimary,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
                 // Live/Demo badge
                 Row(
@@ -218,6 +235,63 @@ private fun StatPill(label: String, value: String, modifier: Modifier = Modifier
             color = AstraColors.TextPrimary,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
+        )
+    }
+}
+
+// ── Private compute strip ─────────────────────────────────────────────────────
+
+@Composable
+private fun PrivateComputeStrip() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(AstraColors.Secondary.copy(alpha = 0.06f))
+            .border(1.dp, AstraColors.Secondary.copy(alpha = 0.20f), RoundedCornerShape(20.dp))
+            .padding(AstraSpacing.L),
+        verticalArrangement = Arrangement.spacedBy(AstraSpacing.M),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+        ) {
+            Text(text = "◆", fontSize = 12.sp, color = AstraColors.Secondary)
+            Text(
+                text = "PRIVATE COMPUTE",
+                style = AstraTypography.Caption.copy(
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 1.5.sp,
+                ),
+                color = AstraColors.TextPrimary,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Text(
+            text = "Your data never leaves this device.",
+            style = AstraTypography.Caption,
+            color = AstraColors.TextSecondary,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+        ) {
+            ComputeStat("Network", "OFF", AstraColors.Success, Modifier.weight(1f))
+            ComputeStat("Cloud", "NONE", AstraColors.Success, Modifier.weight(1f))
+            ComputeStat("Inference", "LOCAL", AstraColors.Secondary, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun ComputeStat(label: String, value: String, valueColor: Color, modifier: Modifier = Modifier) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextDisabled)
+        Text(
+            text = value,
+            style = AstraTypography.Caption.copy(fontFamily = FontFamily.Monospace),
+            color = valueColor,
+            fontWeight = FontWeight.Bold,
         )
     }
 }

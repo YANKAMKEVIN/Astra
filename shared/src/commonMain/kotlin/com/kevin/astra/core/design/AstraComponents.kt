@@ -1,5 +1,10 @@
 package com.kevin.astra.core.design
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -19,6 +24,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -39,8 +45,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -95,6 +104,71 @@ fun AstraCard(
                 }
             }
             content()
+        }
+    }
+}
+
+/**
+ * ASTRA Core — the signature "living" orb: a Primary→Secondary gradient core
+ * inside two ultra-subtle rings over a soft radial halo, with a very slow
+ * breathing + halo pulse. No backdrop blur required. Shared across screens
+ * (Chat empty state, Home hero, …).
+ */
+@Composable
+fun AstraCore(coreSize: Dp = 96.dp, animated: Boolean = true) {
+    val transition = rememberInfiniteTransition(label = "astra-core")
+    val scale by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = if (animated) 1.035f else 1f,
+        animationSpec = infiniteRepeatable(tween(2200), RepeatMode.Reverse),
+        label = "core-scale",
+    )
+    val halo by transition.animateFloat(
+        initialValue = if (animated) 0.07f else 0.10f,
+        targetValue = if (animated) 0.14f else 0.10f,
+        animationSpec = infiniteRepeatable(tween(2600), RepeatMode.Reverse),
+        label = "core-halo",
+    )
+    Box(
+        modifier = Modifier.size(coreSize * 1.9f),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(
+                    Brush.radialGradient(
+                        listOf(AstraColors.Secondary.copy(alpha = halo), Color.Transparent),
+                    ),
+                ),
+        )
+        Box(
+            modifier = Modifier
+                .size(coreSize * 1.48f)
+                .border(1.dp, AstraColors.Primary.copy(alpha = 0.10f), CircleShape),
+        )
+        Box(
+            modifier = Modifier
+                .size(coreSize * 1.23f)
+                .border(1.dp, AstraColors.Secondary.copy(alpha = 0.16f), CircleShape),
+        )
+        Box(
+            modifier = Modifier
+                .size(coreSize)
+                .scale(scale)
+                .shadow(
+                    elevation = 26.dp,
+                    shape = CircleShape,
+                    clip = false,
+                    ambientColor = AstraColors.Primary,
+                    spotColor = AstraColors.Secondary,
+                )
+                .clip(CircleShape)
+                .background(Brush.linearGradient(listOf(AstraColors.Primary, AstraColors.Secondary)))
+                .border(1.dp, Color.White.copy(alpha = 0.20f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(text = "✦", fontSize = (coreSize.value * 0.36f).sp, color = Color.White)
         }
     }
 }

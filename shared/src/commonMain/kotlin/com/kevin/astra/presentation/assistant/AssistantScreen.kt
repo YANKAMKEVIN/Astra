@@ -75,6 +75,7 @@ import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraColors
+import com.kevin.astra.core.design.AstraCore
 import com.kevin.astra.core.design.AstraErrorView
 import com.kevin.astra.core.design.AstraGlassRow
 import com.kevin.astra.core.design.AstraGlassSheet
@@ -779,74 +780,6 @@ private fun EmptyChat(
             }
         }
         Spacer(Modifier.height(AstraSpacing.M))
-    }
-}
-
-/**
- * ASTRA Core — the signature "living" orb: a Primary→Secondary gradient core
- * inside two ultra-subtle rings, over a soft radial halo, with a very slow
- * breathing + halo pulse. No backdrop blur required.
- */
-@Composable
-private fun AstraCore(coreSize: Dp = 96.dp) {
-    val transition = rememberInfiniteTransition(label = "astra-core")
-    val scale by transition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.035f,
-        animationSpec = infiniteRepeatable(tween(2200), RepeatMode.Reverse),
-        label = "core-scale",
-    )
-    val halo by transition.animateFloat(
-        initialValue = 0.07f,
-        targetValue = 0.14f,
-        animationSpec = infiniteRepeatable(tween(2600), RepeatMode.Reverse),
-        label = "core-halo",
-    )
-    Box(
-        modifier = Modifier.size(coreSize * 1.9f),
-        contentAlignment = Alignment.Center,
-    ) {
-        // radial halo
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(
-                    Brush.radialGradient(
-                        listOf(AstraColors.Secondary.copy(alpha = halo), Color.Transparent),
-                    ),
-                ),
-        )
-        // outer ring
-        Box(
-            modifier = Modifier
-                .size(coreSize * 1.48f)
-                .border(1.dp, AstraColors.Primary.copy(alpha = 0.10f), CircleShape),
-        )
-        // inner ring
-        Box(
-            modifier = Modifier
-                .size(coreSize * 1.23f)
-                .border(1.dp, AstraColors.Secondary.copy(alpha = 0.16f), CircleShape),
-        )
-        // core
-        Box(
-            modifier = Modifier
-                .size(coreSize)
-                .scale(scale)
-                .shadow(
-                    elevation = 26.dp,
-                    shape = CircleShape,
-                    clip = false,
-                    ambientColor = AstraColors.Primary,
-                    spotColor = AstraColors.Secondary,
-                )
-                .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(AstraColors.Primary, AstraColors.Secondary)))
-                .border(1.dp, Color.White.copy(alpha = 0.20f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(text = "✦", fontSize = 34.sp, color = Color.White)
-        }
     }
 }
 
