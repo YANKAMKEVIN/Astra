@@ -38,6 +38,7 @@ import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraCard
 import com.kevin.astra.core.design.AstraChip
 import com.kevin.astra.core.design.AstraColors
+import com.kevin.astra.core.design.AstraIcons
 import com.kevin.astra.core.design.AstraEmptyView
 import com.kevin.astra.core.design.AstraErrorView
 import com.kevin.astra.core.design.MarkdownText
@@ -268,26 +269,29 @@ private fun DocumentCard(
             // No source loaded — show both import options
             Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
                 AstraButton(
-                    text = "📄 PDF",
+                    text = "PDF",
                     onClick = onPickPdf,
                     enabled = !isLoading && !isIndexing,
                     modifier = Modifier.weight(1f),
+                    leadingIcon = AstraIcons.Article,
                 )
                 AstraButton(
-                    text = "📧 Email",
+                    text = "Email",
                     onClick = onPickEmail,
                     enabled = !isLoading && !isIndexing,
                     modifier = Modifier.weight(1f),
                     style = AstraButtonStyle.Secondary,
+                    leadingIcon = AstraIcons.Mail,
                 )
             }
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
                 AstraButton(
-                    text = if (isLoading || isIndexing) "Processing…" else if (isEmail) "📧 New email" else "📄 New PDF",
+                    text = if (isLoading || isIndexing) "Processing…" else if (isEmail) "New email" else "New PDF",
                     onClick = if (isEmail) onPickEmail else onPickPdf,
                     enabled = !isLoading && !isIndexing,
                     modifier = Modifier.weight(1f),
+                    leadingIcon = if (isEmail) AstraIcons.Mail else AstraIcons.Article,
                 )
                 AstraButton(
                     text = "Clear",
@@ -327,9 +331,10 @@ private fun GmailCard(
             )
             Spacer(Modifier.height(AstraSpacing.M))
             AstraButton(
-                text = "🔗 Connect Gmail",
+                text = "Connect Gmail",
                 onClick = onConnect,
                 modifier = Modifier.fillMaxWidth(),
+                leadingIcon = AstraIcons.Cloud,
             )
         } else {
             BasicTextField(
@@ -382,17 +387,19 @@ private fun GmailCard(
             Spacer(Modifier.height(AstraSpacing.M))
             Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
                 AstraButton(
-                    text = if (isFetching) "Fetching…" else "📥 Latest 20",
+                    text = if (isFetching) "Fetching…" else "Latest 20",
                     onClick = onFetchRecent,
                     enabled = enabled,
                     modifier = Modifier.weight(1f),
+                    leadingIcon = AstraIcons.Download,
                 )
                 AstraButton(
-                    text = "🔍 Search",
+                    text = "Search",
                     onClick = onFetchSearch,
                     enabled = enabled && query.isNotBlank(),
                     style = AstraButtonStyle.Secondary,
                     modifier = Modifier.weight(1f),
+                    leadingIcon = AstraIcons.Search,
                 )
             }
             Spacer(Modifier.height(AstraSpacing.S))

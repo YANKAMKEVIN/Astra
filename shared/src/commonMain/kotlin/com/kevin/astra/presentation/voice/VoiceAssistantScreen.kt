@@ -169,10 +169,11 @@ fun VoiceAssistantScreen(
                 AiResponseCard(text = state.response)
                 if (state.phase == VoicePhase.Speaking) {
                     AstraButton(
-                        text = "⏹  Stop speaking",
+                        text = "Stop speaking",
                         onClick = { viewModel.dispatch(VoiceAssistantIntent.StopSpeaking) },
                         style = AstraButtonStyle.Secondary,
                         modifier = Modifier.fillMaxWidth(),
+                        leadingIcon = AstraIcons.Stop,
                     )
                 }
             }
