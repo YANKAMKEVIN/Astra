@@ -131,6 +131,13 @@ object AstraIcons {
         moveTo(9f, 12f); lineTo(11.2f, 14.2f); lineTo(15f, 9.8f)
     }
 
+    /** Monitor — display / GPU. */
+    val Monitor: ImageVector = lineIcon("Monitor") {
+        moveTo(4f, 5f); lineTo(20f, 5f); lineTo(20f, 15f); lineTo(4f, 15f); close()
+        moveTo(9f, 19f); lineTo(15f, 19f)
+        moveTo(12f, 15f); lineTo(12f, 19f)
+    }
+
     /** Isometric cube — a model. */
     val Cube: ImageVector = lineIcon("Cube") {
         moveTo(12f, 3.5f); lineTo(20f, 7.5f); lineTo(20f, 16.5f); lineTo(12f, 20.5f)

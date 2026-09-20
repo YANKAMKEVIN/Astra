@@ -424,7 +424,9 @@ private fun ModelsCard(state: ProjectOverviewState, onSeeAll: () -> Unit) {
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-        state.modelReadiness.forEach { readiness ->
+        // Home shows only the installed models; the full catalog lives on the
+        // dedicated Models screen (via "See all").
+        state.modelReadiness.filter { it.status == ModelReadinessStatus.Installed }.forEach { readiness ->
             val isInstalled = readiness.status == ModelReadinessStatus.Installed
             Row(
                 modifier = Modifier
@@ -497,11 +499,11 @@ private fun DeviceDetailSection(state: ProjectOverviewState) {
             .padding(AstraSpacing.M),
         verticalArrangement = Arrangement.spacedBy(AstraSpacing.S),
     ) {
-        InfoRow("Device", caps.deviceModel)
-        InfoRow("CPU", caps.cpuName)
-        InfoRow("GPU", caps.gpuName ?: "Not detected")
-        InfoRow("NPU", if (caps.npuAvailable) caps.npuName else "Not detected")
-        InfoRow("OS", "${caps.platform} ${caps.osVersion}")
+        InfoRow(AstraIcons.Smartphone, "Device", caps.deviceModel)
+        InfoRow(AstraIcons.Cpu, "CPU", caps.cpuName)
+        InfoRow(AstraIcons.Monitor, "GPU", caps.gpuName ?: "Not detected")
+        InfoRow(AstraIcons.Cpu, "NPU", if (caps.npuAvailable) caps.npuName else "Not detected")
+        InfoRow(AstraIcons.Layers, "OS", "${caps.platform} ${caps.osVersion}")
     }
     if (caps.supportedBackends.isNotEmpty()) {
         Spacer(Modifier.height(AstraSpacing.S))
@@ -520,13 +522,27 @@ private fun DeviceDetailSection(state: ProjectOverviewState) {
 }
 
 @Composable
-private fun InfoRow(label: String, value: String) {
+private fun InfoRow(icon: ImageVector, label: String, value: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextDisabled)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(AstraColors.Secondary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                AstraIcon(icon = icon, tint = AstraColors.Secondary, size = 16.dp)
+            }
+            Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextDisabled)
+        }
         Spacer(Modifier.width(AstraSpacing.M))
         Text(
             text = value,
