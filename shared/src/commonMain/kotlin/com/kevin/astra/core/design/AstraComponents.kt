@@ -73,40 +73,44 @@ fun AstraCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = AstraColors.Surface),
-        border = BorderStroke(1.dp, AstraColors.Border),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(AstraColors.SurfaceElevated.copy(alpha = 0.6f))
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color.White.copy(alpha = 0.05f), Color.Transparent),
+                ),
+            )
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(24.dp))
+            .padding(AstraSpacing.L),
     ) {
-        Column(modifier = Modifier.padding(AstraSpacing.L)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = AstraTypography.Title,
+                    color = AstraColors.TextPrimary,
+                )
+                if (subtitle != null) {
+                    Spacer(Modifier.height(AstraSpacing.XS))
                     Text(
-                        text = title,
-                        style = AstraTypography.Title,
-                        color = AstraColors.TextPrimary,
+                        text = subtitle,
+                        style = AstraTypography.Caption,
+                        color = AstraColors.TextSecondary,
                     )
-                    if (subtitle != null) {
-                        Spacer(Modifier.height(AstraSpacing.XS))
-                        Text(
-                            text = subtitle,
-                            style = AstraTypography.Caption,
-                            color = AstraColors.TextSecondary,
-                        )
-                    }
-                }
-                if (status != null) {
-                    AstraChip(label = status, color = AstraColors.Secondary)
                 }
             }
-            content()
+            if (status != null) {
+                AstraChip(label = status, color = AstraColors.Secondary)
+            }
         }
+        content()
     }
 }
 

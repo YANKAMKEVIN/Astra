@@ -25,3 +25,6 @@ shared/src/androidMain/assets/models/litert-lm/*.tflite
 shared/src/androidMain/assets/models/litert-lm/*.bin
 shared/src/androidMain/assets/models/litert-lm/*.model
 shared/src/androidMain/assets/models/litert-lm/*.spm
+
+# Local presentation assets
+*.pptx
