@@ -41,6 +41,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SheetState
@@ -259,6 +260,7 @@ fun AstraButton(
     modifier: Modifier = Modifier,
     style: AstraButtonStyle = AstraButtonStyle.Primary,
     enabled: Boolean = true,
+    leadingIcon: ImageVector? = null,
 ) {
     val containerColor = when (style) {
         AstraButtonStyle.Primary -> AstraColors.Primary
@@ -279,7 +281,7 @@ fun AstraButton(
                 disabledContentColor = AstraColors.TextDisabled,
             ),
         ) {
-            Text(text)
+            AstraButtonContent(text, leadingIcon)
         }
     } else {
         Button(
@@ -294,8 +296,21 @@ fun AstraButton(
                 disabledContentColor = AstraColors.TextDisabled,
             ),
         ) {
-            Text(text)
+            AstraButtonContent(text, leadingIcon)
         }
+    }
+}
+
+@Composable
+private fun AstraButtonContent(text: String, leadingIcon: ImageVector?) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+    ) {
+        if (leadingIcon != null) {
+            AstraIcon(icon = leadingIcon, tint = LocalContentColor.current, size = 18.dp)
+        }
+        Text(text)
     }
 }
 

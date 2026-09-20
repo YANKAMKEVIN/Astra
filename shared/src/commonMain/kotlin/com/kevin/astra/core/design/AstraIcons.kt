@@ -157,6 +157,13 @@ object AstraIcons {
         moveTo(15.8f, 15.8f); lineTo(20f, 20f)
     }
 
+    /** Download / inbox arrow. */
+    val Download: ImageVector = lineIcon("Download") {
+        moveTo(12f, 4f); lineTo(12f, 15f)
+        moveTo(8f, 11f); lineTo(12f, 15f); lineTo(16f, 11f)
+        moveTo(5f, 19f); lineTo(19f, 19f)
+    }
+
     /** Chevron pointing right. */
     val ChevronRight: ImageVector = lineIcon("ChevronRight") {
         moveTo(9f, 5f); lineTo(16f, 12f); lineTo(9f, 19f)
