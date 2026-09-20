@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,7 +38,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -55,12 +56,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -70,7 +77,12 @@ import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraColors
+import com.kevin.astra.core.design.AstraCore
 import com.kevin.astra.core.design.AstraErrorView
+import com.kevin.astra.core.design.AstraIcon
+import com.kevin.astra.core.design.AstraIcons
+import com.kevin.astra.core.design.AstraGlassRow
+import com.kevin.astra.core.design.AstraGlassSheet
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
 import com.kevin.astra.core.design.DemoModeBanner
@@ -174,21 +186,30 @@ private fun AssistantDrawer(
             .background(AstraColors.Surface)
             .border(width = 1.dp, color = AstraColors.Border)
             .verticalScroll(rememberScrollState())
+            .statusBarsPadding()
             .padding(AstraSpacing.L),
         verticalArrangement = Arrangement.spacedBy(AstraSpacing.M),
     ) {
         // Header
-        Text(
-            text = "ASTRA",
-            style = AstraTypography.Headline,
-            color = AstraColors.Primary,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = "Local Edge AI",
-            style = AstraTypography.Caption,
-            color = AstraColors.TextSecondary,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+        ) {
+            AstraCore(coreSize = 30.dp)
+            Column {
+                Text(
+                    text = "ASTRA",
+                    style = AstraTypography.Title,
+                    color = AstraColors.TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "Local Edge AI",
+                    style = AstraTypography.Caption,
+                    color = AstraColors.TextSecondary,
+                )
+            }
+        }
 
         Spacer(Modifier.height(AstraSpacing.S))
 
@@ -486,7 +507,7 @@ private fun AssistantContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = AstraSpacing.L)
-                .padding(top = if (isDemoMode) AstraSpacing.S else AstraSpacing.L),
+                .padding(top = if (isDemoMode) AstraSpacing.S else AstraSpacing.M),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
         ) {
@@ -500,11 +521,18 @@ private fun AssistantContent(
                     color = AstraColors.TextPrimary,
                     fontWeight = FontWeight.SemiBold,
                 )
-                Text(
-                    text = "${state.selectedIndustry?.label ?: "General"} · ${state.sessionModel?.displayName ?: "Local AI"}",
-                    style = AstraTypography.Caption,
-                    color = AstraColors.TextSecondary,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+                ) {
+                    Text(
+                        text = "${state.selectedIndustry?.label ?: "General"} · ${state.sessionModel?.displayName ?: "Local AI"}",
+                        style = AstraTypography.Caption,
+                        color = AstraColors.TextSecondary,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    HeaderLocalBadge()
+                }
             }
 
             if (state.messages.isNotEmpty()) {
@@ -521,56 +549,28 @@ private fun AssistantContent(
 
     // ── Tools bottom sheet ─────────────────────────────────────────────
     if (showToolsSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showToolsSheet = false },
+        AstraGlassSheet(
+            title = "Tools",
+            subtitle = "On-device capabilities",
+            onDismiss = { showToolsSheet = false },
             sheetState = sheetState,
-            containerColor = AstraColors.Surface,
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = AstraSpacing.L)
-                    .padding(bottom = AstraSpacing.XL),
-                verticalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
-            ) {
-                Text(
-                    text = "Tools",
-                    style = AstraTypography.Title,
-                    color = AstraColors.TextPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.height(AstraSpacing.S))
-                AstraDestination.secondaryNavDestinations.forEach { dest ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(AstraColors.SurfaceElevated, RoundedCornerShape(14.dp))
-                            .border(1.dp, AstraColors.Border, RoundedCornerShape(14.dp))
-                            .clickable {
+            AstraDestination.secondaryNavDestinations.chunked(2).forEach { rowItems ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+                ) {
+                    rowItems.forEach { dest ->
+                        ToolTile(
+                            dest = dest,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
                                 showToolsSheet = false
                                 onNavigate(dest)
-                            }
-                            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.M),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
-                    ) {
-                        val icon = when (dest) {
-                            AstraDestination.VoiceAssistant -> "🎤"
-                            AstraDestination.VisionAssistant -> "📷"
-                            AstraDestination.History -> "🕐"
-                            AstraDestination.Demo -> "🚀"
-                            else -> "›"
-                        }
-                        Text(text = icon, style = AstraTypography.Body)
-                        Column {
-                            Text(
-                                text = dest.label,
-                                style = AstraTypography.Body,
-                                color = AstraColors.TextPrimary,
-                                fontWeight = FontWeight.Medium,
-                            )
-                        }
+                            },
+                        )
                     }
+                    if (rowItems.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
         }
@@ -578,54 +578,27 @@ private fun AssistantContent(
 
     // ── Share format picker ────────────────────────────────────────────────
     if (shareTargetBubbleId != null) {
-        ModalBottomSheet(
-            onDismissRequest = { shareTargetBubbleId = null },
+        AstraGlassSheet(
+            title = "Share as…",
+            onDismiss = { shareTargetBubbleId = null },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = AstraColors.Surface,
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = AstraSpacing.L)
-                    .padding(bottom = AstraSpacing.XL),
-                verticalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
-            ) {
-                Text(
-                    text = "Share as…",
-                    style = AstraTypography.Title,
-                    color = AstraColors.TextPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.height(AstraSpacing.S))
-                ExportFormat.entries.forEach { format ->
-                    val icon = when (format) {
-                        ExportFormat.PlainText -> "📝"
-                        ExportFormat.Markdown -> "✍️"
-                        ExportFormat.Pdf -> "📄"
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(AstraColors.SurfaceElevated, RoundedCornerShape(14.dp))
-                            .border(1.dp, AstraColors.Border, RoundedCornerShape(14.dp))
-                            .clickable {
-                                val id = shareTargetBubbleId ?: return@clickable
-                                shareTargetBubbleId = null
-                                onIntent(AssistantIntent.ShareBubble(id, format))
-                            }
-                            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.M),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
-                    ) {
-                        Text(text = icon, style = AstraTypography.Body)
-                        Text(
-                            text = format.label,
-                            style = AstraTypography.Body,
-                            color = AstraColors.TextPrimary,
-                            fontWeight = FontWeight.Medium,
-                        )
-                    }
+            ExportFormat.entries.forEach { format ->
+                val icon = when (format) {
+                    ExportFormat.PlainText -> "📝"
+                    ExportFormat.Markdown -> "✍️"
+                    ExportFormat.Pdf -> "📄"
                 }
+                AstraGlassRow(
+                    glyph = icon,
+                    label = format.label,
+                    trailing = "",
+                    onClick = {
+                        val id = shareTargetBubbleId ?: return@AstraGlassRow
+                        shareTargetBubbleId = null
+                        onIntent(AssistantIntent.ShareBubble(id, format))
+                    },
+                )
             }
         }
     }
@@ -706,6 +679,85 @@ private fun HeaderIconButton(icon: String, onClick: () -> Unit) {
     }
 }
 
+@Composable
+private fun ToolTile(dest: AstraDestination, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val icon = when (dest) {
+        AstraDestination.VoiceAssistant -> AstraIcons.Mic
+        AstraDestination.VisionAssistant -> AstraIcons.Camera
+        AstraDestination.History -> AstraIcons.Clock
+        AstraDestination.Demo -> AstraIcons.Play
+        AstraDestination.Models -> AstraIcons.Cube
+        else -> AstraIcons.Sparkle
+    }
+    val subtitle = when (dest) {
+        AstraDestination.VoiceAssistant -> "Speech-to-text & TTS"
+        AstraDestination.VisionAssistant -> "Analyze images on device"
+        AstraDestination.History -> "Past conversations"
+        AstraDestination.Demo -> "Guided offline demo"
+        AstraDestination.Models -> "Manage models & runtimes"
+        else -> "On-device"
+    }
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(AstraColors.Surface.copy(alpha = 0.6f))
+            .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick)
+            .padding(AstraSpacing.M),
+        verticalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(AstraColors.Secondary.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                AstraIcon(icon = icon, tint = AstraColors.Secondary, size = 20.dp)
+            }
+            AstraIcon(icon = AstraIcons.ChevronRight, tint = AstraColors.TextDisabled, size = 16.dp)
+        }
+        Text(
+            text = dest.label,
+            style = AstraTypography.Body,
+            color = AstraColors.TextPrimary,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = subtitle,
+            style = AstraTypography.Caption,
+            color = AstraColors.TextDisabled,
+        )
+    }
+}
+
+/** Compact on-device indicator shown in the Chat header next to the model name. */
+@Composable
+private fun HeaderLocalBadge() {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(AstraColors.Secondary.copy(alpha = 0.12f))
+            .border(1.dp, AstraColors.Secondary.copy(alpha = 0.30f), RoundedCornerShape(50))
+            .padding(horizontal = AstraSpacing.S, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(text = "●", fontSize = 8.sp, color = AstraColors.Secondary)
+        Text(
+            text = "LOCAL",
+            style = AstraTypography.Caption.copy(fontSize = 10.sp, letterSpacing = 0.8.sp),
+            color = AstraColors.Secondary,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
 // ── Empty state ───────────────────────────────────────────────────────────────
 
 @Composable
@@ -722,17 +774,35 @@ private fun EmptyChat(
         verticalArrangement = Arrangement.spacedBy(AstraSpacing.M),
     ) {
         Spacer(Modifier.height(AstraSpacing.L))
+        // ── Hero: ASTRA Core (breathing orb + rings + radial halo) ──────────
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            AstraCore(coreSize = 96.dp)
+        }
         Text(
             text = "How can I help you?",
-            style = AstraTypography.Title,
+            style = AstraTypography.Title.copy(fontSize = 28.sp, lineHeight = 34.sp),
             color = AstraColors.TextPrimary,
             fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            text = "Type a question, attach a PDF or a photo, or use the mic.\nOpen ☰ to configure domain & model.",
+            text = "Private AI. Running entirely on this device.",
             style = AstraTypography.Body,
             color = AstraColors.TextSecondary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = AstraSpacing.S),
         )
+        Spacer(Modifier.height(AstraSpacing.XS))
+        // ── On-device status pills ──────────────────────────────────────────
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S, Alignment.CenterHorizontally),
+        ) {
+            EmptyStatePill(glyph = "●", label = "OFFLINE READY", tint = AstraColors.Success)
+            EmptyStatePill(glyph = "●", label = "PRIVATE", tint = AstraColors.Secondary)
+            EmptyStatePill(glyph = "●", label = "LOCAL", tint = AstraColors.Primary)
+        }
         Spacer(Modifier.height(AstraSpacing.S))
         Text(
             text = "SUGGESTIONS",
@@ -744,21 +814,64 @@ private fun EmptyChat(
             fontWeight = FontWeight.Bold,
         )
         quickSuggestions(industry).forEach { suggestion ->
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(AstraColors.Surface, RoundedCornerShape(12.dp))
-                    .border(1.dp, AstraColors.Border, RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(AstraColors.SurfaceElevated.copy(alpha = 0.55f))
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.White.copy(alpha = 0.04f), Color.Transparent),
+                        ),
+                    )
+                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
                     .clickable { onSuggestionSelected(suggestion) }
-                    .padding(AstraSpacing.M),
+                    .padding(horizontal = AstraSpacing.M, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
             ) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .background(
+                            AstraColors.Secondary.copy(alpha = 0.14f),
+                            RoundedCornerShape(11.dp),
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(text = "✦", fontSize = 15.sp, color = AstraColors.Secondary)
+                }
                 Text(
                     text = suggestion,
                     style = AstraTypography.Body,
                     color = AstraColors.TextPrimary,
+                    modifier = Modifier.weight(1f),
                 )
+                Text(text = "›", fontSize = 22.sp, color = AstraColors.TextDisabled)
             }
         }
+        Spacer(Modifier.height(AstraSpacing.M))
+    }
+}
+
+@Composable
+private fun EmptyStatePill(glyph: String, label: String, tint: Color) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(AstraColors.SurfaceElevated.copy(alpha = 0.55f))
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(50))
+            .padding(horizontal = AstraSpacing.S + 2.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(text = glyph, fontSize = 9.sp, color = tint)
+        Text(
+            text = label,
+            style = AstraTypography.Caption.copy(fontSize = 10.sp, letterSpacing = 0.8.sp),
+            color = AstraColors.TextSecondary,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
@@ -875,19 +988,24 @@ private fun MessageBubble(
             )
             Box(
                 modifier = Modifier
-                    .background(
-                        if (isUser) AstraColors.Primary.copy(alpha = 0.18f) else AstraColors.SurfaceElevated,
-                        bubbleShape,
-                    )
-                    .border(
-                        1.dp,
-                        if (isUser) AstraColors.Primary.copy(alpha = 0.25f) else AstraColors.Border,
-                        bubbleShape,
+                    .then(
+                        if (isUser) {
+                            Modifier.background(
+                                Brush.linearGradient(
+                                    listOf(AstraColors.Primary, AstraColors.Secondary),
+                                ),
+                                bubbleShape,
+                            )
+                        } else {
+                            Modifier
+                                .background(AstraColors.SurfaceElevated, bubbleShape)
+                                .border(1.dp, AstraColors.Border, bubbleShape)
+                        },
                     )
                     .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
             ) {
                 if (isUser) {
-                    Text(text = bubble.text, style = AstraTypography.Body, color = AstraColors.TextPrimary)
+                    Text(text = bubble.text, style = AstraTypography.Body, color = Color.White)
                 } else {
                     MarkdownText(text = bubble.text)
                 }
@@ -1158,33 +1276,33 @@ private fun InputBar(
                 horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
             ) {
                 AttachmentOption(
-                    icon = "📄",
+                    icon = AstraIcons.Article,
                     label = "PDF",
                     active = attachedPdf != null,
                     onClick = { pdfLauncher(); showAttachmentOptions = false },
                 )
                 AttachmentOption(
-                    icon = "📷",
+                    icon = AstraIcons.Camera,
                     label = "Photo",
                     active = attachedImage != null,
                     onClick = { imageLauncher(); showAttachmentOptions = false },
                 )
                 AttachmentOption(
-                    icon = "📧",
+                    icon = AstraIcons.Mail,
                     label = "Email",
                     active = attachedEmail != null,
                     onClick = { emailLauncher(); showAttachmentOptions = false },
                 )
                 if (gmailSupported) {
                     AttachmentOption(
-                        icon = "🔗",
+                        icon = AstraIcons.Cloud,
                         label = "Gmail",
                         active = false,
                         onClick = { onAttachGmail(); showAttachmentOptions = false },
                     )
                 }
                 AttachmentOption(
-                    icon = if (isListening) "⏹" else "🎤",
+                    icon = if (isListening) AstraIcons.Stop else AstraIcons.Mic,
                     label = if (isListening) "Stop" else "Voice",
                     active = isListening,
                     onClick = { onToggleVoice(); if (!isListening) showAttachmentOptions = false },
@@ -1204,8 +1322,15 @@ private fun InputBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(AstraColors.SurfaceElevated, RoundedCornerShape(20.dp))
-                .border(1.dp, AstraColors.Border, RoundedCornerShape(20.dp))
+                .shadow(12.dp, RoundedCornerShape(28.dp), clip = false)
+                .clip(RoundedCornerShape(28.dp))
+                .background(AstraColors.SurfaceElevated)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.White.copy(alpha = 0.05f), Color.Transparent),
+                    ),
+                )
+                .border(1.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(28.dp))
                 .padding(horizontal = AstraSpacing.S, vertical = AstraSpacing.XS),
             verticalAlignment = Alignment.Bottom,
         ) {
@@ -1264,28 +1389,33 @@ private fun InputBar(
 
 @Composable
 private fun AttachmentOption(
-    icon: String,
+    icon: ImageVector,
     label: String,
     active: Boolean,
     onClick: () -> Unit,
 ) {
+    val tint = if (active) AstraColors.Primary else AstraColors.Secondary
     Column(
         modifier = Modifier
-            .background(
-                if (active) AstraColors.Primary.copy(alpha = 0.12f) else Color.Transparent,
-                RoundedCornerShape(10.dp),
-            )
-            .border(
-                1.dp,
-                if (active) AstraColors.Primary.copy(alpha = 0.4f) else Color.Transparent,
-                RoundedCornerShape(10.dp),
-            )
             .clickable(onClick = onClick)
-            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.XS),
+            .padding(horizontal = AstraSpacing.XS, vertical = AstraSpacing.XS),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(text = icon, style = AstraTypography.Body)
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(tint.copy(alpha = if (active) 0.18f else 0.12f))
+                .border(
+                    1.dp,
+                    if (active) AstraColors.Primary.copy(alpha = 0.4f) else Color.Transparent,
+                    RoundedCornerShape(12.dp),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            AstraIcon(icon = icon, tint = tint, size = 20.dp)
+        }
         Text(
             text = label,
             style = AstraTypography.Caption,
@@ -1303,15 +1433,23 @@ private fun SendButton(canAsk: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(44.dp)
-            .alpha(if (canAsk) 1f else 0.35f)
-            .background(
-                if (canAsk) AstraColors.Primary else AstraColors.SurfaceElevated,
-                RoundedCornerShape(14.dp),
+            .alpha(if (canAsk) 1f else 0.4f)
+            .then(
+                if (canAsk) {
+                    Modifier.background(
+                        Brush.linearGradient(
+                            listOf(AstraColors.Primary, AstraColors.Secondary),
+                        ),
+                        CircleShape,
+                    )
+                } else {
+                    Modifier.background(AstraColors.SurfaceElevated, CircleShape)
+                },
             )
             .clickable(enabled = canAsk, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = "↑", style = AstraTypography.Title, color = AstraColors.TextPrimary)
+        Text(text = "↑", style = AstraTypography.Title, color = Color.White)
     }
 }
 
