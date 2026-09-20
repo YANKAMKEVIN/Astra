@@ -88,10 +88,11 @@ fun VisionAssistantScreen(
         // Camera button
         Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
             AstraButton(
-                text = "📷  Take Photo",
+                text = "Take Photo",
                 onClick = captureLauncher,
                 modifier = Modifier.weight(1f),
                 enabled = state.phase == VisionPhase.Idle || state.phase == VisionPhase.Done,
+                leadingIcon = AstraIcons.Camera,
             )
             if (state.phase == VisionPhase.Done || state.capturedImageBytes != null) {
                 AstraButton(
