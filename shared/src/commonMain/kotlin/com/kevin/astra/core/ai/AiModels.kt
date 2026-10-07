@@ -12,7 +12,14 @@ enum class AiModel(val label: String, val filesystemId: String) {
     Llama3_2("Llama 3.2 1B", "llama-3-2-1b"),
     Qwen("Qwen", "qwen-2-5-1-5b"),
     Qwen3("Qwen3", "qwen3-1-7b"),
+    Qwen3_0_6B("Qwen3 0.6B", "qwen3-0-6b"),
+    Qwen25Coder("Qwen2.5 Coder 1.5B", "qwen-2-5-coder-1-5b"),
     SmolLM("SmolLM2", "smollm2-360m"),
+    SmolLM135M("SmolLM2 135M", "smollm2-135m"),
+    SmolLM3("SmolLM3 3B", "smollm3-3b"),
+    Phi4MiniReasoning("Phi-4 Mini Reasoning", "phi-4-mini-reasoning"),
+    CodeGemma7B("CodeGemma 7B", "codegemma-7b"),
+    Gemma4_12B("Gemma 4 12B", "gemma-4-12b"),
 }
 
 enum class ModelStatus(val label: String) {
