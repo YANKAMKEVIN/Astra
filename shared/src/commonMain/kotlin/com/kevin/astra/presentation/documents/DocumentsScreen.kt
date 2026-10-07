@@ -162,7 +162,7 @@ private fun DocumentsContent(
         }
 
         if (state.loadedFileName == null && !state.isLoading && !state.isIndexing) {
-            DocDropzone()
+            DocDropzone(onPickPdf = pdfLauncher)
         }
 
         AnimatedVisibility(visible = state.documentSummary != null && !state.isSummarizing) {
@@ -208,12 +208,13 @@ private fun DocumentsContent(
 }
 
 @Composable
-private fun DocDropzone() {
+private fun DocDropzone(onPickPdf: () -> Unit) {
     val dashColor = AstraColors.Secondary.copy(alpha = 0.3f)
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onPickPdf)
             .background(AstraColors.Secondary.copy(alpha = 0.04f))
             .drawBehind {
                 drawRoundRect(
@@ -239,13 +240,13 @@ private fun DocDropzone() {
             AstraIcon(icon = AstraIcons.Article, tint = AstraColors.Secondary, size = 28.dp)
         }
         Text(
-            text = "Drop a file here",
+            text = "Tap to import a PDF",
             style = AstraTypography.Title,
             color = AstraColors.TextPrimary,
             fontWeight = FontWeight.SemiBold,
         )
         Text(
-            text = "PDF · TXT · images — processed locally, never uploaded",
+            text = "Processed locally — your file never leaves this device",
             style = AstraTypography.Caption,
             color = AstraColors.TextSecondary,
             textAlign = TextAlign.Center,
