@@ -25,7 +25,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -38,6 +45,7 @@ import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraCard
 import com.kevin.astra.core.design.AstraChip
 import com.kevin.astra.core.design.AstraColors
+import com.kevin.astra.core.design.AstraIcon
 import com.kevin.astra.core.design.AstraIcons
 import com.kevin.astra.core.design.AstraEmptyView
 import com.kevin.astra.core.design.AstraErrorView
@@ -154,10 +162,7 @@ private fun DocumentsContent(
         }
 
         if (state.loadedFileName == null && !state.isLoading && !state.isIndexing) {
-            AstraEmptyView(
-                title = "No document loaded",
-                message = "Load a PDF to start querying it with on-device RAG. Your files never leave the device.",
-            )
+            DocDropzone(onPickPdf = pdfLauncher)
         }
 
         AnimatedVisibility(visible = state.documentSummary != null && !state.isSummarizing) {
@@ -199,6 +204,53 @@ private fun DocumentsContent(
                 AstraErrorView(title = "Error", message = err)
             }
         }
+    }
+}
+
+@Composable
+private fun DocDropzone(onPickPdf: () -> Unit) {
+    val dashColor = AstraColors.Secondary.copy(alpha = 0.3f)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onPickPdf)
+            .background(AstraColors.Secondary.copy(alpha = 0.04f))
+            .drawBehind {
+                drawRoundRect(
+                    color = dashColor,
+                    style = Stroke(
+                        width = 1.5.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 9f)),
+                    ),
+                    cornerRadius = CornerRadius(20.dp.toPx()),
+                )
+            }
+            .padding(vertical = AstraSpacing.XL, horizontal = AstraSpacing.L),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(AstraColors.Secondary.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            AstraIcon(icon = AstraIcons.Article, tint = AstraColors.Secondary, size = 28.dp)
+        }
+        Text(
+            text = "Tap to import a PDF",
+            style = AstraTypography.Title,
+            color = AstraColors.TextPrimary,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = "Processed locally — your file never leaves this device",
+            style = AstraTypography.Caption,
+            color = AstraColors.TextSecondary,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
