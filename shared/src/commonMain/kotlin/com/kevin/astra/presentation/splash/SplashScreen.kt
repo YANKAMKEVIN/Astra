@@ -1,6 +1,5 @@
 package com.kevin.astra.presentation.splash
 
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -13,30 +12,27 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -47,66 +43,22 @@ import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
 import kotlinx.coroutines.delay
 
-private val bootLines = listOf(
-    "> Initializing local inference engine",
-    "> Loading edge model weights",
-    "> Securing inference pipeline",
-    "> Edge AI runtime ready  ✓",
-)
-
 @Composable
 fun SplashScreen(
     contentPadding: PaddingValues,
     onFinished: () -> Unit,
 ) {
-    var visibleLines by remember { mutableIntStateOf(0) }
-
     LaunchedEffect(Unit) {
-        delay(300)
-        bootLines.indices.forEach { i ->
-            visibleLines = i + 1
-            delay(380)
-        }
-        delay(500)
+        delay(2400)
         onFinished()
     }
 
     val infinite = rememberInfiniteTransition(label = "splash")
-
-    val rotation by infinite.animateFloat(
-        initialValue = 0f, targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(2800, easing = LinearEasing)),
-        label = "arc-rotation",
-    )
-    val counterRotation by infinite.animateFloat(
-        initialValue = 360f, targetValue = 0f,
-        animationSpec = infiniteRepeatable(tween(4200, easing = LinearEasing)),
-        label = "counter-arc",
-    )
-    val ring1Pulse by infinite.animateFloat(
-        initialValue = 0.07f, targetValue = 0.22f,
-        animationSpec = infiniteRepeatable(tween(1600), RepeatMode.Reverse),
-        label = "r1",
-    )
-    val ring2Pulse by infinite.animateFloat(
-        initialValue = 0.14f, targetValue = 0.05f,
-        animationSpec = infiniteRepeatable(tween(2100, delayMillis = 300), RepeatMode.Reverse),
-        label = "r2",
-    )
-    val ring3Pulse by infinite.animateFloat(
-        initialValue = 0.04f, targetValue = 0.16f,
-        animationSpec = infiniteRepeatable(tween(1900, delayMillis = 700), RepeatMode.Reverse),
-        label = "r3",
-    )
-    val corePulse by infinite.animateFloat(
-        initialValue = 0.7f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1200), RepeatMode.Reverse),
-        label = "core",
-    )
-    val dotBlink by infinite.animateFloat(
-        initialValue = 1f, targetValue = 0.15f,
-        animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
-        label = "cursor",
+    val markPulse by infinite.animateFloat(
+        initialValue = 0.82f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1800), RepeatMode.Reverse),
+        label = "mark-pulse",
     )
 
     Box(
@@ -115,8 +67,7 @@ fun SplashScreen(
             .background(AstraColors.Background)
             .padding(contentPadding),
     ) {
-        // Neural dot grid backdrop
-        NeuralDotGrid()
+        SplashBackdrop()
 
         Column(
             modifier = Modifier
@@ -125,104 +76,10 @@ fun SplashScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-
-            // ── Orbital ring system ───────────────────────────────────────
-            Box(
-                modifier = Modifier.size(220.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                // Static pulsing rings
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val r = size.minDimension / 2
-                    drawCircle(
-                        color = AstraColors.Primary.copy(alpha = ring3Pulse),
-                        radius = r,
-                        style = Stroke(0.8.dp.toPx()),
-                    )
-                    drawCircle(
-                        color = AstraColors.Secondary.copy(alpha = ring2Pulse),
-                        radius = r * 0.70f,
-                        style = Stroke(0.8.dp.toPx()),
-                    )
-                    drawCircle(
-                        color = AstraColors.Primary.copy(alpha = ring1Pulse),
-                        radius = r * 0.43f,
-                        style = Stroke(0.8.dp.toPx()),
-                    )
-                }
-
-                // Rotating cyan arc (outer orbit)
-                Canvas(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { rotationZ = rotation },
-                ) {
-                    val diameter = size.minDimension
-                    val topLeft = Offset.Zero
-                    drawArc(
-                        color = AstraColors.Secondary,
-                        startAngle = -20f,
-                        sweepAngle = 80f,
-                        useCenter = false,
-                        topLeft = topLeft,
-                        size = Size(diameter, diameter),
-                        style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round),
-                        alpha = 0.85f,
-                    )
-                    drawArc(
-                        color = AstraColors.Secondary.copy(alpha = 0.25f),
-                        startAngle = 170f,
-                        sweepAngle = 30f,
-                        useCenter = false,
-                        topLeft = topLeft,
-                        size = Size(diameter, diameter),
-                        style = Stroke(width = 1.5f.dp.toPx(), cap = StrokeCap.Round),
-                    )
-                }
-
-                // Counter-rotating blue arc (mid orbit)
-                Canvas(
-                    modifier = Modifier
-                        .size(154.dp)
-                        .graphicsLayer { rotationZ = counterRotation },
-                ) {
-                    val diameter = size.minDimension
-                    val topLeft = Offset.Zero
-                    drawArc(
-                        color = AstraColors.Primary,
-                        startAngle = 40f,
-                        sweepAngle = 55f,
-                        useCenter = false,
-                        topLeft = topLeft,
-                        size = Size(diameter, diameter),
-                        style = Stroke(width = 1.5f.dp.toPx(), cap = StrokeCap.Round),
-                        alpha = 0.7f,
-                    )
-                }
-
-                // Glowing core dot
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .alpha(corePulse)
-                        .background(
-                            AstraColors.Primary.copy(alpha = 0.12f),
-                            CircleShape,
-                        )
-                        .border(1.dp, AstraColors.Secondary.copy(alpha = 0.4f), CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .background(AstraColors.Secondary, CircleShape),
-                    )
-                }
-            }
+            BrandMark(modifier = Modifier.size(152.dp), pulse = markPulse)
 
             Spacer(Modifier.height(AstraSpacing.XL))
 
-            // ── Wordmark ──────────────────────────────────────────────────
             Text(
                 text = "ASTRA",
                 style = AstraTypography.DisplayLarge.copy(letterSpacing = 10.sp),
@@ -231,7 +88,7 @@ fun SplashScreen(
             )
             Spacer(Modifier.height(AstraSpacing.XS))
             Text(
-                text = "Edge AI · On-Device · Zero-Cloud",
+                text = "LOCAL AI · PRIVATE BY DESIGN",
                 style = AstraTypography.Caption.copy(
                     fontFamily = FontFamily.Monospace,
                     letterSpacing = 2.sp,
@@ -239,53 +96,138 @@ fun SplashScreen(
                 color = AstraColors.Secondary,
                 textAlign = TextAlign.Center,
             )
-
-            Spacer(Modifier.height(AstraSpacing.XXL))
-
-            // ── Boot sequence ─────────────────────────────────────────────
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(AstraColors.Surface.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
-                    .border(1.dp, AstraColors.Border, RoundedCornerShape(16.dp))
-                    .padding(AstraSpacing.M),
-                verticalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
-            ) {
-                bootLines.forEachIndexed { index, line ->
-                    if (index < visibleLines) {
-                        val isLast = index == visibleLines - 1
-                        val isDone = index < visibleLines - 1
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = line,
-                                style = AstraTypography.Metric,
-                                color = if (isDone) AstraColors.TextSecondary else AstraColors.TextPrimary,
-                            )
-                            if (isLast && visibleLines < bootLines.size) {
-                                Text(
-                                    text = "█",
-                                    style = AstraTypography.Metric,
-                                    color = AstraColors.Secondary,
-                                    modifier = Modifier.alpha(dotBlink),
-                                )
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 }
 
 @Composable
-private fun NeuralDotGrid() {
+private fun BrandMark(modifier: Modifier = Modifier, pulse: Float) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(
+                    Brush.radialGradient(
+                        listOf(AstraColors.Secondary.copy(alpha = 0.22f * pulse), Color.Transparent),
+                    ),
+                ),
+        )
+        Box(
+            modifier = Modifier
+                .size(124.dp)
+                .background(AstraColors.SurfaceElevated.copy(alpha = 0.82f), RoundedCornerShape(32.dp))
+                .background(
+                    Brush.linearGradient(
+                        listOf(Color.White.copy(alpha = 0.08f), Color.Transparent),
+                    ),
+                    RoundedCornerShape(32.dp),
+                )
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(32.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(modifier = Modifier.size(88.dp).alpha(0.90f + 0.10f * pulse)) {
+                drawAstraMonogram()
+            }
+        }
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawAstraMonogram() {
+    val primary = AstraColors.Primary
+    val secondary = AstraColors.Secondary
+    val gradient = Brush.linearGradient(
+        colors = listOf(primary, secondary),
+        start = Offset(size.width * 0.12f, size.height * 0.88f),
+        end = Offset(size.width * 0.88f, size.height * 0.08f),
+    )
+    val glow = secondary.copy(alpha = 0.18f)
+    val stroke = Stroke(
+        width = size.minDimension * 0.17f,
+        cap = StrokeCap.Round,
+        join = StrokeJoin.Round,
+    )
+    val aPath = Path().apply {
+        moveTo(size.width * 0.18f, size.height * 0.82f)
+        lineTo(size.width * 0.48f, size.height * 0.18f)
+        quadraticTo(size.width * 0.52f, size.height * 0.09f, size.width * 0.58f, size.height * 0.18f)
+        lineTo(size.width * 0.82f, size.height * 0.82f)
+    }
+    val sweepPath = Path().apply {
+        moveTo(size.width * 0.12f, size.height * 0.72f)
+        cubicTo(
+            size.width * 0.34f,
+            size.height * 0.53f,
+            size.width * 0.62f,
+            size.height * 0.45f,
+            size.width * 0.90f,
+            size.height * 0.48f,
+        )
+    }
+    drawPath(aPath, color = glow, style = Stroke(width = size.minDimension * 0.25f, cap = StrokeCap.Round))
+    drawPath(aPath, brush = gradient, style = stroke)
+    drawPath(sweepPath, color = AstraColors.Background.copy(alpha = 0.65f), style = Stroke(width = size.minDimension * 0.20f, cap = StrokeCap.Round))
+    drawPath(sweepPath, brush = gradient, style = Stroke(width = size.minDimension * 0.11f, cap = StrokeCap.Round))
+
+    val starCenter = Offset(size.width * 0.78f, size.height * 0.28f)
+    val star = Path().apply {
+        moveTo(starCenter.x, starCenter.y - size.height * 0.13f)
+        cubicTo(
+            starCenter.x + size.width * 0.03f,
+            starCenter.y - size.height * 0.03f,
+            starCenter.x + size.width * 0.04f,
+            starCenter.y - size.height * 0.02f,
+            starCenter.x + size.width * 0.13f,
+            starCenter.y,
+        )
+        cubicTo(
+            starCenter.x + size.width * 0.04f,
+            starCenter.y + size.height * 0.02f,
+            starCenter.x + size.width * 0.03f,
+            starCenter.y + size.height * 0.03f,
+            starCenter.x,
+            starCenter.y + size.height * 0.13f,
+        )
+        cubicTo(
+            starCenter.x - size.width * 0.03f,
+            starCenter.y + size.height * 0.03f,
+            starCenter.x - size.width * 0.04f,
+            starCenter.y + size.height * 0.02f,
+            starCenter.x - size.width * 0.13f,
+            starCenter.y,
+        )
+        cubicTo(
+            starCenter.x - size.width * 0.04f,
+            starCenter.y - size.height * 0.02f,
+            starCenter.x - size.width * 0.03f,
+            starCenter.y - size.height * 0.03f,
+            starCenter.x,
+            starCenter.y - size.height * 0.13f,
+        )
+        close()
+    }
+    drawPath(star, color = secondary.copy(alpha = 0.20f), style = Stroke(width = size.minDimension * 0.07f))
+    drawPath(star, brush = Brush.radialGradient(listOf(Color.White, secondary), center = starCenter, radius = size.minDimension * 0.16f))
+}
+
+@Composable
+private fun SplashBackdrop() {
     val infinite = rememberInfiniteTransition(label = "grid")
     val gridAlpha by infinite.animateFloat(
-        initialValue = 0.03f, targetValue = 0.07f,
-        animationSpec = infiniteRepeatable(tween(3000), RepeatMode.Reverse),
+        initialValue = 0.025f,
+        targetValue = 0.055f,
+        animationSpec = infiniteRepeatable(tween(3200), RepeatMode.Reverse),
         label = "grid-alpha",
     )
     Canvas(modifier = Modifier.fillMaxSize()) {
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(AstraColors.Primary.copy(alpha = 0.10f), Color.Transparent),
+                center = Offset(size.width * 0.50f, size.height * 0.38f),
+                radius = size.minDimension * 0.62f,
+            ),
+            radius = size.minDimension * 0.62f,
+            center = Offset(size.width * 0.50f, size.height * 0.38f),
+        )
         val cols = 14
         val rows = 22
         val spacingX = size.width / cols
