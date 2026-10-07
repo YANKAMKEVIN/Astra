@@ -16,7 +16,7 @@ class DefaultModelCatalogTest {
 
         val models = catalog.availableModels()
 
-        assertEquals(12, models.size)
+        assertEquals(19, models.size)
         assertTrue(models.map { it.displayName }.containsAll(
             listOf("Mock Model", "Gemma 3 1B", "Gemma 4 E2B", "Phi-3 Mini", "Llama 3.2 3B", "Qwen 2.5 1.5B")
         ))
@@ -46,7 +46,7 @@ class DefaultModelCatalogTest {
 
         val ids = catalog.availableModels().map { it.id }
 
-        assertEquals(9, ids.size)
+        assertEquals(16, ids.size)
         // ONNX / llama.cpp-only models have no runtime here and are not listed at all.
         assertFalse(ids.contains("phi-3-mini"))
         assertFalse(ids.contains("qwen-2-5-1-5b"))
