@@ -26,6 +26,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -37,6 +40,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kevin.astra.core.design.AstraChip
 import com.kevin.astra.core.design.AstraColors
@@ -58,6 +63,18 @@ fun ProjectOverviewScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val isDemoMode by DemoModeHolder.enabled.collectAsStateWithLifecycle()
+
+    // The overview reads device capabilities only at init, and the view model is
+    // a shared instance — so a failed/empty initial read would otherwise be
+    // unrecoverable without an app restart. Retry on resume when it's missing.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        val current = viewModel.state.value
+        if (!current.isLoadingCapabilities &&
+            (current.capabilities == null || current.error != null)
+        ) {
+            viewModel.dispatch(ProjectOverviewIntent.Refresh)
+        }
+    }
 
     AstraScreen(
         title = "Overview",
@@ -468,7 +485,8 @@ private fun ModelsCard(state: ProjectOverviewState, onSeeAll: () -> Unit) {
 @Composable
 private fun AiFeaturesSection(features: List<String>) {
     if (features.isEmpty()) return
-    val visibleFeatures = features.take(3)
+    var expanded by remember { mutableStateOf(false) }
+    val visibleFeatures = if (expanded) features else features.take(3)
     val remainingCount = features.size - visibleFeatures.size
 
     SectionLabel("Capabilities")
@@ -482,7 +500,13 @@ private fun AiFeaturesSection(features: List<String>) {
             AstraChip(label = feature, color = AstraColors.Primary)
         }
         if (remainingCount > 0) {
-            AstraChip(label = "+$remainingCount", color = AstraColors.Secondary)
+            // Keep the compact look, but let the "+N" reveal the rest so no
+            // capability is permanently hidden.
+            AstraChip(
+                label = "+$remainingCount",
+                color = AstraColors.Secondary,
+                modifier = Modifier.clickable { expanded = true },
+            )
         }
     }
 }
