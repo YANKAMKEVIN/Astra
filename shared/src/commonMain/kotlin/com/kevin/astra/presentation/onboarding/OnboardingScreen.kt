@@ -34,6 +34,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -46,30 +52,36 @@ import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
 
 private data class OnboardingSlide(
-    val icon: String,
+    val visual: OnboardingVisual,
     val title: String,
     val description: String,
     val badge: String,
 )
 
+private enum class OnboardingVisual {
+    Private,
+    Workspace,
+    Hardware,
+}
+
 private val slides = listOf(
     OnboardingSlide(
-        icon = "⚡",
-        title = "100% On-Device AI",
-        description = "ASTRA runs Small Language Models directly on your device. No cloud. No data sent. Full privacy — even in air-gapped environments.",
-        badge = "ZERO-CLOUD",
+        visual = OnboardingVisual.Private,
+        title = "Private by design",
+        description = "Run capable AI models locally. Your prompts, files, and conversations stay on this device by default.",
+        badge = "LOCAL FIRST",
     ),
     OnboardingSlide(
-        icon = "🎙",
-        title = "Voice · Vision · RAG",
-        description = "Speak to ASTRA, analyze images with on-device recognition (Apple Vision on iOS, ML Kit on Android), and query local PDFs with TF-IDF retrieval — all processed in real time.",
+        visual = OnboardingVisual.Workspace,
+        title = "One workspace for AI",
+        description = "Chat, voice, vision, and documents live in the same focused cockpit, ready when you need them.",
         badge = "MULTIMODAL",
     ),
     OnboardingSlide(
-        icon = "📊",
-        title = "Benchmark Your Hardware",
-        description = "Measure tokens/s, memory pressure, and model load times. Find the optimal SLM configuration for your specific device and use case.",
-        badge = "EDGE METRICS",
+        visual = OnboardingVisual.Hardware,
+        title = "Tuned to your hardware",
+        description = "Choose models, measure performance, and keep ASTRA responsive on the device in your hands.",
+        badge = "EDGE READY",
     ),
 )
 
@@ -157,7 +169,7 @@ fun OnboardingScreen(
                     )
                 } else {
                     AstraButton(
-                        text = "Get Started →",
+                        text = "Start locally",
                         onClick = onFinished,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -175,27 +187,34 @@ private fun SlideContent(slide: OnboardingSlide) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(AstraSpacing.L),
     ) {
-        // Icon with orbital ring
+        // Premium mark tile
         Box(
-            modifier = Modifier.size(120.dp),
+            modifier = Modifier.size(132.dp),
             contentAlignment = Alignment.Center,
         ) {
-            // Outer ring
             Box(
                 modifier = Modifier
-                    .size(120.dp)
-                    .background(AstraColors.Primary.copy(alpha = 0.06f), CircleShape)
-                    .border(1.dp, AstraColors.Primary.copy(alpha = 0.15f), CircleShape),
+                    .matchParentSize()
+                    .background(
+                        Brush.radialGradient(
+                            listOf(AstraColors.Secondary.copy(alpha = 0.22f), Color.Transparent),
+                        ),
+                    ),
             )
-            // Inner ring
             Box(
                 modifier = Modifier
-                    .size(84.dp)
-                    .background(AstraColors.SurfaceElevated, CircleShape)
-                    .border(1.dp, AstraColors.Border, CircleShape),
+                    .size(108.dp)
+                    .background(AstraColors.SurfaceElevated.copy(alpha = 0.72f), RoundedCornerShape(28.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color.White.copy(alpha = 0.08f), Color.Transparent),
+                        ),
+                        RoundedCornerShape(28.dp),
+                    )
+                    .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(28.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(text = slide.icon, style = AstraTypography.Headline)
+                OnboardingVisualMark(visual = slide.visual)
             }
         }
 
@@ -236,6 +255,166 @@ private fun SlideContent(slide: OnboardingSlide) {
                 color = AstraColors.TextSecondary,
                 textAlign = TextAlign.Center,
             )
+        }
+    }
+}
+
+@Composable
+private fun OnboardingVisualMark(visual: OnboardingVisual) {
+    Canvas(modifier = Modifier.size(72.dp)) {
+        val accent = AstraColors.Secondary
+        val primary = AstraColors.Primary
+        val muted = AstraColors.Border.copy(alpha = 0.70f)
+        val stroke = Stroke(
+            width = 3.dp.toPx(),
+            cap = StrokeCap.Round,
+            join = StrokeJoin.Round,
+        )
+        val glowStroke = Stroke(
+            width = 8.dp.toPx(),
+            cap = StrokeCap.Round,
+            join = StrokeJoin.Round,
+        )
+
+        when (visual) {
+            OnboardingVisual.Private -> {
+                val shield = Path().apply {
+                    moveTo(size.width * 0.50f, size.height * 0.08f)
+                    cubicTo(
+                        size.width * 0.66f,
+                        size.height * 0.17f,
+                        size.width * 0.78f,
+                        size.height * 0.20f,
+                        size.width * 0.86f,
+                        size.height * 0.22f,
+                    )
+                    lineTo(size.width * 0.80f, size.height * 0.55f)
+                    cubicTo(
+                        size.width * 0.76f,
+                        size.height * 0.76f,
+                        size.width * 0.62f,
+                        size.height * 0.88f,
+                        size.width * 0.50f,
+                        size.height * 0.94f,
+                    )
+                    cubicTo(
+                        size.width * 0.38f,
+                        size.height * 0.88f,
+                        size.width * 0.24f,
+                        size.height * 0.76f,
+                        size.width * 0.20f,
+                        size.height * 0.55f,
+                    )
+                    lineTo(size.width * 0.14f, size.height * 0.22f)
+                    cubicTo(
+                        size.width * 0.22f,
+                        size.height * 0.20f,
+                        size.width * 0.34f,
+                        size.height * 0.17f,
+                        size.width * 0.50f,
+                        size.height * 0.08f,
+                    )
+                    close()
+                }
+                drawPath(shield, color = primary.copy(alpha = 0.16f))
+                drawPath(shield, color = accent.copy(alpha = 0.22f), style = glowStroke)
+                drawPath(shield, brush = Brush.linearGradient(listOf(primary, accent)), style = stroke)
+                drawLine(
+                    color = Color.White.copy(alpha = 0.90f),
+                    start = Offset(size.width * 0.34f, size.height * 0.50f),
+                    end = Offset(size.width * 0.46f, size.height * 0.62f),
+                    strokeWidth = 3.dp.toPx(),
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = Color.White.copy(alpha = 0.90f),
+                    start = Offset(size.width * 0.46f, size.height * 0.62f),
+                    end = Offset(size.width * 0.68f, size.height * 0.38f),
+                    strokeWidth = 3.dp.toPx(),
+                    cap = StrokeCap.Round,
+                )
+            }
+
+            OnboardingVisual.Workspace -> {
+                repeat(3) { index ->
+                    val offset = index * 8.dp.toPx()
+                    val topLeft = Offset(size.width * 0.16f + offset, size.height * 0.22f + offset)
+                    val rectSize = androidx.compose.ui.geometry.Size(size.width * 0.54f, size.height * 0.40f)
+                    drawRoundRect(
+                        color = if (index == 2) primary.copy(alpha = 0.18f) else Color.Transparent,
+                        topLeft = topLeft,
+                        size = rectSize,
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(10.dp.toPx()),
+                    )
+                    drawRoundRect(
+                        color = if (index == 2) accent else muted,
+                        topLeft = topLeft,
+                        size = rectSize,
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(10.dp.toPx()),
+                        style = Stroke(width = 2.dp.toPx()),
+                    )
+                }
+                drawCircle(
+                    color = accent,
+                    radius = 3.5.dp.toPx(),
+                    center = Offset(size.width * 0.37f, size.height * 0.80f),
+                )
+                drawCircle(
+                    color = primary,
+                    radius = 3.5.dp.toPx(),
+                    center = Offset(size.width * 0.50f, size.height * 0.80f),
+                )
+                drawCircle(
+                    color = accent.copy(alpha = 0.55f),
+                    radius = 3.5.dp.toPx(),
+                    center = Offset(size.width * 0.63f, size.height * 0.80f),
+                )
+            }
+
+            OnboardingVisual.Hardware -> {
+                val chipLeft = size.width * 0.22f
+                val chipTop = size.height * 0.22f
+                val chipSize = size.width * 0.56f
+                drawRoundRect(
+                    color = primary.copy(alpha = 0.15f),
+                    topLeft = Offset(chipLeft, chipTop),
+                    size = androidx.compose.ui.geometry.Size(chipSize, chipSize),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(14.dp.toPx()),
+                )
+                drawRoundRect(
+                    brush = Brush.linearGradient(listOf(primary, accent)),
+                    topLeft = Offset(chipLeft, chipTop),
+                    size = androidx.compose.ui.geometry.Size(chipSize, chipSize),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(14.dp.toPx()),
+                    style = stroke,
+                )
+                val pins = listOf(0.32f, 0.50f, 0.68f)
+                pins.forEach { fraction ->
+                    drawLine(
+                        color = muted,
+                        start = Offset(size.width * fraction, size.height * 0.10f),
+                        end = Offset(size.width * fraction, chipTop),
+                        strokeWidth = 2.dp.toPx(),
+                        cap = StrokeCap.Round,
+                    )
+                    drawLine(
+                        color = muted,
+                        start = Offset(size.width * fraction, chipTop + chipSize),
+                        end = Offset(size.width * fraction, size.height * 0.90f),
+                        strokeWidth = 2.dp.toPx(),
+                        cap = StrokeCap.Round,
+                    )
+                }
+                val pulse = Path().apply {
+                    moveTo(size.width * 0.32f, size.height * 0.54f)
+                    lineTo(size.width * 0.42f, size.height * 0.54f)
+                    lineTo(size.width * 0.47f, size.height * 0.42f)
+                    lineTo(size.width * 0.55f, size.height * 0.66f)
+                    lineTo(size.width * 0.62f, size.height * 0.50f)
+                    lineTo(size.width * 0.70f, size.height * 0.50f)
+                }
+                drawPath(pulse, color = Color.White.copy(alpha = 0.92f), style = stroke)
+            }
         }
     }
 }

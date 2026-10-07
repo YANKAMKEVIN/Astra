@@ -38,8 +38,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.kevin.astra.core.design.AstraButton
-import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraChip
 import com.kevin.astra.core.design.AstraColors
 import com.kevin.astra.core.design.AstraCore
@@ -62,9 +60,10 @@ fun ProjectOverviewScreen(
     val isDemoMode by DemoModeHolder.enabled.collectAsStateWithLifecycle()
 
     AstraScreen(
-        title = "ASTRA Dashboard",
-        description = null,
+        title = "Overview",
+        description = "Local AI status, models, and device readiness.",
         contentPadding = contentPadding,
+        showDemoIndicator = false,
     ) {
         StatusHeader(state = state, isDemoMode = isDemoMode)
         PrivateComputeStrip()
@@ -74,13 +73,6 @@ fun ProjectOverviewScreen(
         if (!state.isLoadingCapabilities) {
             DeviceDetailSection(state = state)
         }
-        AstraButton(
-            text = if (state.isLoadingCapabilities) "Scanning device…" else "↺  Refresh",
-            onClick = { viewModel.dispatch(ProjectOverviewIntent.Refresh) },
-            style = AstraButtonStyle.Ghost,
-            enabled = !state.isLoadingCapabilities,
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }
 
@@ -98,62 +90,60 @@ private fun StatusHeader(state: ProjectOverviewState, isDemoMode: Boolean) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(AstraColors.SurfaceElevated.copy(alpha = 0.6f))
+            .clip(RoundedCornerShape(18.dp))
+            .background(AstraColors.SurfaceElevated.copy(alpha = 0.72f))
             .background(
                 Brush.verticalGradient(
-                    listOf(Color.White.copy(alpha = 0.05f), Color.Transparent),
+                    listOf(Color.White.copy(alpha = 0.035f), Color.Transparent),
                 ),
             )
-            .border(1.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(24.dp))
-            .padding(AstraSpacing.L),
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
+            .padding(AstraSpacing.M),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.M)) {
-            // Title row
+        Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+                AstraCore(coreSize = 52.dp)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    AstraCore(coreSize = 34.dp)
-                    Column {
-                        Text(
-                            text = "EDGE AI CORE",
-                            style = AstraTypography.Caption.copy(
-                                fontFamily = FontFamily.Monospace,
-                                letterSpacing = 2.sp,
-                            ),
-                            color = AstraColors.Secondary,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Spacer(Modifier.height(AstraSpacing.XS))
-                        Text(
-                            text = "ASTRA",
-                            style = AstraTypography.Headline,
-                            color = AstraColors.TextPrimary,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
+                    Text(
+                        text = "LOCAL AI",
+                        style = AstraTypography.Caption.copy(
+                            fontFamily = FontFamily.Monospace,
+                            letterSpacing = 1.4.sp,
+                        ),
+                        color = AstraColors.Secondary,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = "Ready",
+                        style = AstraTypography.Title.copy(
+                            fontSize = 24.sp,
+                            lineHeight = 30.sp,
+                        ),
+                        color = AstraColors.TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
-                // Live/Demo badge
                 Row(
                     modifier = Modifier
                         .background(
                             if (isDemoMode) AstraColors.Warning.copy(alpha = 0.12f)
                             else AstraColors.Success.copy(alpha = 0.12f),
-                            RoundedCornerShape(12.dp),
+                            RoundedCornerShape(50),
                         )
                         .border(
                             1.dp,
                             if (isDemoMode) AstraColors.Warning.copy(alpha = 0.35f)
                             else AstraColors.Success.copy(alpha = 0.35f),
-                            RoundedCornerShape(12.dp),
+                            RoundedCornerShape(50),
                         )
-                        .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
+                        .padding(horizontal = AstraSpacing.S, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
                 ) {
@@ -168,7 +158,11 @@ private fun StatusHeader(state: ProjectOverviewState, isDemoMode: Boolean) {
                     )
                     Text(
                         text = if (isDemoMode) "DEMO" else "LIVE",
-                        style = AstraTypography.Caption.copy(fontFamily = FontFamily.Monospace),
+                        style = AstraTypography.Caption.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 10.sp,
+                            letterSpacing = 0.8.sp,
+                        ),
                         color = if (isDemoMode) AstraColors.Warning else AstraColors.Success,
                         fontWeight = FontWeight.Bold,
                     )
@@ -198,24 +192,26 @@ private fun StatusHeader(state: ProjectOverviewState, isDemoMode: Boolean) {
             }
 
             // Runtime status line
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
-            ) {
-                val isFallback = state.fallbackStatus.startsWith("Fallback")
-                Box(
+            if (state.fallbackStatus.startsWith("Fallback")) {
+                Row(
                     modifier = Modifier
-                        .size(5.dp)
-                        .background(
-                            if (isFallback) AstraColors.Warning else AstraColors.Primary,
-                            CircleShape,
-                        ),
-                )
-                Text(
-                    text = state.fallbackStatus,
-                    style = AstraTypography.Caption,
-                    color = if (isFallback) AstraColors.Warning else AstraColors.TextSecondary,
-                )
+                        .background(AstraColors.Warning.copy(alpha = 0.10f), RoundedCornerShape(12.dp))
+                        .border(1.dp, AstraColors.Warning.copy(alpha = 0.22f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = AstraSpacing.S, vertical = AstraSpacing.XS),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(5.dp)
+                            .background(AstraColors.Warning, CircleShape),
+                    )
+                    Text(
+                        text = formatFallbackStatus(state.fallbackStatus),
+                        style = AstraTypography.Caption,
+                        color = AstraColors.Warning,
+                    )
+                }
             }
 
             if (state.error != null) {
@@ -234,7 +230,7 @@ private fun StatPill(label: String, value: String, modifier: Modifier = Modifier
             .padding(horizontal = AstraSpacing.S, vertical = AstraSpacing.S),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextDisabled)
+        Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextSecondary)
         Text(
             text = value,
             style = AstraTypography.Caption,
@@ -252,9 +248,9 @@ private fun PrivateComputeStrip() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(AstraColors.Secondary.copy(alpha = 0.06f))
-            .border(1.dp, AstraColors.Secondary.copy(alpha = 0.20f), RoundedCornerShape(20.dp))
+            .border(1.dp, AstraColors.Secondary.copy(alpha = 0.20f), RoundedCornerShape(16.dp))
             .padding(AstraSpacing.L),
         verticalArrangement = Arrangement.spacedBy(AstraSpacing.M),
     ) {
@@ -274,9 +270,9 @@ private fun PrivateComputeStrip() {
             )
         }
         Text(
-            text = "Your data never leaves this device.",
+            text = "Prompts, files, and responses stay local by default.",
             style = AstraTypography.Caption,
-            color = AstraColors.TextSecondary,
+            color = AstraColors.TextPrimary.copy(alpha = 0.72f),
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -292,7 +288,7 @@ private fun PrivateComputeStrip() {
 @Composable
 private fun ComputeStat(label: String, value: String, valueColor: Color, modifier: Modifier = Modifier) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextDisabled)
+        Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextSecondary)
         Text(
             text = value,
             style = AstraTypography.Caption.copy(fontFamily = FontFamily.Monospace),
@@ -371,20 +367,20 @@ private fun MetricTile(
             .clip(RoundedCornerShape(18.dp))
             .background(AstraColors.SurfaceElevated.copy(alpha = 0.55f))
             .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(18.dp))
-            .padding(AstraSpacing.M),
-        verticalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
+        verticalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
     ) {
         Box(
             modifier = Modifier
-                .size(32.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .size(28.dp)
+                .clip(RoundedCornerShape(8.dp))
                 .background(tint.copy(alpha = 0.14f)),
             contentAlignment = Alignment.Center,
         ) {
-            AstraIcon(icon = icon, tint = tint, size = 18.dp)
+            AstraIcon(icon = icon, tint = tint, size = 16.dp)
         }
         Text(text = value, style = AstraTypography.Caption, color = AstraColors.TextPrimary, fontWeight = FontWeight.SemiBold, maxLines = 1)
-        Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextDisabled)
+        Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextSecondary)
     }
 }
 
@@ -403,7 +399,7 @@ private fun ModelsCard(state: ProjectOverviewState, onSeeAll: () -> Unit) {
                 fontFamily = FontFamily.Monospace,
                 letterSpacing = 1.5.sp,
             ),
-            color = AstraColors.TextDisabled,
+            color = AstraColors.TextSecondary,
             fontWeight = FontWeight.Bold,
         )
         Row(
@@ -455,7 +451,7 @@ private fun ModelsCard(state: ProjectOverviewState, onSeeAll: () -> Unit) {
                     Text(
                         text = "${readiness.parameterCount} · ${readiness.quantization} · ${readiness.expectedSize}",
                         style = AstraTypography.Caption,
-                        color = AstraColors.TextDisabled,
+                        color = AstraColors.TextSecondary,
                     )
                 }
                 AstraChip(
@@ -472,6 +468,9 @@ private fun ModelsCard(state: ProjectOverviewState, onSeeAll: () -> Unit) {
 @Composable
 private fun AiFeaturesSection(features: List<String>) {
     if (features.isEmpty()) return
+    val visibleFeatures = features.take(3)
+    val remainingCount = features.size - visibleFeatures.size
+
     SectionLabel("Capabilities")
     Row(
         modifier = Modifier
@@ -479,8 +478,11 @@ private fun AiFeaturesSection(features: List<String>) {
             .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
     ) {
-        features.forEach { feature ->
+        visibleFeatures.forEach { feature ->
             AstraChip(label = feature, color = AstraColors.Primary)
+        }
+        if (remainingCount > 0) {
+            AstraChip(label = "+$remainingCount", color = AstraColors.Secondary)
         }
     }
 }
@@ -503,7 +505,7 @@ private fun DeviceDetailSection(state: ProjectOverviewState) {
         InfoRow(AstraIcons.Cpu, "CPU", caps.cpuName)
         InfoRow(AstraIcons.Monitor, "GPU", caps.gpuName ?: "Not detected")
         InfoRow(AstraIcons.Cpu, "NPU", if (caps.npuAvailable) caps.npuName else "Not detected")
-        InfoRow(AstraIcons.Layers, "OS", "${caps.platform} ${caps.osVersion}")
+        InfoRow(AstraIcons.Layers, "OS", formatOperatingSystem(caps.platform, caps.osVersion))
     }
     if (caps.supportedBackends.isNotEmpty()) {
         Spacer(Modifier.height(AstraSpacing.S))
@@ -541,7 +543,7 @@ private fun InfoRow(icon: ImageVector, label: String, value: String) {
             ) {
                 AstraIcon(icon = icon, tint = AstraColors.Secondary, size = 16.dp)
             }
-            Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextDisabled)
+            Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextSecondary)
         }
         Spacer(Modifier.width(AstraSpacing.M))
         Text(
@@ -561,8 +563,23 @@ private fun SectionLabel(text: String) {
             fontFamily = FontFamily.Monospace,
             letterSpacing = 1.5.sp,
         ),
-        color = AstraColors.TextDisabled,
+        color = AstraColors.TextSecondary,
         fontWeight = FontWeight.Bold,
         modifier = Modifier.padding(bottom = AstraSpacing.XS),
     )
 }
+
+private fun formatOperatingSystem(platform: String, osVersion: String): String {
+    val readableVersion = osVersion
+        .replace(" (API ", " · API ")
+        .removeSuffix(")")
+
+    return if (readableVersion.startsWith(platform)) {
+        readableVersion
+    } else {
+        "$platform $readableVersion"
+    }
+}
+
+private fun formatFallbackStatus(status: String): String =
+    status.replace("No fallback required for selected ", "No fallback · ")

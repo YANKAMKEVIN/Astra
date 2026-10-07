@@ -30,6 +30,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
@@ -50,7 +52,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -76,14 +78,14 @@ fun AstraCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(AstraColors.SurfaceElevated.copy(alpha = 0.6f))
+            .clip(RoundedCornerShape(18.dp))
+            .background(AstraColors.SurfaceElevated.copy(alpha = 0.70f))
             .background(
                 Brush.verticalGradient(
-                    listOf(Color.White.copy(alpha = 0.05f), Color.Transparent),
+                    listOf(Color.White.copy(alpha = 0.035f), Color.Transparent),
                 ),
             )
-            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(24.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(18.dp))
             .padding(AstraSpacing.L),
     ) {
         Row(
@@ -115,28 +117,26 @@ fun AstraCard(
 }
 
 /**
- * ASTRA Core — the signature "living" orb: a Primary→Secondary gradient core
- * inside two ultra-subtle rings over a soft radial halo, with a very slow
- * breathing + halo pulse. No backdrop blur required. Shared across screens
- * (Chat empty state, Home hero, …).
+ * ASTRA Core — the shared brand mark: monogram A, sweep, and star over a
+ * restrained glass tile. Used where the app needs identity, not decoration.
  */
 @Composable
 fun AstraCore(coreSize: Dp = 96.dp, animated: Boolean = true) {
     val transition = rememberInfiniteTransition(label = "astra-core")
-    val scale by transition.animateFloat(
-        initialValue = 1f,
-        targetValue = if (animated) 1.035f else 1f,
-        animationSpec = infiniteRepeatable(tween(2200), RepeatMode.Reverse),
-        label = "core-scale",
-    )
     val halo by transition.animateFloat(
-        initialValue = if (animated) 0.07f else 0.10f,
-        targetValue = if (animated) 0.14f else 0.10f,
-        animationSpec = infiniteRepeatable(tween(2600), RepeatMode.Reverse),
-        label = "core-halo",
+        initialValue = if (animated) 0.12f else 0.14f,
+        targetValue = if (animated) 0.22f else 0.14f,
+        animationSpec = infiniteRepeatable(tween(2400), RepeatMode.Reverse),
+        label = "brand-halo",
+    )
+    val alpha by transition.animateFloat(
+        initialValue = if (animated) 0.88f else 1f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1800), RepeatMode.Reverse),
+        label = "brand-alpha",
     )
     Box(
-        modifier = Modifier.size(coreSize * 1.9f),
+        modifier = Modifier.size(coreSize * 1.58f),
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -150,33 +150,89 @@ fun AstraCore(coreSize: Dp = 96.dp, animated: Boolean = true) {
         )
         Box(
             modifier = Modifier
-                .size(coreSize * 1.48f)
-                .border(1.dp, AstraColors.Primary.copy(alpha = 0.10f), CircleShape),
-        )
-        Box(
-            modifier = Modifier
-                .size(coreSize * 1.23f)
-                .border(1.dp, AstraColors.Secondary.copy(alpha = 0.16f), CircleShape),
-        )
-        Box(
-            modifier = Modifier
                 .size(coreSize)
-                .scale(scale)
                 .shadow(
-                    elevation = 26.dp,
-                    shape = CircleShape,
+                    elevation = 18.dp,
+                    shape = RoundedCornerShape(coreSize * 0.23f),
                     clip = false,
-                    ambientColor = AstraColors.Primary,
-                    spotColor = AstraColors.Secondary,
+                    ambientColor = AstraColors.Primary.copy(alpha = 0.45f),
+                    spotColor = AstraColors.Secondary.copy(alpha = 0.55f),
                 )
-                .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(AstraColors.Primary, AstraColors.Secondary)))
-                .border(1.dp, Color.White.copy(alpha = 0.20f), CircleShape),
+                .clip(RoundedCornerShape(coreSize * 0.23f))
+                .background(AstraColors.SurfaceElevated.copy(alpha = 0.86f))
+                .background(Brush.linearGradient(listOf(Color.White.copy(alpha = 0.08f), Color.Transparent)))
+                .border(1.dp, Color.White.copy(alpha = 0.13f), RoundedCornerShape(coreSize * 0.23f)),
             contentAlignment = Alignment.Center,
         ) {
-            Text(text = "✦", fontSize = (coreSize.value * 0.36f).sp, color = Color.White)
+            Canvas(modifier = Modifier.size(coreSize * 0.66f).alpha(alpha)) {
+                drawAstraMonogramMark()
+            }
         }
     }
+}
+
+private fun DrawScope.drawAstraMonogramMark() {
+    val primary = AstraColors.Primary
+    val secondary = AstraColors.Secondary
+    val gradient = Brush.linearGradient(
+        colors = listOf(primary, secondary),
+        start = Offset(size.width * 0.12f, size.height * 0.88f),
+        end = Offset(size.width * 0.88f, size.height * 0.08f),
+    )
+    val markStroke = Stroke(
+        width = size.minDimension * 0.17f,
+        cap = StrokeCap.Round,
+        join = StrokeJoin.Round,
+    )
+    val glowStroke = Stroke(
+        width = size.minDimension * 0.24f,
+        cap = StrokeCap.Round,
+        join = StrokeJoin.Round,
+    )
+    val aPath = Path().apply {
+        moveTo(size.width * 0.18f, size.height * 0.82f)
+        lineTo(size.width * 0.48f, size.height * 0.18f)
+        quadraticTo(size.width * 0.52f, size.height * 0.09f, size.width * 0.58f, size.height * 0.18f)
+        lineTo(size.width * 0.82f, size.height * 0.82f)
+    }
+    val sweepPath = Path().apply {
+        moveTo(size.width * 0.12f, size.height * 0.72f)
+        cubicTo(
+            size.width * 0.34f,
+            size.height * 0.53f,
+            size.width * 0.62f,
+            size.height * 0.45f,
+            size.width * 0.90f,
+            size.height * 0.48f,
+        )
+    }
+    drawPath(aPath, color = secondary.copy(alpha = 0.16f), style = glowStroke)
+    drawPath(aPath, brush = gradient, style = markStroke)
+    drawPath(
+        sweepPath,
+        color = AstraColors.Background.copy(alpha = 0.70f),
+        style = Stroke(width = size.minDimension * 0.20f, cap = StrokeCap.Round),
+    )
+    drawPath(
+        sweepPath,
+        brush = gradient,
+        style = Stroke(width = size.minDimension * 0.11f, cap = StrokeCap.Round),
+    )
+
+    val starCenter = androidx.compose.ui.geometry.Offset(size.width * 0.78f, size.height * 0.28f)
+    val star = Path().apply {
+        moveTo(starCenter.x, starCenter.y - size.height * 0.13f)
+        cubicTo(starCenter.x + size.width * 0.03f, starCenter.y - size.height * 0.03f, starCenter.x + size.width * 0.04f, starCenter.y - size.height * 0.02f, starCenter.x + size.width * 0.13f, starCenter.y)
+        cubicTo(starCenter.x + size.width * 0.04f, starCenter.y + size.height * 0.02f, starCenter.x + size.width * 0.03f, starCenter.y + size.height * 0.03f, starCenter.x, starCenter.y + size.height * 0.13f)
+        cubicTo(starCenter.x - size.width * 0.03f, starCenter.y + size.height * 0.03f, starCenter.x - size.width * 0.04f, starCenter.y + size.height * 0.02f, starCenter.x - size.width * 0.13f, starCenter.y)
+        cubicTo(starCenter.x - size.width * 0.04f, starCenter.y - size.height * 0.02f, starCenter.x - size.width * 0.03f, starCenter.y - size.height * 0.03f, starCenter.x, starCenter.y - size.height * 0.13f)
+        close()
+    }
+    drawPath(
+        path = star,
+        brush = Brush.radialGradient(listOf(Color.White, secondary), center = starCenter, radius = size.minDimension * 0.16f),
+        style = Fill,
+    )
 }
 
 /** Signature CTA: a full-width Primary→Secondary gradient button. */
@@ -192,7 +248,7 @@ fun AstraGradientButton(
             .fillMaxWidth()
             .height(54.dp)
             .alpha(if (enabled) 1f else 0.45f)
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(14.dp))
             .then(
                 if (enabled) {
                     Modifier.background(
@@ -278,7 +334,7 @@ fun AstraButton(
             onClick = onClick,
             modifier = modifier.heightIn(min = 48.dp),
             enabled = enabled,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(14.dp),
             border = BorderStroke(1.dp, AstraColors.Border),
             colors = ButtonDefaults.outlinedButtonColors(
                 contentColor = AstraColors.TextPrimary,
@@ -292,7 +348,7 @@ fun AstraButton(
             onClick = onClick,
             modifier = modifier.heightIn(min = 48.dp),
             enabled = enabled,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = containerColor,
                 contentColor = AstraColors.TextPrimary,
@@ -385,8 +441,8 @@ fun AstraErrorView(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(AstraColors.Error.copy(alpha = 0.08f), RoundedCornerShape(24.dp))
-            .border(1.dp, AstraColors.Error.copy(alpha = 0.24f), RoundedCornerShape(24.dp))
+            .background(AstraColors.Error.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
+            .border(1.dp, AstraColors.Error.copy(alpha = 0.24f), RoundedCornerShape(18.dp))
             .padding(AstraSpacing.L),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -424,8 +480,8 @@ fun AstraEmptyView(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(AstraColors.SurfaceElevated, RoundedCornerShape(24.dp))
-            .border(1.dp, AstraColors.Border, RoundedCornerShape(24.dp))
+            .background(AstraColors.SurfaceElevated, RoundedCornerShape(18.dp))
+            .border(1.dp, AstraColors.Border, RoundedCornerShape(18.dp))
             .padding(AstraSpacing.L),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -463,15 +519,15 @@ fun AstraEmptyView(
 fun AstraDemoModeIndicator(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .background(AstraColors.Secondary.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
-            .border(1.dp, AstraColors.Secondary.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-            .padding(horizontal = AstraSpacing.S, vertical = AstraSpacing.XS),
+            .background(AstraColors.Secondary.copy(alpha = 0.08f), RoundedCornerShape(50))
+            .border(1.dp, AstraColors.Secondary.copy(alpha = 0.22f), RoundedCornerShape(50))
+            .padding(horizontal = AstraSpacing.S, vertical = 2.dp),
     ) {
         Text(
-            text = "Offline Demo Mode",
-            style = AstraTypography.Caption,
+            text = "DEMO",
+            style = AstraTypography.Caption.copy(fontSize = 10.sp, letterSpacing = 0.8.sp),
             color = AstraColors.Secondary,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.SemiBold,
         )
     }
 }
@@ -671,13 +727,13 @@ fun DemoModeBanner(modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(AstraColors.Warning.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
-            .border(1.dp, AstraColors.Warning.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+            .background(AstraColors.Warning.copy(alpha = 0.12f), RoundedCornerShape(10.dp))
+            .border(1.dp, AstraColors.Warning.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
             .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
         horizontalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = "⚡ OFFLINE DEMO MODE — responses are simulated",
+            text = "OFFLINE DEMO MODE — responses are simulated",
             style = AstraTypography.Caption,
             color = AstraColors.Warning,
             textAlign = TextAlign.Center,

@@ -774,12 +774,11 @@ private fun EmptyChat(
         verticalArrangement = Arrangement.spacedBy(AstraSpacing.M),
     ) {
         Spacer(Modifier.height(AstraSpacing.L))
-        // ── Hero: ASTRA Core (breathing orb + rings + radial halo) ──────────
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            AstraCore(coreSize = 96.dp)
+            AstraCore(coreSize = 104.dp)
         }
         Text(
-            text = "How can I help you?",
+            text = "Ask ASTRA",
             style = AstraTypography.Title.copy(fontSize = 28.sp, lineHeight = 34.sp),
             color = AstraColors.TextPrimary,
             fontWeight = FontWeight.SemiBold,
@@ -787,14 +786,13 @@ private fun EmptyChat(
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            text = "Private AI. Running entirely on this device.",
+            text = "Private AI running on this device.",
             style = AstraTypography.Body,
             color = AstraColors.TextSecondary,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth().padding(horizontal = AstraSpacing.S),
         )
         Spacer(Modifier.height(AstraSpacing.XS))
-        // ── On-device status pills ──────────────────────────────────────────
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S, Alignment.CenterHorizontally),
@@ -817,14 +815,14 @@ private fun EmptyChat(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(AstraColors.SurfaceElevated.copy(alpha = 0.55f))
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(AstraColors.SurfaceElevated.copy(alpha = 0.62f))
                     .background(
                         Brush.verticalGradient(
-                            listOf(Color.White.copy(alpha = 0.04f), Color.Transparent),
+                            listOf(Color.White.copy(alpha = 0.03f), Color.Transparent),
                         ),
                     )
-                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+                    .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(16.dp))
                     .clickable { onSuggestionSelected(suggestion) }
                     .padding(horizontal = AstraSpacing.M, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -835,7 +833,7 @@ private fun EmptyChat(
                         .size(34.dp)
                         .background(
                             AstraColors.Secondary.copy(alpha = 0.14f),
-                            RoundedCornerShape(11.dp),
+                            RoundedCornerShape(8.dp),
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
