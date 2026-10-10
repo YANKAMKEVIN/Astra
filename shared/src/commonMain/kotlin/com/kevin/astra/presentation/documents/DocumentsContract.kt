@@ -24,7 +24,10 @@ enum class DocumentSourceType { Pdf, Email }
 
 data class DocumentsState(
     val availableModels: List<LocalModel> = emptyList(),
+    /** Model picked for this screen only; null = follow the app-wide selection ([activeModel]). */
     val sessionModel: LocalModel? = null,
+    /** The app-wide selected model, refreshed each time the screen resumes. */
+    val activeModel: LocalModel? = null,
     val loadedFileName: String? = null,
     val pageCount: Int = 0,
     val emailCount: Int = 0,
@@ -66,6 +69,7 @@ sealed interface DocumentsIntent : AstraIntent {
     data object ClearDocument : DocumentsIntent
     data object ClearAnswer : DocumentsIntent
     data class SelectSessionModel(val modelId: String) : DocumentsIntent
+    data object RefreshModels : DocumentsIntent
     // Gmail
     data object RefreshGmailState : DocumentsIntent
     data object ConnectGmail : DocumentsIntent
