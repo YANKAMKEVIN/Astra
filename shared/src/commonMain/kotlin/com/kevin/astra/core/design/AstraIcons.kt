@@ -169,6 +169,33 @@ object AstraIcons {
         moveTo(9f, 5f); lineTo(16f, 12f); lineTo(9f, 19f)
     }
 
+    /** Chevron pointing down — expandable section. */
+    val ChevronDown: ImageVector = lineIcon("ChevronDown") {
+        moveTo(5f, 9f); lineTo(12f, 16f); lineTo(19f, 9f)
+    }
+
+    /** Cross — cancel / close. */
+    val Close: ImageVector = lineIcon("Close") {
+        moveTo(6f, 6f); lineTo(18f, 18f)
+        moveTo(18f, 6f); lineTo(6f, 18f)
+    }
+
+    /** Padlock — gated / manual install. */
+    val Lock: ImageVector = lineIcon("Lock") {
+        moveTo(6f, 11f); lineTo(18f, 11f); lineTo(18f, 20f); lineTo(6f, 20f); close()
+        moveTo(8.5f, 11f); lineTo(8.5f, 8f)
+        curveTo(8.5f, 6f, 10f, 4.5f, 12f, 4.5f)
+        curveTo(14f, 4.5f, 15.5f, 6f, 15.5f, 8f)
+        lineTo(15.5f, 11f)
+    }
+
+    /** Bin — delete. */
+    val Trash: ImageVector = lineIcon("Trash") {
+        moveTo(4.5f, 7f); lineTo(19.5f, 7f)
+        moveTo(9.5f, 7f); lineTo(9.5f, 4.5f); lineTo(14.5f, 4.5f); lineTo(14.5f, 7f)
+        moveTo(6.5f, 7f); lineTo(7.5f, 19.5f); lineTo(16.5f, 19.5f); lineTo(17.5f, 7f)
+    }
+
     /** Microphone — voice. */
     val Mic: ImageVector = lineIcon("Mic") {
         moveTo(12f, 3.5f)

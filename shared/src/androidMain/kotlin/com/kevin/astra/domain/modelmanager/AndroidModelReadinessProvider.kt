@@ -95,7 +95,7 @@ class AndroidModelReadinessProvider(
                 localPath = "Not downloaded",
                 status = ModelReadinessStatus.ModelRequired,
                 isDownloadedToFilesDir = false,
-                readinessMessage = "Not installed. Tap \"Download\" to fetch from HuggingFace (~${expectedSizeFor(id)}).",
+                readinessMessage = "Not installed. Downloads from HuggingFace (${expectedSizeFor(id)}).",
             )
         } else {
             baseReadiness(
@@ -140,7 +140,7 @@ class AndroidModelReadinessProvider(
             localPath = "Not downloaded",
             status = ModelReadinessStatus.ModelRequired,
             isDownloadedToFilesDir = false,
-            readinessMessage = "Not installed. Tap \"Download\" to install on-device.",
+            readinessMessage = "Not installed. Tap the download icon to install on-device.",
         )
 
     // ── Coming soon ───────────────────────────────────────────────────────────

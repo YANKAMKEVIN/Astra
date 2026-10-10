@@ -58,6 +58,7 @@ fun AstraApp(
     visionViewModel: VisionAssistantViewModel,
 ) {
     val currentDestination by navigator.currentDestination.collectAsStateWithLifecycle()
+    val overviewState by projectOverviewViewModel.state.collectAsStateWithLifecycle()
 
     AstraTheme {
         Scaffold(
@@ -125,7 +126,8 @@ fun AstraApp(
                         )
                         AstraDestination.Models -> ModelsScreen(
                             contentPadding = contentPadding,
-                            viewModel = projectOverviewViewModel,
+                            viewModel = settingsViewModel,
+                            deviceCapabilities = overviewState.capabilities,
                         )
                         AstraDestination.Assistant -> AssistantScreen(
                             contentPadding = contentPadding,
@@ -143,6 +145,7 @@ fun AstraApp(
                         AstraDestination.Settings -> SettingsScreen(
                             contentPadding = contentPadding,
                             viewModel = settingsViewModel,
+                            onManageModels = { navigator.navigateTo(AstraDestination.Models) },
                         )
                         AstraDestination.History -> ConversationHistoryScreen(
                             contentPadding = contentPadding,
