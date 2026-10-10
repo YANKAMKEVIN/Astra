@@ -53,6 +53,24 @@ class DocumentsViewModelTest {
     }
 
     @Test
+    fun followsTheModelSelectedElsewhereInsteadOfTheLaunchTimeOne() {
+        val catalog = DefaultModelCatalog()
+        val viewModel = testViewModel(modelCatalog = catalog)
+        assertNull(viewModel.state.value.sessionModel, "Docs must not pin a model by default")
+
+        // The user downloads and activates a model from the Models screen…
+        catalog.updateModelStatus("qwen3-0-6b", com.kevin.astra.core.ai.ModelStatus.Installed)
+        assertTrue(catalog.selectModel("qwen3-0-6b"))
+        // …then comes back to Docs.
+        viewModel.dispatch(DocumentsIntent.RefreshModels)
+
+        val state = viewModel.state.value
+        assertEquals("qwen3-0-6b", state.activeModel?.id)
+        assertTrue(state.availableModels.any { it.id == "qwen3-0-6b" })
+        assertNull(state.sessionModel)
+    }
+
+    @Test
     fun loadingPdfExtractsAndAutoIndexes() = runBlocking {
         val viewModel = testViewModel(workScope = CoroutineScope(coroutineContext))
 
@@ -244,6 +262,7 @@ class DocumentsViewModelTest {
         },
         workScope: CoroutineScope? = null,
         gmailSource: GmailMessageSource? = null,
+        modelCatalog: DefaultModelCatalog = DefaultModelCatalog(),
     ): DocumentsViewModel {
         val chunker = SmartTextChunker()
         return DocumentsViewModel(
@@ -254,7 +273,7 @@ class DocumentsViewModelTest {
             contextRetriever = TfIdfContextRetriever(),
             askLocalAssistant = AskLocalAssistantUseCase(inferenceEngine),
             aiConfigurationRepository = testAiConfigurationRepository(),
-            modelCatalog = DefaultModelCatalog(),
+            modelCatalog = modelCatalog,
             backendCatalog = DefaultBackendCatalog(),
             promptPipeline = DefaultPromptPipeline(DefaultPromptBuilder()),
             notificationService = NoOpNotificationService(),

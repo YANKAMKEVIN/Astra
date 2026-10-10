@@ -70,6 +70,7 @@ fun DocumentsScreen(
     // Refresh on every resume so returning from the Gmail consent screen updates the connection state.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.dispatch(DocumentsIntent.RefreshGmailState)
+        viewModel.dispatch(DocumentsIntent.RefreshModels)
     }
 
     LaunchedEffect(state.isGenerating) {
@@ -134,7 +135,7 @@ private fun DocumentsContent(
         if (state.availableModels.size > 1) {
             RagModelSelector(
                 models = state.availableModels,
-                selectedModel = state.sessionModel,
+                selectedModel = state.sessionModel ?: state.activeModel,
                 enabled = !state.isGenerating && !state.isIndexing,
                 onSelectModel = { onIntent(DocumentsIntent.SelectSessionModel(it)) },
             )

@@ -45,6 +45,7 @@ interface NativeLiteRtLmEngine {
         prompt: String,
         modelPath: String,
         maxTokens: Int,
+        temperature: Double,
         completion: (NativeLiteRtLmResult) -> Unit,
     )
 }
@@ -137,13 +138,17 @@ class IosLiteRtLmRuntimeSession : LiteRtLmRuntimeSession {
                     "registerNativeLiteRtLmEngine(...) before MainViewControllerKt.MainViewController().",
             )
 
-        val rawInput = request.userMessage.ifBlank { request.prompt }
+        // System prompt + user message, trimmed to the model's window (iOS had no limit at all:
+        // six chunks plus history could overflow the context). The bridge exposes no tokenizer,
+        // so this uses the ~4 chars/token estimate.
+        val input = RuntimePrompt.compose(request)
         val mark = kotlin.time.TimeSource.Monotonic.markNow()
         val result = suspendCancellableCoroutine { cont ->
             engine.generate(
-                prompt = rawInput,
+                prompt = input,
                 modelPath = bundle.modelPath,
                 maxTokens = request.maxTokens.takeIf { it > 0 } ?: 1024,
+                temperature = request.temperature,
             ) { native -> cont.resume(native) }
         }
         val totalLatency = result.latencyMillis.takeIf { it > 0 }

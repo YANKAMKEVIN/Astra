@@ -274,9 +274,15 @@ class AndroidLiteRtLmRuntimeSession(
 
         // Guard against oversized input: LiteRT-LM aborts the whole process natively (SIGABRT) when
         // input + output exceed the model context, and that native crash bypasses Kotlin try/catch.
-        // So the prompt MUST be trimmed to fit before the native call.
-        val rawInput = request.userMessage.ifBlank { request.prompt }
-        val inputText = trimToContext(runtime, rawInput, request.maxTokens)
+        // So the prompt MUST be trimmed to fit before the native call — against the engine's real
+        // window, not request.maxTokens (the answer length), which left ~256 tokens of input.
+        val inputText = RuntimePrompt.compose(
+            request = request,
+            contextWindow = minOf(request.contextWindow, ENGINE_CONTEXT_TOKENS),
+            countTokens = { text ->
+                runCatching { runtime.sizeInTokens(text) }.getOrElse { RuntimePrompt.estimateTokens(text) }
+            },
+        )
         val text = runtime.generateResponse(inputText)
             .trim()
             .ifBlank { "LiteRT-LM returned an empty response." }
@@ -315,29 +321,6 @@ class AndroidLiteRtLmRuntimeSession(
         lastModelLoadTimeMillis = 0L
     }
 
-    /**
-     * Trims [text] so that input tokens leave room for the model to generate a response within its
-     * context window. Uses the runtime's own tokenizer to measure, then trims proportionally with a
-     * safety margin (a few passes to converge). Prevents the native oversize crash.
-     */
-    private fun trimToContext(runtime: LlmInference, text: String, maxTokens: Int): String {
-        val context = maxTokens.takeIf { it > 0 } ?: 4_096
-        val outputReserve = (context / 4).coerceIn(256, 1_024)
-        val inputBudget = (context - outputReserve).coerceAtLeast(256)
-
-        var current = text
-        repeat(4) {
-            val tokens = runCatching { runtime.sizeInTokens(current) }
-                .getOrElse { current.length / 4 } // ~4 chars per token fallback
-            if (tokens <= inputBudget) return current
-            // keep budget/tokens of the text, with a 10% margin, and re-measure
-            val keep = (current.length.toLong() * inputBudget * 9 / (tokens.toLong() * 10))
-                .toInt().coerceIn(0, current.length)
-            current = current.take(keep)
-        }
-        return current
-    }
-
     private fun ensureInference(
         bundle: LiteRtLmModelBundle,
         request: PromptRequest,
@@ -351,7 +334,7 @@ class AndroidLiteRtLmRuntimeSession(
         val loadMark = TimeSource.Monotonic.markNow()
         val options = LlmInference.LlmInferenceOptions.builder()
             .setModelPath(bundle.modelPath)
-            .setMaxTokens(4_096) // total context budget (input + output); always use model max
+            .setMaxTokens(ENGINE_CONTEXT_TOKENS) // total context budget (input + output)
             .setMaxTopK(40)
             .build()
         inference = LlmInference.createFromOptions(context, options)
@@ -361,6 +344,9 @@ class AndroidLiteRtLmRuntimeSession(
         return lastModelLoadTimeMillis
     }
 }
+
+/** Context (input + output) the LlmInference engine is created with. */
+private const val ENGINE_CONTEXT_TOKENS = 4_096
 
 private fun zeroedBufferFor(dataType: DataType, byteSize: Int): ByteBuffer =
     ByteBuffer.allocateDirect(byteSize)

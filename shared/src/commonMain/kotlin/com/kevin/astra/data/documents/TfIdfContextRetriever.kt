@@ -47,10 +47,7 @@ class TfIdfContextRetriever : DocumentContextRetriever {
         return RetrievedDocumentContext(chunks = selected)
     }
 
-    private fun tokenize(text: String): List<String> =
-        text.lowercase()
-            .split(Regex("[^a-z0-9]+"))
-            .filter { it.length >= 3 && it !in STOP_WORDS }
+    private fun tokenize(text: String): List<String> = TextTokenizer.tokenize(text)
 
     private fun termFrequencies(tokens: List<String>): Map<String, Double> {
         if (tokens.isEmpty()) return emptyMap()
@@ -58,13 +55,5 @@ class TfIdfContextRetriever : DocumentContextRetriever {
         tokens.forEach { counts[it] = (counts[it] ?: 0) + 1 }
         val total = tokens.size.toDouble()
         return counts.mapValues { it.value / total }
-    }
-
-    private companion object {
-        val STOP_WORDS = setOf(
-            "the", "and", "for", "are", "but", "not", "you", "all",
-            "can", "was", "this", "that", "with", "have", "from",
-            "they", "will", "one", "been", "has", "its", "also",
-        )
     }
 }

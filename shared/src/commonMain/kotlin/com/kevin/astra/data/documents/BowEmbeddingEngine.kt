@@ -26,10 +26,7 @@ class BowEmbeddingEngine : EmbeddingEngine {
         return l2Normalize(vec)
     }
 
-    private fun tokenize(text: String): List<String> =
-        text.lowercase()
-            .split(Regex("[^a-z0-9]+"))
-            .filter { it.length >= 3 }
+    private fun tokenize(text: String): List<String> = TextTokenizer.tokenize(text)
 
     private fun l2Normalize(vec: FloatArray): FloatArray {
         val norm = sqrt(vec.fold(0f) { acc, v -> acc + v * v })

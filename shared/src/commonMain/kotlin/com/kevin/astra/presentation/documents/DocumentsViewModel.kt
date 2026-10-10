@@ -42,7 +42,7 @@ class DocumentsViewModel(
 ) : AstraViewModel<DocumentsState, DocumentsIntent, DocumentsEffect>(
     initialState = DocumentsState(
         availableModels = modelCatalog.installedModels(),
-        sessionModel = modelCatalog.currentModel(),
+        activeModel = modelCatalog.currentModel(),
         gmailSupported = GmailIntegration.controller?.isSupported == true,
         gmailConnected = GmailIntegration.controller?.isConnected() == true,
     ),
@@ -59,9 +59,14 @@ class DocumentsViewModel(
             DocumentsIntent.ClearDocument -> {
                 generationJob?.cancel()
                 generationJob = null
-                updateState { DocumentsState(availableModels = availableModels, sessionModel = sessionModel) }
+                updateState { DocumentsState(availableModels = availableModels, sessionModel = sessionModel, activeModel = activeModel) }
             }
             DocumentsIntent.ClearAnswer -> updateState { copy(answer = null, extractedContext = null, metrics = DocumentsMetrics(), error = null, documentSummary = null) }
+            // The installed list and the app-wide model change from the Models screen; a snapshot
+            // taken at startup kept answering with the launch-time model (often Mock).
+            DocumentsIntent.RefreshModels -> updateState {
+                copy(availableModels = modelCatalog.installedModels(), activeModel = modelCatalog.currentModel())
+            }
             is DocumentsIntent.SelectSessionModel -> {
                 val model = modelCatalog.modelById(intent.modelId) ?: return
                 updateState { copy(sessionModel = model) }
@@ -255,8 +260,9 @@ class DocumentsViewModel(
                         userMessage = userMessage,
                         model = selectedModel.runtimeModel,
                         backend = selectedBackend.runtimeBackend,
-                        maxTokens = 4_096,
+                        maxTokens = 512,
                         temperature = 0.3,
+                        contextWindow = selectedModel.contextWindow,
                     ),
                 )
             }
@@ -319,6 +325,7 @@ class DocumentsViewModel(
                         backend = selectedBackend.runtimeBackend,
                         maxTokens = configuration.maxTokens,
                         temperature = configuration.temperature,
+                        contextWindow = minOf(configuration.contextWindow, selectedModel.contextWindow),
                     ),
                 )
             }

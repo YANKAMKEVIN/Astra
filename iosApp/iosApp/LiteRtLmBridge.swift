@@ -60,6 +60,7 @@ extension LiteRtLmBridge: NativeLiteRtLmEngine {
         prompt: String,
         modelPath: String,
         maxTokens: Int32,
+        temperature: Double,
         completion: @escaping (NativeLiteRtLmResult) -> Void
     ) {
         Task {
@@ -68,7 +69,7 @@ extension LiteRtLmBridge: NativeLiteRtLmEngine {
                 let engine = try await ensureEngine(modelPath: modelPath)
                 let text = try await engine.generate(
                     prompt: formatAsGemmaTurn(prompt),
-                    temperature: 0.7,
+                    temperature: Float(temperature),
                     maxTokens: Int(maxTokens)
                 )
                 let elapsedMs = Int64((Date().timeIntervalSince(start) * 1000).rounded())
