@@ -2,6 +2,13 @@ package com.kevin.astra.core.ai
 
 import android.content.Context
 import com.kevin.astra.app.di.androidAppContext
+import com.google.ai.edge.litertlm.Backend
+import com.google.ai.edge.litertlm.Content
+import com.google.ai.edge.litertlm.Contents
+import com.google.ai.edge.litertlm.ConversationConfig
+import com.google.ai.edge.litertlm.Engine
+import com.google.ai.edge.litertlm.EngineConfig
+import com.google.ai.edge.litertlm.SamplerConfig
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
@@ -256,44 +263,53 @@ class AndroidAssetLiteRtLmModelLoader(
     }
 }
 
+/**
+ * Runs on-device generation for downloaded or bundled LLMs.
+ *
+ * `.litertlm` files go through the LiteRT-LM runtime: it reads the tokenizer embedded in the file
+ * (SentencePiece *or* HF BPE) and applies each model's own chat template, with the system prompt
+ * as a real system turn. MediaPipe's LlmInference only understands SentencePiece, so it rejected
+ * Qwen, SmolLM, Phi… ("SentencePiece tokenizer is not found in the model") and every answer fell
+ * back to Mock. MediaPipe is kept for legacy `.task` bundles, which LiteRT-LM does not read.
+ */
 class AndroidLiteRtLmRuntimeSession(
     private val context: Context,
     private val logger: EdgeAiLogger = ConsoleEdgeAiLogger,
 ) : LiteRtLmRuntimeSession {
+    private var engine: Engine? = null
     private var inference: LlmInference? = null
     private var activeModelPath: String? = null
-    private var lastModelLoadTimeMillis: Long = 0L
 
     override suspend fun generate(
         request: PromptRequest,
         bundle: LiteRtLmModelBundle,
     ): GenerationResult {
-        val loadTime = ensureInference(bundle = bundle, request = request)
-        val runtime = inference ?: error("LiteRT-LM session was not initialized.")
-        val generationMark = TimeSource.Monotonic.markNow()
+        // The KV cache baked into the export is the hard limit; the catalog's window is the family's.
+        val window = listOfNotNull(
+            request.contextWindow.takeIf { it > 0 },
+            RuntimePrompt.contextWindowFromFileName(File(bundle.modelPath).name),
+            ENGINE_CONTEXT_TOKENS,
+        ).min()
 
-        // Guard against oversized input: LiteRT-LM aborts the whole process natively (SIGABRT) when
-        // input + output exceed the model context, and that native crash bypasses Kotlin try/catch.
-        // So the prompt MUST be trimmed to fit before the native call — against the engine's real
-        // window, not request.maxTokens (the answer length), which left ~256 tokens of input.
-        val inputText = RuntimePrompt.compose(
-            request = request,
-            contextWindow = minOf(request.contextWindow, ENGINE_CONTEXT_TOKENS),
-            countTokens = { text ->
-                runCatching { runtime.sizeInTokens(text) }.getOrElse { RuntimePrompt.estimateTokens(text) }
-            },
-        )
-        val text = runtime.generateResponse(inputText)
-            .trim()
-            .ifBlank { "LiteRT-LM returned an empty response." }
+        val loadTime: Long
+        val text: String
+        val generationMark: TimeSource.Monotonic.ValueTimeMark
+        if (bundle.modelPath.endsWith(".litertlm")) {
+            loadTime = ensureEngine(bundle, window)
+            generationMark = TimeSource.Monotonic.markNow()
+            text = generateWithLiteRtLm(request, window)
+        } else {
+            loadTime = ensureInference(bundle)
+            generationMark = TimeSource.Monotonic.markNow()
+            text = generateWithMediaPipe(request, window)
+        }
+        val answer = text.trim().ifBlank { "LiteRT-LM returned an empty response." }
         val generationLatencyMillis = generationMark.elapsedNow().inWholeMilliseconds.coerceAtLeast(1L)
-        val generatedTokens = runCatching { runtime.sizeInTokens(text) }
-            .getOrDefault(text.split(Regex("\\s+")).count { it.isNotBlank() })
-            .coerceAtLeast(1)
+        val generatedTokens = RuntimePrompt.estimateTokens(answer).coerceAtLeast(1)
         val tokensPerSecond = ((generatedTokens * 1_000L) / generationLatencyMillis).toInt().coerceAtLeast(1)
 
         return GenerationResult(
-            text = text,
+            text = answer,
             metrics = GenerationMetrics(
                 latencyMillis = generationLatencyMillis,
                 timeToFirstTokenMillis = generationLatencyMillis,
@@ -314,21 +330,71 @@ class AndroidLiteRtLmRuntimeSession(
         )
     }
 
+    private fun generateWithLiteRtLm(request: PromptRequest, window: Int): String {
+        val runtime = engine ?: error("LiteRT-LM engine was not initialized.")
+        // No tokenizer is exposed, so the fit uses the (pessimistic) estimate. Overflowing the
+        // KV cache would fail the call rather than truncate.
+        val prompt = RuntimePrompt.fit(request, contextWindow = window)
+        val config = ConversationConfig(
+            systemInstruction = prompt.system.takeIf { it.isNotEmpty() }?.let { Contents.of(it) },
+            samplerConfig = SamplerConfig(
+                topK = 40,
+                topP = 0.95,
+                temperature = request.temperature,
+                seed = 0,
+            ),
+        )
+        return runtime.createConversation(config).use { conversation ->
+            conversation.sendMessage(prompt.user)
+                .contents.contents
+                .filterIsInstance<Content.Text>()
+                .joinToString(separator = "") { it.text }
+        }
+    }
+
+    private fun generateWithMediaPipe(request: PromptRequest, window: Int): String {
+        val runtime = inference ?: error("LiteRT-LM session was not initialized.")
+        // LiteRT-LM aborts the whole process natively (SIGABRT) when input + output exceed the
+        // model context, bypassing Kotlin try/catch, so the prompt MUST fit before the call.
+        val inputText = RuntimePrompt.compose(
+            request = request,
+            contextWindow = window,
+            countTokens = { text ->
+                runCatching { runtime.sizeInTokens(text) }.getOrElse { RuntimePrompt.estimateTokens(text) }
+            },
+        )
+        return runtime.generateResponse(inputText)
+    }
+
     override fun close() {
+        engine?.close()
+        engine = null
         inference?.close()
         inference = null
         activeModelPath = null
-        lastModelLoadTimeMillis = 0L
     }
 
-    private fun ensureInference(
-        bundle: LiteRtLmModelBundle,
-        request: PromptRequest,
-    ): Long {
-        if (inference != null && activeModelPath == bundle.modelPath) {
-            return 0L
-        }
+    private fun ensureEngine(bundle: LiteRtLmModelBundle, window: Int): Long {
+        if (engine != null && activeModelPath == bundle.modelPath) return 0L
+        close()
 
+        val loadMark = TimeSource.Monotonic.markNow()
+        // CPU works on every device; GPU/NPU can be enabled once validated per chipset.
+        engine = Engine(
+            EngineConfig(
+                modelPath = bundle.modelPath,
+                backend = Backend.CPU(),
+                maxNumTokens = window,
+                cacheDir = context.cacheDir.absolutePath,
+            ),
+        ).also { it.initialize() }
+        activeModelPath = bundle.modelPath
+        logger.info("LiteRT-LM engine initialized from ${bundle.sourceModelPath} (window $window tokens).")
+        return loadMark.elapsedNow().inWholeMilliseconds.coerceAtLeast(1L)
+    }
+
+    private fun ensureInference(bundle: LiteRtLmModelBundle): Long {
+        if (inference != null && activeModelPath == bundle.modelPath) return 0L
         close()
 
         val loadMark = TimeSource.Monotonic.markNow()
@@ -339,13 +405,12 @@ class AndroidLiteRtLmRuntimeSession(
             .build()
         inference = LlmInference.createFromOptions(context, options)
         activeModelPath = bundle.modelPath
-        lastModelLoadTimeMillis = loadMark.elapsedNow().inWholeMilliseconds.coerceAtLeast(1L)
-        logger.info("LiteRT-LM LlmInference initialized from ${bundle.sourceModelPath}.")
-        return lastModelLoadTimeMillis
+        logger.info("MediaPipe LlmInference initialized from ${bundle.sourceModelPath}.")
+        return loadMark.elapsedNow().inWholeMilliseconds.coerceAtLeast(1L)
     }
 }
 
-/** Context (input + output) the LlmInference engine is created with. */
+/** Upper bound on the context (input + output) any engine is created with. */
 private const val ENGINE_CONTEXT_TOKENS = 4_096
 
 private fun zeroedBufferFor(dataType: DataType, byteSize: Int): ByteBuffer =

@@ -20,6 +20,12 @@ object RuntimePrompt {
         return window - reserve
     }
 
+    /** System prompt and user message, kept apart for runtimes with a chat template. */
+    data class Fitted(val system: String, val user: String) {
+        /** Single-string form for runtimes that take one prompt. */
+        fun joined(): String = if (system.isEmpty()) user else "$system\n\n$user"
+    }
+
     /**
      * @param countTokens the runtime's tokenizer when it exposes one; [estimateTokens] otherwise.
      */
@@ -27,17 +33,22 @@ object RuntimePrompt {
         request: PromptRequest,
         contextWindow: Int = request.contextWindow,
         countTokens: (String) -> Int = ::estimateTokens,
-    ): String {
+    ): String = fit(request, contextWindow, countTokens).joined()
+
+    /** Like [compose], but returns the parts so a runtime can apply its own chat template. */
+    fun fit(
+        request: PromptRequest,
+        contextWindow: Int = request.contextWindow,
+        countTokens: (String) -> Int = ::estimateTokens,
+    ): Fitted {
         val system = request.systemPrompt.trim()
         val user = request.userMessage.ifBlank { request.prompt }.trim()
         val budget = inputBudget(contextWindow, request.maxTokens)
 
-        fun join(u: String) = if (system.isEmpty()) u else "$system\n\n$u"
-
         var current = user
         repeat(MAX_PASSES) {
-            val tokens = countTokens(join(current))
-            if (tokens <= budget) return join(current)
+            val tokens = countTokens(Fitted(system, current).joined())
+            if (tokens <= budget) return Fitted(system, current)
             // Scale the user part down by the overshoot (+10% margin) and re-measure.
             val systemTokens = if (system.isEmpty()) 0 else countTokens(system) + 2
             val userBudget = (budget - systemTokens).coerceAtLeast(budget / 4)
@@ -47,11 +58,21 @@ object RuntimePrompt {
                 .coerceIn(0, current.length)
             current = current.take(keep).trimEnd()
         }
-        return join(current)
+        return Fitted(system, current)
     }
 
-    /** ~4 characters per token for Latin text — conservative enough for French accents too. */
-    fun estimateTokens(text: String): Int = (text.length + 3) / 4
+    /**
+     * LiteRT exports encode their KV-cache size in the file name ("…_ekv1280.litertlm").
+     * That is the hard limit the engine accepts, often far below the model family's window.
+     */
+    fun contextWindowFromFileName(fileName: String): Int? =
+        Regex("""ekv(\d{3,6})""").find(fileName)?.groupValues?.get(1)?.toIntOrNull()
+
+    /**
+     * ~3 characters per token: deliberately pessimistic. BPE tokenizers (Qwen, Llama) cut French
+     * and accented text finer than English, and overflowing the KV cache fails the whole call.
+     */
+    fun estimateTokens(text: String): Int = (text.length + 2) / 3
 
     private const val MAX_PASSES = 4
 }
