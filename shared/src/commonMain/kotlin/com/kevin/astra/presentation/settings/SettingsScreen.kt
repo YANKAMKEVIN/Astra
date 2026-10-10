@@ -38,6 +38,7 @@ import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraCard
 import com.kevin.astra.core.design.AstraChip
 import com.kevin.astra.core.design.AstraColors
+import com.kevin.astra.core.design.AstraIcons
 import com.kevin.astra.core.design.AstraMetricCard
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
@@ -64,6 +65,7 @@ import com.kevin.astra.domain.modelmanager.RequiredModelFile
 fun SettingsScreen(
     contentPadding: PaddingValues,
     viewModel: SettingsViewModel,
+    onManageModels: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -82,6 +84,7 @@ fun SettingsScreen(
             state = state,
             contentPadding = contentPadding,
             onIntent = viewModel::dispatch,
+            onManageModels = onManageModels,
         )
         SnackbarHost(
             hostState = snackbarHostState,
@@ -103,30 +106,24 @@ private fun SettingsContent(
     state: SettingsState,
     contentPadding: PaddingValues,
     onIntent: (SettingsIntent) -> Unit,
+    onManageModels: () -> Unit,
 ) {
     AstraScreen(
         title = "Settings",
         description = "Configure ASTRA's local AI runtime for secure offline operations.",
         contentPadding = contentPadding,
     ) {
-        ModelConfigurationCard(
-            models = state.availableModels,
+        ActiveModelCard(
             selectedModel = state.selectedModel,
-            onSelectModel = { onIntent(SettingsIntent.SelectModel(it)) },
+            installedCount = state.modelReadiness.count { it.status == ModelReadinessStatus.Installed },
+            totalCount = state.modelReadiness.size,
+            downloadState = state.downloadState,
+            onManageModels = onManageModels,
         )
         BackendConfigurationCard(
             backends = state.availableBackends,
             selectedBackend = state.selectedBackend,
             onSelectBackend = { onIntent(SettingsIntent.SelectBackend(it)) },
-        )
-        ModelManagerCard(
-            modelReadiness = state.modelReadiness,
-            models = state.availableModels,
-            downloadState = state.downloadState,
-            storageUsageMb = state.storageUsageMb,
-            onDownload = { onIntent(SettingsIntent.DownloadModel(it)) },
-            onDelete = { onIntent(SettingsIntent.DeleteModel(it)) },
-            onCancel = { onIntent(SettingsIntent.CancelDownload(it)) },
         )
         HuggingFaceTokenCard(
             token = state.huggingFaceToken,
@@ -157,30 +154,29 @@ private fun SettingsContent(
 }
 
 @Composable
-private fun ModelConfigurationCard(
-    models: List<LocalModel>,
+private fun ActiveModelCard(
     selectedModel: LocalModel?,
-    onSelectModel: (String) -> Unit,
+    installedCount: Int,
+    totalCount: Int,
+    downloadState: ModelDownloadState,
+    onManageModels: () -> Unit,
 ) {
+    val downloading = downloadState as? ModelDownloadState.Downloading
     AstraCard(
-        title = "Model Configuration",
-        subtitle = "Models are provided by the local catalog. Production runtimes remain staged for future integration.",
+        title = "Active model",
+        subtitle = when {
+            downloading != null -> "A model is downloading — ${downloading.progressPercent}%. Follow it in Models."
+            else -> "$installedCount of $totalCount models on this device. Download, switch or delete them in Models."
+        },
         status = selectedModel?.displayName ?: "No model",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
-        SelectableOptionRow {
-            models.forEach { model ->
-                val selected = model.id == selectedModel?.id
-                val installed = model.status != ModelStatus.Unsupported
-                SelectableOption(
-                    label = model.displayName,
-                    selected = selected,
-                    enabled = installed,
-                    status = if (selected) "ACTIVE" else model.status.label.uppercase(),
-                    onClick = { onSelectModel(model.id) },
-                )
-            }
-        }
+        AstraButton(
+            text = "Manage models",
+            onClick = onManageModels,
+            style = AstraButtonStyle.Secondary,
+            leadingIcon = AstraIcons.Cube,
+        )
     }
 }
 
@@ -211,267 +207,6 @@ private fun BackendConfigurationCard(
         }
     }
 }
-
-@Composable
-private fun ModelManagerCard(
-    modelReadiness: List<ModelReadiness>,
-    models: List<LocalModel>,
-    downloadState: ModelDownloadState,
-    storageUsageMb: Float,
-    onDownload: (String) -> Unit,
-    onDelete: (String) -> Unit,
-    onCancel: (String) -> Unit,
-) {
-    val readyCount = modelReadiness.count { it.status == ModelReadinessStatus.Installed }
-    val storageLabel = if (storageUsageMb < 1024f) {
-        "${storageUsageMb.toInt()} MB used"
-    } else {
-        val gb = storageUsageMb / 1024f
-        "${(gb * 10).toInt() / 10}.${(gb * 10).toInt() % 10} GB used"
-    }
-    AstraCard(
-        title = "Model Manager",
-        subtitle = "Download and manage on-device AI models. $storageLabel.",
-        status = "$readyCount/${modelReadiness.size} READY",
-    ) {
-        Spacer(Modifier.height(AstraSpacing.M))
-        // Download error banner
-        val failedState = downloadState as? ModelDownloadState.Failed
-        if (failedState != null) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(AstraColors.Error.copy(alpha = 0.10f), RoundedCornerShape(12.dp))
-                    .border(1.dp, AstraColors.Error.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
-                    .padding(AstraSpacing.M),
-                horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
-                verticalAlignment = Alignment.Top,
-            ) {
-                Text("⚠", style = AstraTypography.Body, color = AstraColors.Error)
-                Text(
-                    text = failedState.reason,
-                    style = AstraTypography.Caption,
-                    color = AstraColors.Error,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            Spacer(Modifier.height(AstraSpacing.S))
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-            modelReadiness.forEach { readiness ->
-                val model = models.firstOrNull { it.id == readiness.modelId }
-                ModelReadinessRow(
-                    readiness = readiness,
-                    model = model,
-                    downloadState = downloadState,
-                    onDownload = onDownload,
-                    onDelete = onDelete,
-                    onCancel = onCancel,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ModelReadinessRow(
-    readiness: ModelReadiness,
-    model: LocalModel?,
-    downloadState: ModelDownloadState,
-    onDownload: (String) -> Unit,
-    onDelete: (String) -> Unit,
-    onCancel: (String) -> Unit,
-) {
-    val isThisDownloading = downloadState is ModelDownloadState.Downloading &&
-        downloadState.modelId == readiness.modelId
-    val downloading = downloadState as? ModelDownloadState.Downloading
-    val isInstalled = readiness.status == ModelReadinessStatus.Installed
-    var expanded by remember { mutableStateOf(isThisDownloading) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(AstraColors.SurfaceElevated, RoundedCornerShape(18.dp))
-            .border(
-                1.dp,
-                if (isInstalled) AstraColors.Success.copy(alpha = 0.4f) else AstraColors.Border,
-                RoundedCornerShape(18.dp),
-            )
-            .clickable(enabled = !isThisDownloading) { expanded = !expanded }
-            .padding(AstraSpacing.M),
-    ) {
-        // ── Compact header (always visible) ──────────────────────────────
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = readiness.displayName,
-                    style = AstraTypography.Body,
-                    color = AstraColors.TextPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = "${readiness.parameterCount} • ${readiness.quantization} • ${readiness.expectedSize}",
-                    style = AstraTypography.Caption,
-                    color = AstraColors.TextSecondary,
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S), verticalAlignment = Alignment.CenterVertically) {
-                AstraChip(
-                    label = if (isThisDownloading) "DOWNLOADING" else readiness.status.label.uppercase(),
-                    color = if (isThisDownloading) AstraColors.Primary else readiness.status.statusColor(),
-                )
-                Text(
-                    text = if (expanded) "▲" else "▼",
-                    style = AstraTypography.Caption,
-                    color = AstraColors.TextSecondary,
-                )
-            }
-        }
-
-        // ── Downloading progress (always visible when active) ─────────────
-        if (isThisDownloading && downloading != null) {
-            Spacer(Modifier.height(AstraSpacing.S))
-            LinearProgressIndicator(
-                progress = { downloading.progressPercent / 100f },
-                modifier = Modifier.fillMaxWidth(),
-                color = AstraColors.Primary,
-                trackColor = AstraColors.Border,
-            )
-            Spacer(Modifier.height(AstraSpacing.XS))
-            Text(
-                text = if (downloading.totalMb > 0f) {
-                    "${downloading.downloadedMb.toInt()} / ${downloading.totalMb.toInt()} MB — ${downloading.progressPercent}%"
-                } else {
-                    "${downloading.downloadedMb.toInt()} MB downloaded…"
-                },
-                style = AstraTypography.Caption,
-                color = AstraColors.Primary,
-            )
-            Spacer(Modifier.height(AstraSpacing.S))
-            AstraButton(
-                text = "Cancel",
-                onClick = { onCancel(readiness.modelId) },
-                style = AstraButtonStyle.Danger,
-            )
-        }
-
-        // ── Expanded details ──────────────────────────────────────────────
-        AnimatedVisibility(visible = expanded && !isThisDownloading) {
-            Column {
-                Spacer(Modifier.height(AstraSpacing.S))
-                Text(
-                    text = readiness.readinessMessage,
-                    style = AstraTypography.Caption,
-                    color = AstraColors.TextSecondary,
-                )
-                Spacer(Modifier.height(AstraSpacing.S))
-                MetadataLine(label = "Provider", value = readiness.provider)
-                MetadataLine(label = "Backends", value = readiness.supportedBackends.joinToString { it.label })
-                if (readiness.requiredFiles.isNotEmpty()) {
-                    Spacer(Modifier.height(AstraSpacing.S))
-                    Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.XS)) {
-                        readiness.requiredFiles.forEach { file -> RequiredFileRow(file = file) }
-                    }
-                }
-                Spacer(Modifier.height(AstraSpacing.S))
-                when {
-                    // Only offer delete for models downloaded to filesDir (not bundled in APK, not mock)
-                    isInstalled && readiness.isDownloadedToFilesDir -> {
-                        AstraButton(
-                            text = "Delete model",
-                            onClick = { onDelete(readiness.modelId) },
-                            style = AstraButtonStyle.Danger,
-                        )
-                    }
-                    // Bundled in assets — installed but cannot be removed
-                    isInstalled && !readiness.isDownloadedToFilesDir && model?.status != ModelStatus.Installed -> {
-                        AstraButton(
-                            text = "Bundled in app",
-                            onClick = {},
-                            style = AstraButtonStyle.Secondary,
-                            enabled = false,
-                        )
-                    }
-                    // Downloadable
-                    model?.downloadUrl != null && !isInstalled -> {
-                        AstraButton(
-                            text = "Download model",
-                            onClick = { onDownload(readiness.modelId) },
-                            style = AstraButtonStyle.Primary,
-                        )
-                    }
-                    // No download URL and not installed — requires manual setup (e.g. Gemma needs HF auth)
-                    model?.downloadUrl == null && !isInstalled -> {
-                        Text(
-                            text = "🔐 Requires a HuggingFace account. Download manually from huggingface.co/litert-community and place the file in the app's model directory.",
-                            style = AstraTypography.Caption,
-                            color = AstraColors.TextSecondary,
-                        )
-                    }
-                    else -> {
-                        AstraButton(
-                            text = "Installed",
-                            onClick = {},
-                            style = AstraButtonStyle.Secondary,
-                            enabled = false,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MetadataLine(
-    label: String,
-    value: String,
-) {
-    Text(
-        text = "$label: $value",
-        style = AstraTypography.Caption,
-        color = AstraColors.TextSecondary,
-    )
-}
-
-@Composable
-private fun RequiredFileRow(file: RequiredModelFile) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = file.path,
-                style = AstraTypography.Caption,
-                color = AstraColors.TextPrimary,
-            )
-            Text(
-                text = file.description,
-                style = AstraTypography.Caption,
-                color = AstraColors.TextSecondary,
-            )
-        }
-        AstraChip(
-            label = if (file.present) "PRESENT" else "MISSING",
-            color = if (file.present) AstraColors.Success else AstraColors.Warning,
-        )
-    }
-}
-
-private fun ModelReadinessStatus.statusColor(): Color =
-    when (this) {
-        ModelReadinessStatus.Installed -> AstraColors.Success
-        ModelReadinessStatus.ModelRequired -> AstraColors.Secondary
-        ModelReadinessStatus.MissingFiles -> AstraColors.Warning
-        ModelReadinessStatus.UnsupportedPlatform -> AstraColors.Error
-        ModelReadinessStatus.ComingSoon -> AstraColors.TextSecondary
-    }
 
 @Composable
 private fun HuggingFaceTokenCard(
