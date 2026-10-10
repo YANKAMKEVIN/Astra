@@ -13,6 +13,12 @@ class TextTokenizerTest {
     }
 
     @Test
+    fun decomposedAccentsAreFoldedLikePrecomposedOnes() {
+        assertEquals(listOf("securite"), TextTokenizer.tokenize("se\u0301curite\u0301"))
+        assertEquals(TextTokenizer.tokenize("Sécurité"), TextTokenizer.tokenize("Se\u0301curite\u0301"))
+    }
+
+    @Test
     fun frenchAndEnglishStopWordsAreDropped() {
         assertEquals(
             listOf("pression", "maximale", "pompe"),

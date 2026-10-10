@@ -18,6 +18,9 @@ object TextTokenizer {
         val out = ArrayList<String>()
         val current = StringBuilder()
         for (ch in text) {
+            // Decomposed accents (e.g. "e" + U+0301, as some PDF extractors emit) belong to the
+            // current word — drop the mark so "se\u0301curite\u0301" folds to "securite" too.
+            if (ch.category == CharCategory.NON_SPACING_MARK) continue
             if (ch.isLetterOrDigit()) {
                 current.append(fold(ch.lowercaseChar()))
             } else if (current.isNotEmpty()) {
