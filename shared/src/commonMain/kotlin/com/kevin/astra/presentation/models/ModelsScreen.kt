@@ -87,13 +87,12 @@ fun ModelsScreen(
         }
     }
 
-    val deviceMemoryMb = deviceCapabilities?.totalMemoryMb
     val sections = buildModelSections(
         readiness = state.modelReadiness,
         models = state.availableModels,
         selectedModelId = state.selectedModel?.id,
         downloadState = state.downloadState,
-        deviceMemoryMb = deviceMemoryMb,
+        deviceMemoryMb = deviceCapabilities?.totalMemoryMb,
         query = query,
     )
     val searching = query.isNotBlank()
@@ -144,7 +143,7 @@ fun ModelsScreen(
             if (sections.onDevice.isNotEmpty()) {
                 ModelSection(title = "On this device", trailing = "${sections.onDevice.size}") {
                     sections.onDevice.forEachIndexed { i, entry ->
-                        ModelRow(entry, expandedRowId == entry.id, deviceMemoryMb, rowActions, i < sections.onDevice.lastIndex)
+                        ModelRow(entry, expandedRowId == entry.id, rowActions, i < sections.onDevice.lastIndex)
                     }
                 }
             }
@@ -152,7 +151,7 @@ fun ModelsScreen(
             if (sections.downloading.isNotEmpty()) {
                 ModelSection(title = "Downloading") {
                     sections.downloading.forEachIndexed { i, entry ->
-                        ModelRow(entry, expandedRowId == entry.id, deviceMemoryMb, rowActions, i < sections.downloading.lastIndex)
+                        ModelRow(entry, expandedRowId == entry.id, rowActions, i < sections.downloading.lastIndex)
                     }
                 }
             }
@@ -167,7 +166,7 @@ fun ModelsScreen(
                     trailing = "${section.entries.size}",
                 ) {
                     visible.forEachIndexed { i, entry ->
-                        ModelRow(entry, expandedRowId == entry.id, deviceMemoryMb, rowActions, i < visible.lastIndex)
+                        ModelRow(entry, expandedRowId == entry.id, rowActions, i < visible.lastIndex)
                     }
                     if (hidden > 0) {
                         SectionFooterButton(text = "Show $hidden more") {
@@ -188,7 +187,7 @@ fun ModelsScreen(
                 AnimatedVisibility(visible = open) {
                     ModelSection(title = null) {
                         sections.tooLarge.forEachIndexed { i, entry ->
-                            ModelRow(entry, expandedRowId == entry.id, deviceMemoryMb, rowActions, i < sections.tooLarge.lastIndex)
+                            ModelRow(entry, expandedRowId == entry.id, rowActions, i < sections.tooLarge.lastIndex)
                         }
                     }
                 }
@@ -389,11 +388,10 @@ private fun CollapsibleHeader(title: String, count: Int, open: Boolean, onClick:
 private fun ModelRow(
     entry: ModelEntry,
     expanded: Boolean,
-    deviceMemoryMb: Long?,
     actions: RowActions,
     showDivider: Boolean,
 ) {
-    val tooLarge = deviceMemoryMb != null && deviceMemoryMb > 0 && entry.minimumMemoryMb > deviceMemoryMb
+    val tooLarge = entry.exceedsDeviceMemory
     val downloading = entry.downloading
     val r = entry.readiness
 

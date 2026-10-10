@@ -1,7 +1,10 @@
 package com.kevin.astra.core.device
 
+import android.app.ActivityManager
+import android.content.Context
 import android.os.Build
 import android.os.Environment
+import com.kevin.astra.app.di.androidAppContext
 import com.kevin.astra.core.ai.InferenceBackend
 
 actual fun createDeviceCapabilityProvider(): DeviceCapabilityProvider =
@@ -9,9 +12,14 @@ actual fun createDeviceCapabilityProvider(): DeviceCapabilityProvider =
 
 class AndroidDeviceCapabilityProvider : DeviceCapabilityProvider {
     override suspend fun getCapabilities(): DeviceCapabilities {
-        val runtime = Runtime.getRuntime()
-        val maxMemoryMb = runtime.maxMemory().toMb()
-        val availableMemoryMb = (runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()).toMb()
+        // Device RAM, not the JVM heap cap (Runtime.maxMemory() is ~256–512 MB and would
+        // flag every model as too large). Falls back to 0 = unknown if Koin isn't up yet.
+        val memoryInfo = runCatching {
+            val activityManager = androidAppContext().getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            ActivityManager.MemoryInfo().also(activityManager::getMemoryInfo)
+        }.getOrNull()
+        val totalMemoryMb = memoryInfo?.totalMem?.toMb() ?: 0L
+        val availableMemoryMb = memoryInfo?.availMem?.toMb() ?: 0L
         val storageAvailableGb = Environment.getDataDirectory().usableSpace.toGb()
 
         return DeviceCapabilities(
@@ -24,7 +32,7 @@ class AndroidDeviceCapabilityProvider : DeviceCapabilityProvider {
             gpuName = NotDetectedValue,
             npuAvailable = false,
             npuName = NotDetectedValue,
-            totalMemoryMb = maxMemoryMb,
+            totalMemoryMb = totalMemoryMb,
             availableMemoryMb = availableMemoryMb,
             storageAvailableGb = storageAvailableGb,
             supportedBackends = listOf(

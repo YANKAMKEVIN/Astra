@@ -24,6 +24,8 @@ data class ModelEntry(
     val model: LocalModel?,
     val isActive: Boolean,
     val downloading: ModelDownloadState.Downloading?,
+    /** True when the model needs more RAM than this device has. */
+    val exceedsDeviceMemory: Boolean = false,
 ) {
     val id: String get() = readiness.modelId
     val isInstalled: Boolean get() = readiness.status == ModelReadinessStatus.Installed
@@ -47,8 +49,8 @@ data class ModelSections(
  * Splits the catalog into the sections of the Models screen:
  * installed models first (active one on top), the in-flight download, then the
  * rest grouped by [ModelTier] (smallest first), and finally the models whose RAM
- * requirement exceeds the device's memory. [deviceMemoryMb] of null means
- * "unknown" — nothing is flagged as too large.
+ * requirement exceeds the device's memory. [deviceMemoryMb] is the RAM the OS reports;
+ * null or 0 means "unknown" — nothing is flagged as too large.
  */
 fun buildModelSections(
     readiness: List<ModelReadiness>,
@@ -59,13 +61,16 @@ fun buildModelSections(
     query: String = "",
 ): ModelSections {
     val downloading = downloadState as? ModelDownloadState.Downloading
+    val nominalMb = deviceMemoryMb?.takeIf { it > 0 }?.let(::nominalMemoryMb)
     val entries = readiness
         .map { r ->
+            val model = models.firstOrNull { it.id == r.modelId }
             ModelEntry(
                 readiness = r,
-                model = models.firstOrNull { it.id == r.modelId },
+                model = model,
                 isActive = r.modelId == selectedModelId,
                 downloading = downloading?.takeIf { it.modelId == r.modelId },
+                exceedsDeviceMemory = nominalMb != null && (model?.minimumMemoryMb ?: 0) > nominalMb,
             )
         }
         .filter { it.matches(query) }
@@ -76,9 +81,7 @@ fun buildModelSections(
     val inFlight = entries.filter { !it.isInstalled && it.downloading != null }
     val catalog = entries.filter { !it.isInstalled && it.downloading == null }
 
-    val (fits, tooLarge) = catalog.partition { entry ->
-        deviceMemoryMb == null || deviceMemoryMb <= 0 || entry.minimumMemoryMb <= deviceMemoryMb
-    }
+    val (tooLarge, fits) = catalog.partition { it.exceedsDeviceMemory }
     val tiers = fits
         .groupBy { ModelTier.forMemory(it.minimumMemoryMb) }
         .map { (tier, list) -> ModelTierSection(tier, list.sortedForCatalog()) }
@@ -91,6 +94,13 @@ fun buildModelSections(
         tooLarge = tooLarge.sortedBy { it.minimumMemoryMb },
     )
 }
+
+/**
+ * The OS reports a little less RAM than the device is sold with (kernel and GPU carve-outs:
+ * an 8 GB phone shows ~7.4 GB). Round up to the next whole GB so a model rated for 8 GB
+ * isn't flagged on an 8 GB phone.
+ */
+fun nominalMemoryMb(reportedMb: Long): Long = ((reportedMb + 1023) / 1024) * 1024
 
 // One-tap downloads before models that need a manual install, then smallest first.
 private fun List<ModelEntry>.sortedForCatalog(): List<ModelEntry> =

@@ -147,4 +147,39 @@ class ModelSectionsTest {
         val none = buildModelSections(readiness(), models, "mock-model", ModelDownloadState.Idle, 16_384, query = "zzz")
         assertTrue(none.isEmpty)
     }
+
+    @Test
+    fun reportedRamIsRoundedUpToTheMarketedSize() {
+        assertEquals(8_192L, nominalMemoryMb(7_420))
+        assertEquals(6_144L, nominalMemoryMb(5_630))
+        assertEquals(4_096L, nominalMemoryMb(4_096))
+    }
+
+    @Test
+    fun anEightGbPhoneReportingLessRamStillFitsAnEightGbModel() {
+        val sections = buildModelSections(
+            readiness = readiness(),
+            models = models,
+            selectedModelId = "mock-model",
+            downloadState = ModelDownloadState.Idle,
+            deviceMemoryMb = 7_420,
+        )
+
+        assertTrue(sections.tooLarge.isEmpty(), "Flagged: ${sections.tooLarge.map { it.id }}")
+        assertTrue(sections.tiers.flatMap { it.entries }.any { it.id == "gemma-4-12b" })
+    }
+
+    @Test
+    fun aSixGbPhoneFoldsAwayOnlyTheEightGbModel() {
+        val sections = buildModelSections(
+            readiness = readiness(),
+            models = models,
+            selectedModelId = "mock-model",
+            downloadState = ModelDownloadState.Idle,
+            deviceMemoryMb = 5_630,
+        )
+
+        assertEquals(listOf("gemma-4-12b"), sections.tooLarge.map { it.id })
+        assertTrue(sections.tooLarge.single().exceedsDeviceMemory)
+    }
 }
