@@ -423,6 +423,7 @@ class AssistantViewModel(
                 backend = selectedBackend.runtimeBackend,
                 maxTokens = configuration.maxTokens,
                 temperature = configuration.temperature,
+                contextWindow = minOf(configuration.contextWindow, selectedModel.contextWindow),
             )
 
             var finalResult: com.kevin.astra.core.ai.GenerationResult? = null

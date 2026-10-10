@@ -142,6 +142,8 @@ data class PromptRequest(
     val backend: InferenceBackend = InferenceBackend.Mock,
     val maxTokens: Int = 512,
     val temperature: Double = 0.2,
+    /** Total tokens the model can attend to (input + output). Used to fit the prompt. */
+    val contextWindow: Int = 4_096,
 )
 
 data class GenerationResult(

@@ -255,8 +255,9 @@ class DocumentsViewModel(
                         userMessage = userMessage,
                         model = selectedModel.runtimeModel,
                         backend = selectedBackend.runtimeBackend,
-                        maxTokens = 4_096,
+                        maxTokens = 512,
                         temperature = 0.3,
+                        contextWindow = selectedModel.contextWindow,
                     ),
                 )
             }
@@ -319,6 +320,7 @@ class DocumentsViewModel(
                         backend = selectedBackend.runtimeBackend,
                         maxTokens = configuration.maxTokens,
                         temperature = configuration.temperature,
+                        contextWindow = minOf(configuration.contextWindow, selectedModel.contextWindow),
                     ),
                 )
             }
