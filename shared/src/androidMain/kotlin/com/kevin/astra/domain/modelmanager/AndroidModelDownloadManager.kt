@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
 import java.net.HttpURLConnection
-import java.net.URL
 
 actual fun createModelDownloadManager(): ModelDownloadManager {
     return AndroidModelDownloadManager(androidAppContext())
@@ -28,6 +27,7 @@ class AndroidModelDownloadManager(
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var activeJob: Job? = null
     private var activeModelId: String? = null
+    private val downloader = ResumableDownloader()
 
     override suspend fun download(request: ModelDownloadRequest) {
         if (activeModelId == request.modelId) return
@@ -36,78 +36,57 @@ class AndroidModelDownloadManager(
         activeModelId = request.modelId
         _downloadState.value = ModelDownloadState.Downloading(request.modelId, 0, 0f, 0f)
 
+        // Foreground service: keeps the network and CPU alive when the screen locks.
+        ModelDownloadService.start(context, request.modelId, request.displayName)
+
         activeJob = scope.launch {
             val destDir = File(context.filesDir, "astra-models/${request.modelId}").apply { mkdirs() }
             val destFile = File(destDir, request.fileName)
             val tmpFile = File(destDir, "${request.fileName}.tmp")
             try {
-                val connection = URL(request.url).openConnection() as HttpURLConnection
-                connection.connectTimeout = 15_000
-                connection.readTimeout = 60_000
-                connection.instanceFollowRedirects = true
-                if (request.authToken != null) {
-                    connection.setRequestProperty("Authorization", "Bearer ${request.authToken}")
-                }
-                connection.connect()
-
-                val responseCode = connection.responseCode
-                if (responseCode == HttpURLConnection.HTTP_UNAUTHORIZED || responseCode == HttpURLConnection.HTTP_FORBIDDEN) {
-                    connection.disconnect()
-                    _downloadState.value = ModelDownloadState.Failed(
+                val result = downloader.download(
+                    url = request.url,
+                    authToken = request.authToken,
+                    partFile = tmpFile,
+                ) { downloadedBytes, totalBytes ->
+                    _downloadState.value = ModelDownloadState.Downloading(
                         modelId = request.modelId,
-                        reason = "Authentication required (HTTP $responseCode). This model requires a HuggingFace account.",
+                        progressPercent = if (totalBytes > 0) ((downloadedBytes * 100) / totalBytes).toInt() else 0,
+                        downloadedMb = downloadedBytes / (1024f * 1024f),
+                        totalMb = if (totalBytes > 0) totalBytes / (1024f * 1024f) else 0f,
                     )
-                    activeModelId = null
-                    return@launch
                 }
-                if (responseCode != HttpURLConnection.HTTP_OK) {
-                    connection.disconnect()
-                    _downloadState.value = ModelDownloadState.Failed(
-                        modelId = request.modelId,
-                        reason = "Server returned HTTP $responseCode. Check the download URL.",
-                    )
-                    activeModelId = null
-                    return@launch
-                }
-
-                val totalBytes = connection.contentLengthLong
-                var downloadedBytes = 0L
-
-                connection.inputStream.buffered(65_536).use { input ->
-                    tmpFile.outputStream().use { output ->
-                        val buffer = ByteArray(65_536)
-                        var read: Int
-                        while (input.read(buffer).also { read = it } != -1) {
-                            output.write(buffer, 0, read)
-                            downloadedBytes += read
-                            val progress = if (totalBytes > 0) ((downloadedBytes * 100) / totalBytes).toInt() else 0
-                            _downloadState.value = ModelDownloadState.Downloading(
-                                modelId = request.modelId,
-                                progressPercent = progress,
-                                downloadedMb = downloadedBytes / (1024f * 1024f),
-                                totalMb = if (totalBytes > 0) totalBytes / (1024f * 1024f) else 0f,
-                            )
-                        }
+                when (result) {
+                    ResumableDownloader.Result.Completed -> {
+                        tmpFile.renameTo(destFile)
+                        _downloadState.value = ModelDownloadState.Completed(request.modelId, destFile.absolutePath)
+                    }
+                    is ResumableDownloader.Result.HttpError -> {
+                        tmpFile.delete()
+                        _downloadState.value = ModelDownloadState.Failed(request.modelId, httpErrorReason(result.code))
                     }
                 }
-
-                tmpFile.renameTo(destFile)
-                _downloadState.value = ModelDownloadState.Completed(request.modelId, destFile.absolutePath)
                 activeModelId = null
             } catch (e: CancellationException) {
                 tmpFile.delete()
                 _downloadState.value = ModelDownloadState.Idle
                 throw e
             } catch (e: Exception) {
-                tmpFile.delete()
+                // Keep the partial file: tapping Download again resumes where it stopped.
                 _downloadState.value = ModelDownloadState.Failed(
                     modelId = request.modelId,
-                    reason = e.message ?: "Download failed",
+                    reason = "${e.message ?: "Download failed"}. Tap download to resume.",
                 )
                 activeModelId = null
             }
         }
         activeJob?.join()
+    }
+
+    private fun httpErrorReason(code: Int): String = when (code) {
+        HttpURLConnection.HTTP_UNAUTHORIZED, HttpURLConnection.HTTP_FORBIDDEN ->
+            "Authentication required (HTTP $code). This model requires a HuggingFace account."
+        else -> "Server returned HTTP $code. Check the download URL."
     }
 
     override fun cancel(modelId: String) {
