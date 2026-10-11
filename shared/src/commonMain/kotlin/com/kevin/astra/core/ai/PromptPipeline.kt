@@ -215,7 +215,14 @@ object PromptTemplates {
             "Always prioritize safety and approved local procedure.",
             "Do not invent steps that are absent from the provided context.",
         ),
-        responseFormattingInstructions = defaultFormatting,
+        // Not defaultFormatting: "numbered steps + safety note" made small on-device models
+        // invent procedures instead of quoting the value that was asked for.
+        responseFormattingInstructions = listOf(
+            "Answer the question directly in one to three sentences.",
+            "Quote figures, units and names exactly as written in the context.",
+            "Reply in the language of the question.",
+            "Only list steps if the context itself lists them.",
+        ),
     )
 
     fun industryTemplate(industry: PromptIndustry): PromptTemplate = when (industry) {
