@@ -71,4 +71,29 @@ class RuntimePromptTest {
         val input = RuntimePrompt.compose(PromptRequest(prompt = "fallback prompt"))
         assertEquals("fallback prompt", input)
     }
+
+    @Test
+    fun fitKeepsSystemAndUserApartForChatTemplates() {
+        val fitted = RuntimePrompt.fit(request(context = "Bolt B-12 torque is 45 Nm."))
+        assertEquals(system, fitted.system)
+        assertTrue(fitted.user.startsWith(question))
+        assertEquals(RuntimePrompt.compose(request(context = "Bolt B-12 torque is 45 Nm.")), fitted.joined())
+    }
+
+    @Test
+    fun kvCacheSizeIsReadFromLiteRtFileNames() {
+        assertEquals(1_280, RuntimePrompt.contextWindowFromFileName("qwen3_0.6b_nothink_q4_block32_ekv1280.litertlm"))
+        assertEquals(4_096, RuntimePrompt.contextWindowFromFileName("Phi-4-mini-instruct_multi-prefill-seq_q8_ekv4096.litertlm"))
+        assertEquals(null, RuntimePrompt.contextWindowFromFileName("gemma-4-E2B-it.litertlm"))
+    }
+
+    @Test
+    fun aSmallKvCacheStillKeepsTheQuestionAndBestChunk() {
+        val bestChunk = "BEST bolt B-12 torque is 45 Nm."
+        val context = bestChunk + "\n\n" + "remplissage ".repeat(2_000)
+        val fitted = RuntimePrompt.fit(request(context = context, window = 1_280))
+
+        assertTrue(RuntimePrompt.estimateTokens(fitted.joined()) <= RuntimePrompt.inputBudget(1_280, 512))
+        assertTrue(fitted.user.contains(question) && fitted.user.contains(bestChunk))
+    }
 }
