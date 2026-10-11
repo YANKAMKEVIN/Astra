@@ -10,8 +10,10 @@ import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSError
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSFileSize
+import platform.Foundation.NSHTTPURLResponse
 import platform.Foundation.NSMutableURLRequest
 import platform.Foundation.NSNumber
+import platform.Foundation.NSOperationQueue
 import platform.Foundation.NSSearchPathForDirectoriesInDomains
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSURL
@@ -21,25 +23,64 @@ import platform.Foundation.NSURLSessionDownloadDelegateProtocol
 import platform.Foundation.NSURLSessionDownloadTask
 import platform.Foundation.NSURLSessionTask
 import platform.Foundation.NSUserDomainMask
+import platform.Foundation.setValue
 import platform.darwin.NSObject
 
-actual fun createModelDownloadManager(): ModelDownloadManager = IosModelDownloadManager()
+actual fun createModelDownloadManager(): ModelDownloadManager = IosModelDownloadManager.shared
 
 private const val AstraModelsDir = "astra-models"
+private const val BackgroundSessionId = "com.kevin.astra.model-download"
 
 /**
- * Real HTTP download over `NSURLSession`, mirroring `AndroidModelDownloadManager`: streams a model
- * into the app's Documents directory with progress reporting, supports cancel/delete, and reports
- * on-device storage usage. Downloaded bundles are picked up by [IosLiteRtLmModelLoader] ahead of
- * any model bundled into the app's resources.
+ * Downloads models with a *background* `NSURLSession`: the transfer is run by the system
+ * (nsurlsessiond), so it keeps going while the app is suspended and even after iOS terminates
+ * it. A default session stopped as soon as the user left the app.
+ *
+ * Background sessions are per-identifier singletons, so there is one session and one delegate
+ * for the process. Each task carries "modelId/fileName" in `taskDescription`, which lets the
+ * delegate file a download that finishes after a relaunch, when no in-memory state survives.
  */
-class IosModelDownloadManager : ModelDownloadManager {
+class IosModelDownloadManager private constructor() : ModelDownloadManager {
     private val _downloadState = MutableStateFlow<ModelDownloadState>(ModelDownloadState.Idle)
     override val downloadState: StateFlow<ModelDownloadState> = _downloadState.asStateFlow()
 
     private var activeTask: NSURLSessionDownloadTask? = null
-    private var activeDelegate: DownloadDelegate? = null
     private var activeModelId: String? = null
+
+    private val delegate = BackgroundDownloadDelegate(
+        destinationFor = { description -> destinationFor(description) },
+        onProgress = { modelId, percent, downloadedMb, totalMb ->
+            if (activeModelId == null || activeModelId == modelId) {
+                activeModelId = modelId
+                _downloadState.value = ModelDownloadState.Downloading(modelId, percent, downloadedMb, totalMb)
+            }
+        },
+        onFinished = { modelId, localPath, error -> finish(modelId, localPath, error) },
+        onAllEventsDelivered = { BackgroundDownloadEvents.complete() },
+    )
+
+    private val session: NSURLSession by lazy {
+        val configuration = NSURLSessionConfiguration.backgroundSessionConfigurationWithIdentifier(BackgroundSessionId)
+            .apply {
+                sessionSendsLaunchEvents = true // relaunch the app in the background to file the model
+                discretionary = false // start now, not when iOS finds it convenient
+                allowsCellularAccess = true
+            }
+        NSURLSession.sessionWithConfiguration(configuration, delegate, NSOperationQueue.mainQueue)
+    }
+
+    init {
+        // Re-attach to a transfer started before the app was suspended or relaunched.
+        session.getAllTasksWithCompletionHandler { tasks ->
+            val running = tasks?.filterIsInstance<NSURLSessionDownloadTask>()?.firstOrNull()
+            val modelId = running?.taskDescription?.substringBefore('/')
+            if (running != null && modelId != null) {
+                activeTask = running
+                activeModelId = modelId
+                _downloadState.value = ModelDownloadState.Downloading(modelId, 0, 0f, 0f)
+            }
+        }
+    }
 
     override suspend fun download(request: ModelDownloadRequest) {
         if (activeModelId == request.modelId) return
@@ -54,70 +95,10 @@ class IosModelDownloadManager : ModelDownloadManager {
         activeModelId = request.modelId
         _downloadState.value = ModelDownloadState.Downloading(request.modelId, 0, 0f, 0f)
 
-        val destDir = modelDirectory(request.modelId)
-        NSFileManager.defaultManager.createDirectoryAtPath(
-            path = destDir,
-            withIntermediateDirectories = true,
-            attributes = null,
-            error = null,
-        )
-        val destPath = "$destDir/${request.fileName}"
-
-        // Three separate attempts to set the Authorization header directly on an
-        // NSMutableURLRequest (`initWithURL:`-style constructor + setValue(forHTTPHeaderField:),
-        // the `allHTTPHeaderFields` property, and requestWithURL(_:) + setValue(forHTTPHeaderField:))
-        // all failed with "Unresolved reference" from the Kotlin/Native compiler — the header-field
-        // API surface isn't resolving on this class in this project's cinterop binding. Sidestepping
-        // it entirely: set the header on the session's `HTTPAdditionalHeaders` config dictionary
-        // instead, which every request made through that session automatically carries.
-        // (`requestWithURL` already types its return as NSMutableURLRequest here — confirmed by
-        // Xcode's own "No cast needed" warning on an earlier `as NSMutableURLRequest`.)
         val urlRequest = NSMutableURLRequest.requestWithURL(url)
-        val authToken = request.authToken
-
-        val delegate = DownloadDelegate(
-            destinationPath = destPath,
-            onProgress = { percent, downloadedMb, totalMb ->
-                if (activeModelId == request.modelId) {
-                    _downloadState.value = ModelDownloadState.Downloading(request.modelId, percent, downloadedMb, totalMb)
-                }
-            },
-            onComplete = { localPath, error ->
-                if (activeModelId == request.modelId) {
-                    activeModelId = null
-                    activeTask = null
-                    activeDelegate = null
-                    _downloadState.value = if (localPath != null) {
-                        ModelDownloadState.Completed(request.modelId, localPath)
-                    } else {
-                        ModelDownloadState.Failed(request.modelId, error ?: "Download failed")
-                    }
-                }
-            },
-            onAuthFailure = { code ->
-                if (activeModelId == request.modelId) {
-                    activeModelId = null
-                    activeTask = null
-                    activeDelegate = null
-                    _downloadState.value = ModelDownloadState.Failed(
-                        request.modelId,
-                        "Authentication required (HTTP $code). This model requires a HuggingFace account.",
-                    )
-                }
-            },
-        )
-        activeDelegate = delegate
-
-        val sessionConfiguration = NSURLSessionConfiguration.defaultSessionConfiguration
-        if (authToken != null) {
-            sessionConfiguration.HTTPAdditionalHeaders = mapOf("Authorization" to "Bearer $authToken")
-        }
-        val session = NSURLSession.sessionWithConfiguration(
-            configuration = sessionConfiguration,
-            delegate = delegate,
-            delegateQueue = null,
-        )
+        request.authToken?.let { urlRequest.setValue("Bearer $it", forHTTPHeaderField = "Authorization") }
         val task = session.downloadTaskWithRequest(urlRequest)
+        task.taskDescription = "${request.modelId}/${request.fileName}"
         activeTask = task
         task.resume()
     }
@@ -126,9 +107,31 @@ class IosModelDownloadManager : ModelDownloadManager {
         if (activeModelId != modelId) return
         activeTask?.cancel()
         activeTask = null
-        activeDelegate = null
         activeModelId = null
         _downloadState.value = ModelDownloadState.Idle
+    }
+
+    private fun finish(modelId: String, localPath: String?, error: String?) {
+        if (activeModelId != null && activeModelId != modelId) return
+        // A cancelled task reports an error after cancel() already reset the state.
+        if (activeModelId == null && localPath == null) return
+        activeModelId = null
+        activeTask = null
+        _downloadState.value = if (localPath != null) {
+            ModelDownloadState.Completed(modelId, localPath)
+        } else {
+            ModelDownloadState.Failed(modelId, error ?: "Download failed")
+        }
+    }
+
+    /** "modelId/fileName" → (modelId, absolute destination path), creating the model directory. */
+    private fun destinationFor(description: String?): Pair<String, String>? {
+        val modelId = description?.substringBefore('/', missingDelimiterValue = "")?.takeIf { it.isNotEmpty() }
+            ?: return null
+        val fileName = description.substringAfter('/').takeIf { it.isNotEmpty() } ?: return null
+        val dir = modelDirectory(modelId)
+        NSFileManager.defaultManager.createDirectoryAtPath(dir, withIntermediateDirectories = true, attributes = null, error = null)
+        return modelId to "$dir/$fileName"
     }
 
     override fun deleteModel(modelId: String): Boolean =
@@ -181,6 +184,31 @@ class IosModelDownloadManager : ModelDownloadManager {
 
     private fun rootModelsDirectory(): String = "${documentsDirectory()}/$AstraModelsDir"
     private fun modelDirectory(modelId: String): String = "${rootModelsDirectory()}/$modelId"
+
+    companion object {
+        /** One instance per process: it owns the background session for [BackgroundSessionId]. */
+        val shared: IosModelDownloadManager by lazy { IosModelDownloadManager() }
+    }
+}
+
+/**
+ * Bridge for `application(_:handleEventsForBackgroundURLSession:completionHandler:)`.
+ * When iOS relaunches the app to deliver finished transfers, Swift hands the completion
+ * handler here; it is called once the session has delivered every event.
+ */
+object BackgroundDownloadEvents {
+    private var completionHandler: (() -> Unit)? = null
+
+    fun handle(identifier: String, completionHandler: () -> Unit) {
+        if (identifier != BackgroundSessionId) return completionHandler()
+        this.completionHandler = completionHandler
+        IosModelDownloadManager.shared // recreate the session so it can deliver the events
+    }
+
+    internal fun complete() {
+        completionHandler?.invoke()
+        completionHandler = null
+    }
 }
 
 private fun documentsDirectory(): String =
@@ -188,34 +216,34 @@ private fun documentsDirectory(): String =
         ?: NSTemporaryDirectory()
 
 /**
- * `NSURLSessionDownloadDelegate` implementation backing the download. Reports progress via
- * [onProgress], and either [onComplete] (success/failure) or [onAuthFailure] (401/403 — mirrors
- * the HuggingFace gated-model case already handled on Android) exactly once per download.
- *
- * Any non-success HTTP status (>= 400) is rejected rather than treated as a completed download:
- * NSURLSession still routes error responses (404, 500, …) to `didFinishDownloadingToURL` with the
- * error page as the "downloaded" body, so without this guard that HTML/error content would be
- * moved into the model directory and reported as installed.
+ * Delegate of the background session. Error responses (401/403/404/5xx) are rejected rather than
+ * filed as models: NSURLSession still routes them to `didFinishDownloadingToURL` with the error
+ * page as the "downloaded" body.
  */
-private class DownloadDelegate(
-    private val destinationPath: String,
-    private val onProgress: (Int, Float, Float) -> Unit,
-    private val onComplete: (String?, String?) -> Unit,
-    private val onAuthFailure: (Long) -> Unit,
+private class BackgroundDownloadDelegate(
+    private val destinationFor: (String?) -> Pair<String, String>?,
+    private val onProgress: (modelId: String, percent: Int, downloadedMb: Float, totalMb: Float) -> Unit,
+    private val onFinished: (modelId: String, localPath: String?, error: String?) -> Unit,
+    private val onAllEventsDelivered: () -> Unit,
 ) : NSObject(), NSURLSessionDownloadDelegateProtocol {
+    /** Tasks already reported as finished, so didCompleteWithError doesn't report them twice. */
+    private val reported = mutableSetOf<ULong>()
 
-    /**
-     * Routes a non-success HTTP status to the right terminal callback and returns true when it did
-     * (so the caller stops). 401/403 surface as an auth failure; every other >= 400 status becomes
-     * a plain download failure. Returns false for a missing status or any 2xx/3xx.
-     */
-    private fun rejectIfHttpError(statusCode: Long?): Boolean {
-        if (statusCode == null || statusCode < 400L) return false
-        when (statusCode) {
-            401L, 403L -> onAuthFailure(statusCode)
-            else -> onComplete(null, "Download failed: the server returned HTTP $statusCode.")
+    private fun modelIdOf(task: NSURLSessionTask): String? = task.taskDescription?.substringBefore('/')
+
+    private fun httpError(task: NSURLSessionTask): String? {
+        val code = (task.response as? NSHTTPURLResponse)?.statusCode ?: return null
+        return when {
+            code == 401L || code == 403L -> "Authentication required (HTTP $code). This model requires a HuggingFace account."
+            code >= 400L -> "Download failed: the server returned HTTP $code."
+            else -> null
         }
-        return true
+    }
+
+    private fun report(task: NSURLSessionTask, localPath: String?, error: String?) {
+        val modelId = modelIdOf(task) ?: return
+        if (!reported.add(task.taskIdentifier)) return
+        onFinished(modelId, localPath, error)
     }
 
     override fun URLSession(
@@ -225,18 +253,15 @@ private class DownloadDelegate(
         totalBytesWritten: Long,
         totalBytesExpectedToWrite: Long,
     ) {
-        if (rejectIfHttpError((downloadTask.response as? platform.Foundation.NSHTTPURLResponse)?.statusCode)) {
+        httpError(downloadTask)?.let { error ->
+            report(downloadTask, null, error)
             downloadTask.cancel()
             return
         }
-        val percent = if (totalBytesExpectedToWrite > 0) {
-            ((totalBytesWritten * 100) / totalBytesExpectedToWrite).toInt()
-        } else {
-            0
-        }
-        val downloadedMb = totalBytesWritten / (1024f * 1024f)
+        val modelId = modelIdOf(downloadTask) ?: return
+        val percent = if (totalBytesExpectedToWrite > 0) ((totalBytesWritten * 100) / totalBytesExpectedToWrite).toInt() else 0
         val totalMb = if (totalBytesExpectedToWrite > 0) totalBytesExpectedToWrite / (1024f * 1024f) else 0f
-        onProgress(percent, downloadedMb, totalMb)
+        onProgress(modelId, percent, totalBytesWritten / (1024f * 1024f), totalMb)
     }
 
     override fun URLSession(
@@ -244,27 +269,26 @@ private class DownloadDelegate(
         downloadTask: NSURLSessionDownloadTask,
         didFinishDownloadingToURL: NSURL,
     ) {
-        if (rejectIfHttpError((downloadTask.response as? platform.Foundation.NSHTTPURLResponse)?.statusCode)) {
-            return
-        }
+        httpError(downloadTask)?.let { return report(downloadTask, null, it) }
+        // The temp file is deleted when this method returns: move it synchronously.
+        val (_, destinationPath) = destinationFor(downloadTask.taskDescription)
+            ?: return report(downloadTask, null, "Unknown download destination.")
         val sourcePath = didFinishDownloadingToURL.path
-        if (sourcePath == null) {
-            onComplete(null, "Downloaded file has no path.")
-            return
-        }
+            ?: return report(downloadTask, null, "Downloaded file has no path.")
         val fileManager = NSFileManager.defaultManager
         fileManager.removeItemAtPath(destinationPath, error = null)
-        val moved = fileManager.moveItemAtPath(sourcePath, destinationPath, error = null)
-        if (moved) {
-            onComplete(destinationPath, null)
+        if (fileManager.moveItemAtPath(sourcePath, destinationPath, error = null)) {
+            report(downloadTask, destinationPath, null)
         } else {
-            onComplete(null, "Could not move downloaded file into place.")
+            report(downloadTask, null, "Could not move downloaded file into place.")
         }
     }
 
     override fun URLSession(session: NSURLSession, task: NSURLSessionTask, didCompleteWithError: NSError?) {
-        if (didCompleteWithError != null) {
-            onComplete(null, didCompleteWithError.localizedDescription)
-        }
+        if (didCompleteWithError != null) report(task, null, didCompleteWithError.localizedDescription)
+    }
+
+    override fun URLSessionDidFinishEventsForBackgroundURLSession(session: NSURLSession) {
+        onAllEventsDelivered()
     }
 }
