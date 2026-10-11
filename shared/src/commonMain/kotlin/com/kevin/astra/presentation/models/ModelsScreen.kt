@@ -20,12 +20,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -77,6 +79,9 @@ fun ModelsScreen(
     var expandedRowId by remember { mutableStateOf<String?>(null) }
     var expandedTiers by remember { mutableStateOf(emptySet<ModelTier>()) }
     var showTooLarge by remember { mutableStateOf(false) }
+    val notificationPermission = rememberDownloadNotificationPermission()
+    // Download waiting for the user to answer the notification explanation.
+    var pendingDownloadId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.effects.collect { effect ->
@@ -99,7 +104,13 @@ fun ModelsScreen(
 
     val rowActions = RowActions(
         onToggle = { id -> expandedRowId = if (expandedRowId == id) null else id },
-        onDownload = { viewModel.dispatch(SettingsIntent.DownloadModel(it)) },
+        onDownload = { id ->
+            if (notificationPermission.shouldAsk) {
+                pendingDownloadId = id
+            } else {
+                viewModel.dispatch(SettingsIntent.DownloadModel(id))
+            }
+        },
         onCancel = { viewModel.dispatch(SettingsIntent.CancelDownload(it)) },
         onUse = { viewModel.dispatch(SettingsIntent.SelectModel(it)) },
         onDelete = { viewModel.dispatch(SettingsIntent.DeleteModel(it)) },
@@ -192,6 +203,41 @@ fun ModelsScreen(
                     }
                 }
             }
+        }
+
+        pendingDownloadId?.let { id ->
+            val startDownload = {
+                pendingDownloadId = null
+                viewModel.dispatch(SettingsIntent.DownloadModel(id))
+            }
+            AlertDialog(
+                onDismissRequest = {
+                    notificationPermission.markDeclined()
+                    startDownload()
+                },
+                containerColor = AstraColors.SurfaceElevated,
+                title = { Text("Follow the download", color = AstraColors.TextPrimary) },
+                text = {
+                    Text(
+                        "Models are large. Allow notifications to see progress and cancel from the " +
+                            "notification shade — the download keeps going while your phone is locked.",
+                        color = AstraColors.TextSecondary,
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { notificationPermission.request(onResult = startDownload) }) {
+                        Text("Allow", color = AstraColors.Primary)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        notificationPermission.markDeclined()
+                        startDownload()
+                    }) {
+                        Text("Not now", color = AstraColors.TextSecondary)
+                    }
+                },
+            )
         }
 
         SnackbarHost(

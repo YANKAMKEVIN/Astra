@@ -2,7 +2,6 @@ package com.kevin.astra
 
 import android.content.Intent
 import android.graphics.Color
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -42,7 +41,8 @@ class MainActivity : ComponentActivity(), KoinComponent {
         initializeAndroidGmailAuth(this, BuildConfig.GMAIL_ANDROID_CLIENT_ID)
         setupGmailSignIn()
 
-        requestNotificationPermission()
+        // Notification permission is asked on the first model download (Models screen), where
+        // the progress notification gives it a reason.
         requestMicrophonePermission()
 
         handleIntent(intent)
@@ -87,13 +87,6 @@ class MainActivity : ComponentActivity(), KoinComponent {
         
         if (destination != null) {
             navigator.navigateTo(destination)
-        }
-    }
-
-    private fun requestNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
-                .launch(android.Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
