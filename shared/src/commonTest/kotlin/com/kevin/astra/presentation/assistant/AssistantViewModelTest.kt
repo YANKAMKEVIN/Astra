@@ -310,6 +310,39 @@ class AssistantViewModelTest {
         }
     }
 
+    @Test
+    fun recentHistoryShowsTheTwentyNewestConversationsNewestFirst() {
+        // The repository returns conversations newest first (like the Android file store).
+        val stored = (1..25).map { conversation(id = "c$it", createdAt = "2026-06-${it.toString().padStart(2, '0')}T10:00:00Z") }
+            .reversed()
+        val viewModel = testViewModel(conversationRepository = InMemoryConversationRepository(stored))
+
+        val history = viewModel.state.value.recentHistory
+
+        assertEquals(20, history.size)
+        assertEquals("c25", history.first().id)
+        assertEquals("c6", history.last().id)
+    }
+
+    @Test
+    fun recentHistoryAfterAnAnswerStartsWithTheNewestConversation() = runBlocking {
+        val stored = (1..25).map { conversation(id = "c$it", createdAt = "2026-05-${it.toString().padStart(2, '0')}T10:00:00Z") }
+            .reversed()
+        val repository = InMemoryConversationRepository(stored)
+        val viewModel = testViewModel(
+            generationScope = CoroutineScope(coroutineContext),
+            conversationRepository = repository,
+        )
+
+        viewModel.dispatch(AssistantIntent.UpdateQuestion("How do we restart Pump A safely?"))
+        viewModel.dispatch(AssistantIntent.AskQuestion)
+        awaitCondition { !viewModel.state.value.isGenerating && viewModel.state.value.recentHistory.size == 20 }
+
+        val history = viewModel.state.value.recentHistory
+        assertEquals("How do we restart Pump A safely?", history.first().title)
+        assertEquals("c25", history[1].id)
+    }
+
     private fun testViewModel(
         useCase: AskLocalAssistantUseCase = testUseCase(),
         configurationRepository: AiConfigurationRepository = testAiConfigurationRepository(),
@@ -318,6 +351,7 @@ class AssistantViewModelTest {
         contextRetriever: DocumentContextRetriever = TfIdfContextRetriever(),
         gmailSource: GmailMessageSource? = null,
         generationScope: CoroutineScope? = null,
+        conversationRepository: ConversationRepository = NoOpConversationRepository(),
     ): AssistantViewModel {
         val chunker = SmartTextChunker()
         return AssistantViewModel(
@@ -328,7 +362,7 @@ class AssistantViewModelTest {
             promptPipeline = testPromptPipeline(),
             demoScenarioCatalog = demoScenarioCatalog,
             notificationService = NoOpNotificationService(),
-            conversationRepository = NoOpConversationRepository(),
+            conversationRepository = conversationRepository,
             pdfExtractor = FakePdfExtractor(),
             indexEmailFile = IndexEmailFileUseCase(FakeEmailExtractor(), chunker),
             fetchGmailUseCase = FetchGmailUseCase(gmailSource, chunker),
@@ -385,6 +419,30 @@ private class NoOpConversationRepository : ConversationRepository {
     override fun delete(id: String): Boolean = false
     override fun search(query: String): List<ChatConversation> = emptyList()
 }
+
+/** Keeps conversations newest first, as the repository contract says. */
+private class InMemoryConversationRepository(initial: List<ChatConversation> = emptyList()) : ConversationRepository {
+    private val conversations = initial.toMutableList()
+    override fun save(conversation: ChatConversation) {
+        conversations.removeAll { it.id == conversation.id }
+        conversations += conversation
+        conversations.sortByDescending { it.createdAt }
+    }
+    override fun getAll(): List<ChatConversation> = conversations.toList()
+    override fun getById(id: String): ChatConversation? = conversations.find { it.id == id }
+    override fun delete(id: String): Boolean = conversations.removeAll { it.id == id }
+    override fun search(query: String): List<ChatConversation> = getAll()
+}
+
+private fun conversation(id: String, createdAt: String) = ChatConversation(
+    id = id,
+    title = "Conversation $id",
+    modelName = "model",
+    backendName = "backend",
+    industry = "General",
+    messages = emptyList(),
+    createdAt = createdAt,
+)
 
 private class FakePdfExtractor : PdfExtractor {
     override fun extract(pdfBytes: ByteArray, fileName: String): LoadedPdfDocument =

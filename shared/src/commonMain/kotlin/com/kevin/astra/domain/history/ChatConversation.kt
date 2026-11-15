@@ -18,6 +18,7 @@ data class ChatConversation(
 
 interface ConversationRepository {
     fun save(conversation: ChatConversation)
+    /** Newest first (by [ChatConversation.createdAt]). */
     fun getAll(): List<ChatConversation>
     fun getById(id: String): ChatConversation?
     fun delete(id: String): Boolean
