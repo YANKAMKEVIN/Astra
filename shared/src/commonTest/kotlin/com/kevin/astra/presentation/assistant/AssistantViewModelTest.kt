@@ -81,6 +81,62 @@ class AssistantViewModelTest {
     }
 
     @Test
+    fun followUpQuestionsUpdateTheCurrentConversationInsteadOfCreatingNewOnes() = runBlocking {
+        val repository = InMemoryConversationRepository()
+        val viewModel = testViewModel(generationScope = CoroutineScope(coroutineContext), conversationRepository = repository)
+
+        ask(viewModel, "How do we restart Pump A safely?")
+        ask(viewModel, "And Pump B?")
+
+        val saved = repository.getAll().single()
+        assertEquals("How do we restart Pump A safely?", saved.title)
+        assertEquals(listOf("user", "assistant", "user", "assistant"), saved.messages.map { it.role })
+        assertEquals("And Pump B?", saved.messages[2].content)
+    }
+
+    @Test
+    fun clearingTheConversationStartsANewOne() = runBlocking {
+        val repository = InMemoryConversationRepository()
+        val viewModel = testViewModel(generationScope = CoroutineScope(coroutineContext), conversationRepository = repository)
+
+        ask(viewModel, "First thread")
+        viewModel.dispatch(AssistantIntent.ClearConversation)
+        ask(viewModel, "Second thread")
+
+        assertEquals(setOf("First thread", "Second thread"), repository.getAll().map { it.title }.toSet())
+        assertTrue(repository.getAll().all { it.messages.size == 2 })
+    }
+
+    @Test
+    fun askingAfterLoadingAConversationContinuesIt() = runBlocking {
+        val repository = InMemoryConversationRepository(
+            listOf(
+                conversation("old", "2026-01-01T10:00:00Z").copy(
+                    messages = listOf(
+                        com.kevin.astra.domain.history.ChatMessage("user", "Earlier question", "2026-01-01T10:00:00Z"),
+                        com.kevin.astra.domain.history.ChatMessage("assistant", "Earlier answer", "2026-01-01T10:00:00Z"),
+                    ),
+                ),
+            ),
+        )
+        val viewModel = testViewModel(generationScope = CoroutineScope(coroutineContext), conversationRepository = repository)
+
+        viewModel.dispatch(AssistantIntent.LoadConversation("old"))
+        ask(viewModel, "Follow-up")
+
+        val saved = repository.getAll().single()
+        assertEquals("old", saved.id)
+        assertEquals(listOf("Earlier question", "Earlier answer", "Follow-up"), saved.messages.take(3).map { it.content })
+        assertEquals(4, saved.messages.size)
+    }
+
+    private suspend fun ask(viewModel: AssistantViewModel, question: String) {
+        viewModel.dispatch(AssistantIntent.UpdateQuestion(question))
+        viewModel.dispatch(AssistantIntent.AskQuestion)
+        awaitCondition { !viewModel.state.value.isGenerating }
+    }
+
+    @Test
     fun startsWithNoIndustryAndMockMetrics() {
         val viewModel = testViewModel()
 
@@ -318,6 +374,7 @@ class AssistantViewModelTest {
         contextRetriever: DocumentContextRetriever = TfIdfContextRetriever(),
         gmailSource: GmailMessageSource? = null,
         generationScope: CoroutineScope? = null,
+        conversationRepository: ConversationRepository = NoOpConversationRepository(),
     ): AssistantViewModel {
         val chunker = SmartTextChunker()
         return AssistantViewModel(
@@ -328,7 +385,7 @@ class AssistantViewModelTest {
             promptPipeline = testPromptPipeline(),
             demoScenarioCatalog = demoScenarioCatalog,
             notificationService = NoOpNotificationService(),
-            conversationRepository = NoOpConversationRepository(),
+            conversationRepository = conversationRepository,
             pdfExtractor = FakePdfExtractor(),
             indexEmailFile = IndexEmailFileUseCase(FakeEmailExtractor(), chunker),
             fetchGmailUseCase = FetchGmailUseCase(gmailSource, chunker),
@@ -385,6 +442,30 @@ private class NoOpConversationRepository : ConversationRepository {
     override fun delete(id: String): Boolean = false
     override fun search(query: String): List<ChatConversation> = emptyList()
 }
+
+/** Keeps conversations newest first, as the repository contract says. */
+private class InMemoryConversationRepository(initial: List<ChatConversation> = emptyList()) : ConversationRepository {
+    private val conversations = initial.toMutableList()
+    override fun save(conversation: ChatConversation) {
+        conversations.removeAll { it.id == conversation.id }
+        conversations += conversation
+        conversations.sortByDescending { it.createdAt }
+    }
+    override fun getAll(): List<ChatConversation> = conversations.toList()
+    override fun getById(id: String): ChatConversation? = conversations.find { it.id == id }
+    override fun delete(id: String): Boolean = conversations.removeAll { it.id == id }
+    override fun search(query: String): List<ChatConversation> = getAll()
+}
+
+private fun conversation(id: String, createdAt: String) = ChatConversation(
+    id = id,
+    title = "Conversation $id",
+    modelName = "model",
+    backendName = "backend",
+    industry = "General",
+    messages = emptyList(),
+    createdAt = createdAt,
+)
 
 private class FakePdfExtractor : PdfExtractor {
     override fun extract(pdfBytes: ByteArray, fileName: String): LoadedPdfDocument =

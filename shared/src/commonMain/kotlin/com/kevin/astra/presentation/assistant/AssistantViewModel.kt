@@ -68,6 +68,9 @@ class AssistantViewModel(
 ) {
     private var generationJob: Job? = null
 
+    /** The saved conversation shown on screen; null until the first answer of a new thread. */
+    private var currentConversation: ChatConversation? = null
+
     init {
         updateState { copy(recentHistory = conversationRepository.getAll().takeLast(20).reversed()) }
         // Sync sessionModel with persisted configuration so that Settings changes are reflected
@@ -174,6 +177,7 @@ class AssistantViewModel(
             AssistantIntent.ClearConversation -> {
                 generationJob?.cancel()
                 generationJob = null
+                currentConversation = null
                 speechRecognitionService.stopListening()
                 updateState {
                     copy(
@@ -273,21 +277,33 @@ class AssistantViewModel(
         }
     }
 
+    /**
+     * Each answer is added to the conversation on screen: a multi-turn thread is saved as one
+     * conversation, not as one two-message conversation per answer.
+     */
     private fun saveConversation(question: String, result: GenerationResult) {
         val snap = state.value
-        val conversation = ChatConversation(
-            id = result.generatedAt.replace(Regex("[^0-9]"), ""),
+        val exchange = listOf(
+            ChatMessage(role = "user", content = question, timestamp = result.generatedAt),
+            ChatMessage(role = "assistant", content = result.text, timestamp = result.generatedAt),
+        )
+        val conversation = currentConversation?.let { current ->
+            current.copy(
+                modelName = result.model.label,
+                backendName = result.backend.label,
+                messages = current.messages + exchange,
+            )
+        } ?: ChatConversation(
+            id = Clock.System.now().toEpochMilliseconds().toString(),
             title = question.take(60).ifBlank { "Conversation" },
             modelName = result.model.label,
             backendName = result.backend.label,
             industry = snap.selectedIndustry?.label ?: "General",
-            messages = listOf(
-                ChatMessage(role = "user", content = question, timestamp = result.generatedAt),
-                ChatMessage(role = "assistant", content = result.text, timestamp = result.generatedAt),
-            ),
+            messages = exchange,
             createdAt = result.generatedAt,
         )
         conversationRepository.save(conversation)
+        currentConversation = conversation
     }
 
     private fun shareBubble(bubbleId: String, format: com.kevin.astra.domain.export.ExportFormat) {
@@ -308,6 +324,7 @@ class AssistantViewModel(
 
     private fun loadConversation(id: String) {
         val conversation = conversationRepository.getById(id) ?: return
+        currentConversation = conversation
         val bubbles = conversation.messages.mapIndexed { index, msg ->
             ChatBubble(
                 id = "${msg.role}_${index}_${msg.timestamp}",
