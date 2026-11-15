@@ -63,6 +63,8 @@ data class ChatBubble(
     val role: ChatRole,
     val text: String,
     val metrics: AssistantMetrics? = null,
+    /** The user stopped the generation: [text] is the part streamed until then. */
+    val isStopped: Boolean = false,
 )
 
 enum class AttachmentStatus { Idle, Indexing, Ready, Error }

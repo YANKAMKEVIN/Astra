@@ -1008,6 +1008,14 @@ private fun MessageBubble(
                     MarkdownText(text = bubble.text)
                 }
             }
+            if (bubble.isStopped) {
+                Text(
+                    text = "■ Stopped — partial answer",
+                    style = AstraTypography.Caption,
+                    color = AstraColors.TextSecondary,
+                    modifier = Modifier.padding(horizontal = AstraSpacing.XS, vertical = AstraSpacing.XS),
+                )
+            }
             if (!isUser) {
                 Spacer(Modifier.height(AstraSpacing.XS))
                 Row(
@@ -1220,7 +1228,14 @@ private fun InputBar(
         verticalArrangement = Arrangement.spacedBy(AstraSpacing.S),
     ) {
         AnimatedVisibility(visible = error != null) {
-            error?.let { AstraErrorView(title = "Error", message = it) }
+            // The failed question is back in the field: Retry sends it again as it is.
+            error?.let {
+                AstraErrorView(
+                    title = "No answer",
+                    message = it,
+                    onRetry = if (canAsk) onAsk else null,
+                )
+            }
         }
 
         // Attachment chips

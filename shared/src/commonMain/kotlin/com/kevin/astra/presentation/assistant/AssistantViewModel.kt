@@ -171,7 +171,24 @@ class AssistantViewModel(
             AssistantIntent.CancelGeneration -> {
                 generationJob?.cancel()
                 generationJob = null
-                updateState { copy(isGenerating = false, streamingText = "") }
+                // What was already streamed stays on screen as a stopped answer instead of vanishing.
+                updateState {
+                    val partial = streamingText.trim()
+                    copy(
+                        isGenerating = false,
+                        streamingText = "",
+                        messages = if (partial.isEmpty()) {
+                            messages
+                        } else {
+                            messages + ChatBubble(
+                                id = "assistant_stopped_${Clock.System.now().toEpochMilliseconds()}",
+                                role = ChatRole.Assistant,
+                                text = partial,
+                                isStopped = true,
+                            )
+                        },
+                    )
+                }
             }
 
             AssistantIntent.ClearConversation -> {
@@ -384,7 +401,7 @@ class AssistantViewModel(
             val selectedBackend = backendCatalog.backendById(configuration.selectedBackendId)
 
             if (selectedModel == null || selectedBackend == null) {
-                updateState { copy(isGenerating = false, error = "Invalid AI configuration. Check Settings.") }
+                updateState { failedAsk(snapshot.question, userMessage.id, "Invalid AI configuration. Check Settings.") }
                 return@launch
             }
 
@@ -451,7 +468,7 @@ class AssistantViewModel(
                         is StreamEvent.Token -> updateState { copy(streamingText = streamingText + event.text) }
                         is StreamEvent.Complete -> finalResult = event.result
                         is StreamEvent.Error -> updateState {
-                            copy(isGenerating = false, error = event.message, streamingText = "")
+                            failedAsk(snapshot.question, userMessage.id, event.message)
                         }
                     }
                 }
@@ -490,6 +507,19 @@ class AssistantViewModel(
 
 /** getAll() is newest first: the recent history is its head. */
 private const val RECENT_HISTORY_SIZE = 20
+
+/**
+ * A question that got no answer goes back into the composer, ready to send again ("Retry" in the
+ * error view), and its bubble leaves the conversation: it used to stay there unanswered while the
+ * composer was empty, so retrying meant typing the question again.
+ */
+private fun AssistantState.failedAsk(question: String, userMessageId: String, message: String) = copy(
+    isGenerating = false,
+    streamingText = "",
+    error = message,
+    question = this.question.ifBlank { question },
+    messages = messages.filterNot { it.id == userMessageId },
+)
 
 private fun GenerationResult.toAssistantMetrics(): AssistantMetrics =
     AssistantMetrics(
