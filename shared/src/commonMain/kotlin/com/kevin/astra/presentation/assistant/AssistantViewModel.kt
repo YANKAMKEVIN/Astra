@@ -69,7 +69,7 @@ class AssistantViewModel(
     private var generationJob: Job? = null
 
     init {
-        updateState { copy(recentHistory = conversationRepository.getAll().takeLast(20).reversed()) }
+        updateState { copy(recentHistory = conversationRepository.getAll().take(RECENT_HISTORY_SIZE)) }
         // Sync sessionModel with persisted configuration so that Settings changes are reflected
         viewModelScope.launch {
             val config = aiConfigurationRepository.getConfiguration()
@@ -461,7 +461,7 @@ class AssistantViewModel(
             }
 
             saveConversation(snapshot.question, result)
-            updateState { copy(recentHistory = conversationRepository.getAll().takeLast(20).reversed()) }
+            updateState { copy(recentHistory = conversationRepository.getAll().take(RECENT_HISTORY_SIZE)) }
             notificationService.showNotification(
                 title = "AI Analysis Ready",
                 message = "ASTRA has completed the analysis.",
@@ -470,6 +470,9 @@ class AssistantViewModel(
         }
     }
 }
+
+/** getAll() is newest first: the recent history is its head. */
+private const val RECENT_HISTORY_SIZE = 20
 
 private fun GenerationResult.toAssistantMetrics(): AssistantMetrics =
     AssistantMetrics(

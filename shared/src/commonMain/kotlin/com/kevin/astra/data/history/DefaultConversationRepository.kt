@@ -9,7 +9,8 @@ class DefaultConversationRepository(
 
     override fun save(conversation: ChatConversation) = fileStore.write(conversation)
 
-    override fun getAll(): List<ChatConversation> = fileStore.readAll()
+    // Newest first whatever order the platform store reads its files in.
+    override fun getAll(): List<ChatConversation> = fileStore.readAll().sortedByDescending { it.createdAt }
 
     override fun getById(id: String): ChatConversation? = fileStore.readAll().find { it.id == id }
 
