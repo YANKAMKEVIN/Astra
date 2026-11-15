@@ -10,6 +10,17 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material3.ripple
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -345,7 +356,9 @@ private fun DrawerSectionHeader(title: String, expanded: Boolean, onToggle: () -
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onToggle)
+            .clickable(role = Role.Button, onClick = onToggle)
+            .sizeIn(minHeight = MinTouchTarget)
+            .semantics { stateDescription = if (expanded) "Expanded" else "Collapsed" }
             .padding(vertical = AstraSpacing.XS),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
@@ -360,6 +373,7 @@ private fun DrawerSectionHeader(title: String, expanded: Boolean, onToggle: () -
             text = if (expanded) "▲" else "▼",
             style = AstraTypography.Caption,
             color = AstraColors.TextDisabled,
+            modifier = Modifier.clearAndSetSemantics {},
         )
     }
 }
@@ -391,7 +405,9 @@ private fun DrawerOptionRow(
                 if (selected) AstraColors.Primary.copy(alpha = 0.12f) else androidx.compose.ui.graphics.Color.Transparent,
                 RoundedCornerShape(10.dp),
             )
-            .clickable(onClick = onClick)
+            // Selected was shown by a 6 dp dot only: TalkBack now says "selected" too.
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .sizeIn(minHeight = MinTouchTarget)
             .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
@@ -436,7 +452,9 @@ private fun HistoryItem(
                 if (isActive) AstraColors.Primary.copy(alpha = 0.10f) else androidx.compose.ui.graphics.Color.Transparent,
                 RoundedCornerShape(10.dp),
             )
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
+            .sizeIn(minHeight = MinTouchTarget)
+            .semantics { if (isActive) stateDescription = "Current conversation" }
             .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
         horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
         verticalAlignment = Alignment.Top,
@@ -509,10 +527,12 @@ private fun AssistantContent(
                 .padding(horizontal = AstraSpacing.L)
                 .padding(top = if (isDemoMode) AstraSpacing.S else AstraSpacing.M),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
+            // S, not M: the icon buttons now take 48 dp, and their touch margin already separates
+            // them, so the title keeps the width it had.
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
         ) {
             // ☰ Hamburger
-            HeaderIconButton(icon = "☰", onClick = onOpenDrawer)
+            HeaderIconButton(icon = "☰", label = "Open menu", onClick = onOpenDrawer)
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -544,7 +564,7 @@ private fun AssistantContent(
             }
 
             // ⚙ Tools
-            HeaderIconButton(icon = "⚙", onClick = { showToolsSheet = true })
+            HeaderIconButton(icon = "⚙", label = "Open tools", onClick = { showToolsSheet = true })
         }
 
     // ── Tools bottom sheet ─────────────────────────────────────────────
@@ -666,18 +686,51 @@ private fun AssistantContent(
 // ── Header icon button ────────────────────────────────────────────────────────
 
 @Composable
-private fun HeaderIconButton(icon: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .background(AstraColors.SurfaceElevated, RoundedCornerShape(12.dp))
-            .border(1.dp, AstraColors.Border, RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text = icon, style = AstraTypography.Body, color = AstraColors.TextPrimary)
+private fun HeaderIconButton(icon: String, label: String, onClick: () -> Unit) {
+    TapTarget(label = label, onClick = onClick) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(AstraColors.SurfaceElevated, RoundedCornerShape(12.dp))
+                .border(1.dp, AstraColors.Border, RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(text = icon, style = AstraTypography.Body, color = AstraColors.TextPrimary)
+        }
     }
 }
+
+/**
+ * A 48 dp touch target around a smaller glyph button: TalkBack reads [label] as a button instead of
+ * the glyph ("↑", "☰", "✕"), and a thumb no longer has to hit the 28–40 dp drawing exactly.
+ */
+@Composable
+private fun TapTarget(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .sizeIn(minWidth = MinTouchTarget, minHeight = MinTouchTarget)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = false, radius = MinTouchTarget / 2),
+                enabled = enabled,
+                role = Role.Button,
+                onClick = onClick,
+            )
+            // clickable (outside) keeps the button role, click action and disabled state; the glyph
+            // inside is replaced by the label.
+            .clearAndSetSemantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+        content = content,
+    )
+}
+
+private val MinTouchTarget = 48.dp
 
 @Composable
 private fun ToolTile(dest: AstraDestination, modifier: Modifier = Modifier, onClick: () -> Unit) {
@@ -823,7 +876,7 @@ private fun EmptyChat(
                         ),
                     )
                     .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(16.dp))
-                    .clickable { onSuggestionSelected(suggestion) }
+                    .clickable(role = Role.Button) { onSuggestionSelected(suggestion) }
                     .padding(horizontal = AstraSpacing.M, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
@@ -1020,14 +1073,20 @@ private fun MessageBubble(
                             text = if (showMetrics) "▲ hide" else "${bubble.metrics.latency} · ${bubble.metrics.backend} ▼",
                             style = AstraTypography.Caption,
                             color = AstraColors.TextDisabled,
-                            modifier = Modifier.clickable { showMetrics = !showMetrics },
+                            modifier = Modifier
+                                .clickable(
+                                    onClickLabel = if (showMetrics) "Hide metrics" else "Show metrics",
+                                    role = Role.Button,
+                                ) { showMetrics = !showMetrics }
+                                .sizeIn(minHeight = MinTouchTarget)
+                                .wrapContentHeight(),
                         )
                     }
                     Spacer(Modifier.weight(1f))
-                    BubbleActionButton(label = "⎘", onClick = {
+                    BubbleActionButton(label = "⎘", description = "Copy answer", onClick = {
                         clipboard.setText(AnnotatedString(bubble.text))
                     })
-                    BubbleActionButton(label = "↗", onClick = onShare)
+                    BubbleActionButton(label = "↗", description = "Share answer", onClick = onShare)
                 }
                 if (bubble.metrics != null) {
                     AnimatedVisibility(visible = showMetrics) {
@@ -1086,16 +1145,17 @@ private fun MetricsInline(metrics: AssistantMetrics) {
 }
 
 @Composable
-private fun BubbleActionButton(label: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(28.dp)
-            .background(AstraColors.SurfaceElevated, RoundedCornerShape(8.dp))
-            .border(1.dp, AstraColors.Border, RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextSecondary)
+private fun BubbleActionButton(label: String, description: String, onClick: () -> Unit) {
+    TapTarget(label = description, onClick = onClick) {
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .background(AstraColors.SurfaceElevated, RoundedCornerShape(8.dp))
+                .border(1.dp, AstraColors.Border, RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextSecondary)
+        }
     }
 }
 
@@ -1234,6 +1294,7 @@ private fun InputBar(
                             else -> "⚠ Email"
                         },
                         color = if (email.status == AttachmentStatus.Ready) AstraColors.Secondary else AstraColors.Error,
+                        removeLabel = "Remove email ${email.label}",
                         onRemove = onRemoveEmail,
                     )
                 }
@@ -1245,6 +1306,7 @@ private fun InputBar(
                             else -> "⚠ ${pdf.fileName}"
                         },
                         color = if (pdf.status == AttachmentStatus.Ready) AstraColors.Primary else AstraColors.Error,
+                        removeLabel = "Remove PDF ${pdf.fileName}",
                         onRemove = onRemovePdf,
                     )
                 }
@@ -1256,6 +1318,7 @@ private fun InputBar(
                             else -> "⚠ Failed"
                         },
                         color = if (img.status == AttachmentStatus.Ready) AstraColors.Secondary else AstraColors.Error,
+                        removeLabel = "Remove image",
                         onRemove = onRemoveImage,
                     )
                 }
@@ -1333,21 +1396,25 @@ private fun InputBar(
             verticalAlignment = Alignment.Bottom,
         ) {
             // + button
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(
-                        if (showAttachmentOptions) AstraColors.Primary.copy(alpha = 0.18f) else Color.Transparent,
-                        CircleShape,
-                    )
-                    .clickable { showAttachmentOptions = !showAttachmentOptions },
-                contentAlignment = Alignment.Center,
+            TapTarget(
+                label = if (showAttachmentOptions) "Close attachment options" else "Add attachment",
+                onClick = { showAttachmentOptions = !showAttachmentOptions },
             ) {
-                Text(
-                    text = if (showAttachmentOptions) "×" else "+",
-                    style = AstraTypography.Title,
-                    color = if (showAttachmentOptions) AstraColors.Primary else AstraColors.TextSecondary,
-                )
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(
+                            if (showAttachmentOptions) AstraColors.Primary.copy(alpha = 0.18f) else Color.Transparent,
+                            CircleShape,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = if (showAttachmentOptions) "×" else "+",
+                        style = AstraTypography.Title,
+                        color = if (showAttachmentOptions) AstraColors.Primary else AstraColors.TextSecondary,
+                    )
+                }
             }
 
             BasicTextField(
@@ -1355,9 +1422,10 @@ private fun InputBar(
                 onValueChange = onQuestionChanged,
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = 44.dp, max = 140.dp)
+                    .heightIn(min = 48.dp, max = 140.dp)
                     .padding(horizontal = AstraSpacing.XS)
-                    .alpha(if (isListening) 0.5f else 1f),
+                    .alpha(if (isListening) 0.5f else 1f)
+                    .semantics { contentDescription = "Message ASTRA" },
                 enabled = !isListening && !isGenerating,
                 textStyle = AstraTypography.Body.copy(color = AstraColors.TextPrimary),
                 cursorBrush = SolidColor(AstraColors.Secondary),
@@ -1395,7 +1463,9 @@ private fun AttachmentOption(
     val tint = if (active) AstraColors.Primary else AstraColors.Secondary
     Column(
         modifier = Modifier
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
+            .sizeIn(minWidth = MinTouchTarget, minHeight = MinTouchTarget)
+            .semantics { if (active) stateDescription = "Attached" }
             .padding(horizontal = AstraSpacing.XS, vertical = AstraSpacing.XS),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -1428,44 +1498,46 @@ private fun AttachmentOption(
 
 @Composable
 private fun SendButton(canAsk: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(44.dp)
-            .alpha(if (canAsk) 1f else 0.4f)
-            .then(
-                if (canAsk) {
-                    Modifier.background(
-                        Brush.linearGradient(
-                            listOf(AstraColors.Primary, AstraColors.Secondary),
-                        ),
-                        CircleShape,
-                    )
-                } else {
-                    Modifier.background(AstraColors.SurfaceElevated, CircleShape)
-                },
-            )
-            .clickable(enabled = canAsk, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text = "↑", style = AstraTypography.Title, color = Color.White)
+    TapTarget(label = "Send message", onClick = onClick, enabled = canAsk) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .alpha(if (canAsk) 1f else 0.4f)
+                .then(
+                    if (canAsk) {
+                        Modifier.background(
+                            Brush.linearGradient(
+                                listOf(AstraColors.Primary, AstraColors.Secondary),
+                            ),
+                            CircleShape,
+                        )
+                    } else {
+                        Modifier.background(AstraColors.SurfaceElevated, CircleShape)
+                    },
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(text = "↑", style = AstraTypography.Title, color = Color.White)
+        }
     }
 }
 
 @Composable
 private fun StopButton(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(44.dp)
-            .background(AstraColors.Error.copy(alpha = 0.15f), RoundedCornerShape(14.dp))
-            .border(1.dp, AstraColors.Error.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
+    TapTarget(label = "Stop generating", onClick = onClick) {
         Box(
             modifier = Modifier
-                .size(16.dp)
-                .background(AstraColors.Error, RoundedCornerShape(3.dp)),
-        )
+                .size(44.dp)
+                .background(AstraColors.Error.copy(alpha = 0.15f), RoundedCornerShape(14.dp))
+                .border(1.dp, AstraColors.Error.copy(alpha = 0.4f), RoundedCornerShape(14.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .background(AstraColors.Error, RoundedCornerShape(3.dp)),
+            )
+        }
     }
 }
 
@@ -1514,6 +1586,7 @@ private fun MicButton(isListening: Boolean, onClick: () -> Unit) {
 private fun AttachmentChip(
     label: String,
     color: androidx.compose.ui.graphics.Color,
+    removeLabel: String,
     onRemove: () -> Unit,
 ) {
     Row(
@@ -1521,16 +1594,14 @@ private fun AttachmentChip(
             .clip(RoundedCornerShape(8.dp))
             .background(color.copy(alpha = 0.12f))
             .border(1.dp, color.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-            .padding(horizontal = AstraSpacing.S, vertical = AstraSpacing.XS),
+            .padding(start = AstraSpacing.S),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
     ) {
         Text(text = label, style = AstraTypography.Caption, color = AstraColors.TextPrimary)
-        Text(
-            text = "✕",
-            style = AstraTypography.Caption,
-            color = AstraColors.TextSecondary,
-            modifier = Modifier.clickable(onClick = onRemove),
-        )
+        // The ✕ was a bare 12 sp glyph: a 48 dp target, named after what it removes.
+        TapTarget(label = removeLabel, onClick = onRemove) {
+            Text(text = "✕", style = AstraTypography.Caption, color = AstraColors.TextSecondary)
+        }
     }
 }
