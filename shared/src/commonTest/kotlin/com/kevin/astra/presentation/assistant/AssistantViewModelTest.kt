@@ -399,6 +399,89 @@ class AssistantViewModelTest {
         assertEquals("c25", history[1].id)
     }
 
+    @Test
+    fun failedGenerationPutsTheQuestionBackForRetry() = runBlocking {
+        var failNext = true
+        val useCase = AskLocalAssistantUseCase(
+            inferenceEngine = object : InferenceEngine {
+                override fun generateStream(request: PromptRequest): Flow<StreamEvent> = flow {
+                    if (failNext) {
+                        failNext = false
+                        emit(StreamEvent.Error("Model crashed"))
+                    } else {
+                        emit(StreamEvent.Complete(testGenerationResult(request)))
+                    }
+                }
+                override suspend fun generate(request: PromptRequest): GenerationResult = testGenerationResult(request)
+            },
+        )
+        val viewModel = testViewModel(useCase = useCase, generationScope = CoroutineScope(coroutineContext))
+
+        viewModel.dispatch(AssistantIntent.UpdateQuestion("Why is pump B vibrating?"))
+        viewModel.dispatch(AssistantIntent.AskQuestion)
+        awaitCondition { viewModel.state.value.error != null }
+
+        val failed = viewModel.state.value
+        assertFalse(failed.isGenerating)
+        assertEquals("Model crashed", failed.error)
+        assertEquals("Why is pump B vibrating?", failed.question, "the question is back in the composer")
+        assertTrue(failed.messages.isEmpty(), "no unanswered question bubble is left behind")
+        assertTrue(failed.canAsk, "Retry can send it again")
+
+        viewModel.dispatch(AssistantIntent.AskQuestion)
+        awaitCondition { viewModel.state.value.messages.size == 2 && !viewModel.state.value.isGenerating }
+        assertNull(viewModel.state.value.error)
+        assertEquals(listOf(ChatRole.User, ChatRole.Assistant), viewModel.state.value.messages.map { it.role })
+    }
+
+    @Test
+    fun stoppingKeepsTheStreamedPartOfTheAnswer() = runBlocking {
+        val useCase = AskLocalAssistantUseCase(
+            inferenceEngine = object : InferenceEngine {
+                override fun generateStream(request: PromptRequest): Flow<StreamEvent> = flow {
+                    emit(StreamEvent.Token("Step 1: isolate the pump."))
+                    kotlinx.coroutines.awaitCancellation()
+                }
+                override suspend fun generate(request: PromptRequest): GenerationResult = testGenerationResult(request)
+            },
+        )
+        val viewModel = testViewModel(useCase = useCase, generationScope = CoroutineScope(coroutineContext))
+
+        viewModel.dispatch(AssistantIntent.UpdateQuestion("Restart procedure?"))
+        viewModel.dispatch(AssistantIntent.AskQuestion)
+        awaitCondition { viewModel.state.value.streamingText.isNotEmpty() }
+
+        viewModel.dispatch(AssistantIntent.CancelGeneration)
+
+        val state = viewModel.state.value
+        assertFalse(state.isGenerating)
+        assertEquals("", state.streamingText)
+        val last = state.messages.last()
+        assertEquals(ChatRole.Assistant, last.role)
+        assertEquals("Step 1: isolate the pump.", last.text)
+        assertTrue(last.isStopped)
+    }
+
+    @Test
+    fun stoppingBeforeAnyTokenAddsNoEmptyAnswer() = runBlocking {
+        val useCase = AskLocalAssistantUseCase(
+            inferenceEngine = object : InferenceEngine {
+                override fun generateStream(request: PromptRequest): Flow<StreamEvent> = flow {
+                    kotlinx.coroutines.awaitCancellation()
+                }
+                override suspend fun generate(request: PromptRequest): GenerationResult = testGenerationResult(request)
+            },
+        )
+        val viewModel = testViewModel(useCase = useCase, generationScope = CoroutineScope(coroutineContext))
+
+        viewModel.dispatch(AssistantIntent.UpdateQuestion("Restart procedure?"))
+        viewModel.dispatch(AssistantIntent.AskQuestion)
+        yield()
+        viewModel.dispatch(AssistantIntent.CancelGeneration)
+
+        assertEquals(listOf(ChatRole.User), viewModel.state.value.messages.map { it.role })
+    }
+
     private fun testViewModel(
         useCase: AskLocalAssistantUseCase = testUseCase(),
         configurationRepository: AiConfigurationRepository = testAiConfigurationRepository(),
