@@ -266,6 +266,18 @@ object AstraIcons {
         moveTo(8f, 6f); lineTo(18f, 12f); lineTo(8f, 18f); close()
     }
 
+    /** Picture frame with a mountain — photo library. */
+    val Image: ImageVector = lineIcon("Image") {
+        moveTo(4f, 5f); lineTo(20f, 5f); lineTo(20f, 19f); lineTo(4f, 19f); close()
+        moveTo(4f, 16f); lineTo(9f, 11f); lineTo(13f, 15f); lineTo(15.5f, 12.5f); lineTo(20f, 17f)
+        moveTo(15.5f, 8f)
+        curveTo(16.3f, 8f, 17f, 8.7f, 17f, 9.5f)
+        curveTo(17f, 10.3f, 16.3f, 11f, 15.5f, 11f)
+        curveTo(14.7f, 11f, 14f, 10.3f, 14f, 9.5f)
+        curveTo(14f, 8.7f, 14.7f, 8f, 15.5f, 8f)
+        close()
+    }
+
     /** Camera — vision. */
     val Camera: ImageVector = lineIcon("Camera") {
         moveTo(4f, 8f); lineTo(8f, 8f); lineTo(9.5f, 5.5f); lineTo(14.5f, 5.5f); lineTo(16f, 8f)

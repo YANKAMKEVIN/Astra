@@ -57,6 +57,10 @@ fun VisionAssistantScreen(
     val captureLauncher = rememberImageCaptureLauncher { bytes ->
         viewModel.dispatch(VisionAssistantIntent.PhotoCaptured(bytes))
     }
+    val galleryLauncher = rememberGalleryImageLauncher { bytes ->
+        viewModel.dispatch(VisionAssistantIntent.PhotoCaptured(bytes))
+    }
+    val canPickImage = state.phase == VisionPhase.Idle || state.phase == VisionPhase.Done
 
     AstraScreen(
         title = "Vision",
@@ -87,22 +91,31 @@ fun VisionAssistantScreen(
             ),
         )
 
-        // Camera button
+        // Image sources: camera or a prepared picture from the gallery
         Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
             AstraButton(
                 text = "Take Photo",
                 onClick = captureLauncher,
                 modifier = Modifier.weight(1f),
-                enabled = state.phase == VisionPhase.Idle || state.phase == VisionPhase.Done,
+                enabled = canPickImage,
                 leadingIcon = AstraIcons.Camera,
             )
-            if (state.phase == VisionPhase.Done || state.capturedImageBytes != null) {
-                AstraButton(
-                    text = "Reset",
-                    onClick = { viewModel.dispatch(VisionAssistantIntent.Reset) },
-                    style = AstraButtonStyle.Secondary,
-                )
-            }
+            AstraButton(
+                text = "Gallery",
+                onClick = galleryLauncher,
+                modifier = Modifier.weight(1f),
+                enabled = canPickImage,
+                style = AstraButtonStyle.Secondary,
+                leadingIcon = AstraIcons.Image,
+            )
+        }
+        if (state.phase == VisionPhase.Done || state.capturedImageBytes != null) {
+            AstraButton(
+                text = "Reset",
+                onClick = { viewModel.dispatch(VisionAssistantIntent.Reset) },
+                style = AstraButtonStyle.Ghost,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
 
         // Progress
@@ -159,7 +172,7 @@ fun VisionAssistantScreen(
                     textAlign = TextAlign.Center,
                 )
                 Text(
-                    text = "Tap \"Take Photo\" above to capture an image.\nASTRA will classify and analyze it on-device.",
+                    text = "Take a photo, or choose a picture from your gallery.\nASTRA will classify and analyze it on-device.",
                     style = AstraTypography.Body,
                     color = AstraColors.TextSecondary,
                     textAlign = TextAlign.Center,
