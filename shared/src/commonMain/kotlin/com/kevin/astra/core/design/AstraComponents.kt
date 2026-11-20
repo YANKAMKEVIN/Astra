@@ -251,6 +251,7 @@ fun AstraGradientButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    leadingIcon: ImageVector? = null,
 ) {
     Box(
         modifier = modifier
@@ -270,12 +271,37 @@ fun AstraGradientButton(
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = text,
-            style = AstraTypography.Body,
-            color = Color.White,
-            fontWeight = FontWeight.SemiBold,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+        ) {
+            if (leadingIcon != null) AstraIcon(icon = leadingIcon, tint = Color.White, size = 18.dp)
+            Text(
+                text = text,
+                style = AstraTypography.Body,
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
+
+/** A line icon followed by a short label, aligned on the text (banners, status lines). */
+@Composable
+fun AstraIconLabel(
+    icon: ImageVector,
+    text: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    fontWeight: FontWeight? = null,
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
+    ) {
+        AstraIcon(icon = icon, tint = color, size = 16.dp)
+        Text(text = text, style = AstraTypography.Caption, color = color, fontWeight = fontWeight)
     }
 }
 

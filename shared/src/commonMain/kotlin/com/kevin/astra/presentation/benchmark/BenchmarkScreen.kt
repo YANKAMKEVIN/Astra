@@ -43,6 +43,7 @@ import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraCard
+import com.kevin.astra.core.design.AstraIcons
 import com.kevin.astra.core.design.AstraChip
 import com.kevin.astra.core.design.AstraColors
 import com.kevin.astra.core.design.AstraEmptyView
@@ -444,9 +445,10 @@ private fun RunBenchmarkCard(state: BenchmarkState, onRun: () -> Unit) {
         }
         Spacer(Modifier.height(AstraSpacing.M))
         AstraGradientButton(
-            text = if (state.isRunning) "Running…" else "✦  Run Local Benchmark",
+            text = if (state.isRunning) "Running…" else "Run Local Benchmark",
             onClick = onRun,
             enabled = state.canRun,
+            leadingIcon = if (state.isRunning) null else AstraIcons.Play,
         )
     }
 }

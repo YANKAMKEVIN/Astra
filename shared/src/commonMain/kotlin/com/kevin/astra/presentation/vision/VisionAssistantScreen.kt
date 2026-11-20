@@ -37,6 +37,7 @@ import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraCard
 import com.kevin.astra.core.design.AstraColors
 import com.kevin.astra.core.design.AstraIcon
+import com.kevin.astra.core.design.AstraIconLabel
 import com.kevin.astra.core.design.AstraIcons
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
@@ -213,9 +214,9 @@ private fun MockWarningBanner() {
             .background(AstraColors.Secondary.copy(alpha = 0.12f))
             .padding(AstraSpacing.M),
     ) {
-        Text(
-            text = "⚠ Vision unavailable",
-            style = AstraTypography.Caption,
+        AstraIconLabel(
+            icon = AstraIcons.Alert,
+            text = "Vision unavailable",
             color = AstraColors.Secondary,
             fontWeight = FontWeight.Bold,
         )
@@ -284,7 +285,7 @@ private fun ErrorBanner(message: String) {
             .background(AstraColors.Error.copy(alpha = 0.12f))
             .padding(AstraSpacing.M),
     ) {
-        Text("⚠ Error", style = AstraTypography.Caption, color = AstraColors.Error, fontWeight = FontWeight.Bold)
+        AstraIconLabel(icon = AstraIcons.Alert, text = "Error", color = AstraColors.Error, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(AstraSpacing.XS))
         Text(message, style = AstraTypography.Body, color = AstraColors.TextPrimary)
     }

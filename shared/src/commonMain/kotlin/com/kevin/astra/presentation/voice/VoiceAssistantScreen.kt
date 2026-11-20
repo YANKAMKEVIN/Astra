@@ -46,6 +46,7 @@ import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraColors
 import com.kevin.astra.core.design.AstraIcon
+import com.kevin.astra.core.design.AstraIconLabel
 import com.kevin.astra.core.design.AstraIcons
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
@@ -366,7 +367,7 @@ private fun ErrorCard(message: String) {
             .border(1.dp, AstraColors.Error.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
             .padding(AstraSpacing.M),
     ) {
-        Text(text = "⚠ Error", style = AstraTypography.Caption, color = AstraColors.Error, fontWeight = FontWeight.Bold)
+        AstraIconLabel(icon = AstraIcons.Alert, text = "Error", color = AstraColors.Error, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(AstraSpacing.XS))
         Text(text = message, style = AstraTypography.Body, color = AstraColors.TextPrimary)
     }

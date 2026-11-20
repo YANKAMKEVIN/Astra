@@ -46,7 +46,10 @@ import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraCard
 import com.kevin.astra.core.design.AstraChip
 import com.kevin.astra.core.design.AstraColors
+import com.kevin.astra.core.design.AstraIcon
 import com.kevin.astra.core.design.AstraIcons
+import com.kevin.astra.core.design.AstraSnackbar
+import com.kevin.astra.core.design.AstraSnackbarVisuals
 import com.kevin.astra.core.design.AstraMetricCard
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
@@ -84,7 +87,9 @@ fun SettingsScreen(
         viewModel.effects.collect { effect ->
             when (effect) {
                 is SettingsEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
-                is SettingsEffect.DownloadCompleted -> snackbarHostState.showSnackbar("✓ ${effect.modelName} downloaded successfully")
+                is SettingsEffect.DownloadCompleted -> snackbarHostState.showSnackbar(
+                    AstraSnackbarVisuals("${effect.modelName} downloaded successfully", icon = AstraIcons.Check),
+                )
             }
         }
     }
@@ -99,14 +104,7 @@ fun SettingsScreen(
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter),
-            snackbar = { data ->
-                Snackbar(
-                    snackbarData = data,
-                    containerColor = AstraColors.SurfaceElevated,
-                    contentColor = AstraColors.TextPrimary,
-                    actionColor = AstraColors.Primary,
-                )
-            },
+            snackbar = { data -> AstraSnackbar(data) },
         )
     }
 }
@@ -289,11 +287,14 @@ private fun IndustryConfigurationCard(
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
         if (selectedIndustry == null) {
-            Text(
-                text = "✦ General mode — no sector persona. Pick a sector below to tailor the answers.",
-                style = AstraTypography.Caption,
-                color = AstraColors.TextSecondary,
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.XS)) {
+                AstraIcon(icon = AstraIcons.Sparkle, tint = AstraColors.TextSecondary, size = 16.dp)
+                Text(
+                    text = "General mode — no sector persona. Pick a sector below to tailor the answers.",
+                    style = AstraTypography.Caption,
+                    color = AstraColors.TextSecondary,
+                )
+            }
             Spacer(Modifier.height(AstraSpacing.S))
         }
         SelectableOptionRow {

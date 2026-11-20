@@ -175,6 +175,25 @@ object AstraIcons {
         moveTo(11f, 6f); lineTo(5f, 12f); lineTo(11f, 18f)
     }
 
+    /** Tick — success. */
+    val Check: ImageVector = lineIcon("Check") {
+        moveTo(5f, 12.5f); lineTo(10f, 17.5f); lineTo(19f, 7f)
+    }
+
+    /** Triangle with an exclamation mark — warning / error. */
+    val Alert: ImageVector = lineIcon("Alert") {
+        moveTo(12f, 4f); lineTo(21f, 19.5f); lineTo(3f, 19.5f); close()
+        moveTo(12f, 10f); lineTo(12f, 14f)
+        moveTo(12f, 16.6f); lineTo(12f, 17f)
+    }
+
+    /** Arrow leaving a box — share / export. */
+    val Share: ImageVector = lineIcon("Share") {
+        moveTo(14f, 4f); lineTo(20f, 4f); lineTo(20f, 10f)
+        moveTo(20f, 4f); lineTo(11f, 13f)
+        moveTo(17f, 14f); lineTo(17f, 19f); lineTo(5f, 19f); lineTo(5f, 7f); lineTo(10f, 7f)
+    }
+
     /** Chevron pointing down — expandable section. */
     val ChevronDown: ImageVector = lineIcon("ChevronDown") {
         moveTo(5f, 9f); lineTo(12f, 16f); lineTo(19f, 9f)

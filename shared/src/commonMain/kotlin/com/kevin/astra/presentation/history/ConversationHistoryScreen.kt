@@ -44,6 +44,7 @@ import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraCard
 import com.kevin.astra.core.design.AstraColors
+import com.kevin.astra.core.design.AstraIcons
 import com.kevin.astra.core.design.AstraBackHandler
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
@@ -272,16 +273,17 @@ private fun ConversationDetailContent(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        AstraButton(text = "← Back", onClick = onClose, style = AstraButtonStyle.Secondary)
+        AstraButton(text = "Back", onClick = onClose, style = AstraButtonStyle.Secondary, leadingIcon = AstraIcons.ArrowBack)
         AstraButton(text = "Delete", onClick = onDelete, style = AstraButtonStyle.Danger)
     }
     Spacer(Modifier.height(AstraSpacing.S))
     Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
         ExportFormat.entries.forEach { format ->
             AstraButton(
-                text = "↗ ${format.label}",
+                text = format.label,
                 onClick = { onExport(format) },
                 style = AstraButtonStyle.Ghost,
+                leadingIcon = AstraIcons.Share,
             )
         }
     }
