@@ -1,6 +1,8 @@
 package com.kevin.astra
 
 import android.content.Intent
+import android.content.res.Configuration
+import android.graphics.drawable.ColorDrawable
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -12,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.lifecycleScope
+import com.kevin.astra.core.design.astraWindowBackgroundArgb
 import com.kevin.astra.core.navigation.AstraDestination
 import com.kevin.astra.core.navigation.AstraNavigator
 import com.kevin.astra.core.notification.NotificationKeys
@@ -20,6 +23,8 @@ import com.kevin.astra.domain.gmail.GmailIntegration
 import com.kevin.astra.domain.gmail.GmailSignInBridge
 import com.kevin.astra.domain.gmail.androidGmailAuthenticatorOrNull
 import com.kevin.astra.domain.gmail.initializeAndroidGmailAuth
+import com.kevin.astra.domain.settings.ThemeHolder
+import com.kevin.astra.domain.settings.ThemeMode
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -31,11 +36,12 @@ class MainActivity : ComponentActivity(), KoinComponent {
     private lateinit var gmailSignInLauncher: ActivityResultLauncher<Intent>
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
-        )
+        applySystemBars(ThemeHolder.mode())
         super.onCreate(savedInstanceState)
+        // Follow the theme chosen in Settings (System / Dark / Light): bar icons and window color.
+        lifecycleScope.launch {
+            ThemeHolder.mode.collect { applySystemBars(it) }
+        }
         // Platform services + Koin are wired in AstraApplication.onCreate.
         // Gmail stays here because its sign-in flow is Activity-coupled (ActivityResultLauncher).
         initializeAndroidGmailAuth(this, BuildConfig.GMAIL_ANDROID_CLIENT_ID)
@@ -88,6 +94,19 @@ class MainActivity : ComponentActivity(), KoinComponent {
         if (destination != null) {
             navigator.navigateTo(destination)
         }
+    }
+
+    private fun applySystemBars(mode: ThemeMode) {
+        val systemInDarkTheme = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+        val light = mode.isLight(systemInDarkTheme)
+        val barStyle = if (light) {
+            SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+        } else {
+            SystemBarStyle.dark(Color.TRANSPARENT)
+        }
+        enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
+        window.setBackgroundDrawable(ColorDrawable(astraWindowBackgroundArgb(light)))
     }
 
     private fun requestMicrophonePermission() {

@@ -16,7 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -55,7 +54,7 @@ fun AstraDestinationTile(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
             .background(AstraColors.Surface.copy(alpha = 0.6f))
-            .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(18.dp))
+            .border(1.dp, AstraColors.GlassEdge.copy(alpha = 0.07f), RoundedCornerShape(18.dp))
             .clickable(role = Role.Button, onClick = onClick)
             .padding(AstraSpacing.M),
         verticalArrangement = Arrangement.spacedBy(AstraSpacing.S),

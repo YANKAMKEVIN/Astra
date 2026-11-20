@@ -139,9 +139,9 @@ class SettingsViewModel(
                 settingsScope.launch { aiConfigurationRepository.updateDemoModeEnabled(intent.enabled) }
             }
 
-            is SettingsIntent.ToggleLightTheme -> {
-                updateState { copy(lightThemeEnabled = intent.enabled) }
-                settingsScope.launch { aiConfigurationRepository.updateLightThemeEnabled(intent.enabled) }
+            is SettingsIntent.SelectThemeMode -> {
+                updateState { copy(themeMode = intent.mode) }
+                settingsScope.launch { aiConfigurationRepository.updateThemeMode(intent.mode) }
             }
 
             is SettingsIntent.DownloadModel -> {
@@ -226,7 +226,7 @@ private fun AiConfiguration.toSettingsState(
         quantization = quantization,
         experimentalFeaturesEnabled = experimentalFeaturesEnabled,
         demoModeEnabled = demoModeEnabled,
-        lightThemeEnabled = lightThemeEnabled,
+        themeMode = themeMode,
         huggingFaceToken = huggingFaceToken ?: "",
         downloadState = downloadState,
         storageUsageMb = storageUsageMb,

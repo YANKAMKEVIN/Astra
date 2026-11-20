@@ -6,6 +6,7 @@ import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.domain.settings.AiConfiguration
 import com.kevin.astra.domain.settings.DefaultSelectedModelId
+import com.kevin.astra.domain.settings.ThemeMode
 
 interface AiConfigurationKeyValueStore {
     fun getString(key: String): String?
@@ -38,7 +39,7 @@ class AiConfigurationLocalDataSource(
             quantization = keyValueStore.getString(QuantizationKey) ?: "4-bit",
             experimentalFeaturesEnabled = keyValueStore.getBoolean(ExperimentalFeaturesEnabledKey) ?: false,
             demoModeEnabled = keyValueStore.getBoolean(DemoModeEnabledKey) ?: false,
-            lightThemeEnabled = keyValueStore.getBoolean(LightThemeEnabledKey) ?: false,
+            themeMode = loadThemeMode(),
             huggingFaceToken = keyValueStore.getString(HuggingFaceTokenKey)?.takeIf { it.isNotEmpty() },
         )
 
@@ -52,9 +53,14 @@ class AiConfigurationLocalDataSource(
         keyValueStore.putString(QuantizationKey, configuration.quantization)
         keyValueStore.putBoolean(ExperimentalFeaturesEnabledKey, configuration.experimentalFeaturesEnabled)
         keyValueStore.putBoolean(DemoModeEnabledKey, configuration.demoModeEnabled)
-        keyValueStore.putBoolean(LightThemeEnabledKey, configuration.lightThemeEnabled)
+        keyValueStore.putString(ThemeModeKey, configuration.themeMode.name)
         keyValueStore.putString(HuggingFaceTokenKey, configuration.huggingFaceToken ?: "")
     }
+
+    /** Saved theme mode; before the System/Dark/Light choice existed only a light-theme flag was stored. */
+    private fun loadThemeMode(): ThemeMode =
+        keyValueStore.getString(ThemeModeKey)?.let { saved -> ThemeMode.entries.firstOrNull { it.name == saved } }
+            ?: if (keyValueStore.getBoolean(LightThemeEnabledKey) == true) ThemeMode.Light else ThemeMode.Dark
 
     /**
      * Keeps the user's saved backend only while it is still installed/detected; otherwise (fresh
@@ -87,4 +93,5 @@ private const val QuantizationKey = "ai.quantization"
 private const val ExperimentalFeaturesEnabledKey = "ai.experimental_features_enabled"
 private const val DemoModeEnabledKey = "ai.demo_mode_enabled"
 private const val LightThemeEnabledKey = "ai.light_theme_enabled"
+private const val ThemeModeKey = "ai.theme_mode"
 private const val HuggingFaceTokenKey = "ai.hugging_face_token"

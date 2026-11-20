@@ -12,7 +12,7 @@ data class AiConfiguration(
     val quantization: String = "4-bit",
     val experimentalFeaturesEnabled: Boolean = false,
     val demoModeEnabled: Boolean = false,
-    val lightThemeEnabled: Boolean = false,
+    val themeMode: ThemeMode = ThemeMode.Dark,
     val huggingFaceToken: String? = null,
 )
 

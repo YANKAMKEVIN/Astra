@@ -94,7 +94,7 @@ fun AstraCard(
                     listOf(Color.White.copy(alpha = 0.035f), Color.Transparent),
                 ),
             )
-            .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(18.dp))
+            .border(1.dp, AstraColors.GlassEdge.copy(alpha = 0.07f), RoundedCornerShape(18.dp))
             .padding(AstraSpacing.L),
     ) {
         Row(
@@ -612,9 +612,6 @@ fun AstraBackButton(
     }
 }
 
-/** Floating glass dock surface color (approx. #152033 translucent). */
-private val DockGlass = Color(0xFF152033)
-
 /**
  * Reusable floating "frosted glass" bottom sheet: a translucent, suspended
  * panel (deep scrim + sheen + white edge + drop shadow) with a custom drag
@@ -650,7 +647,7 @@ fun AstraGlassSheet(
                         listOf(Color.White.copy(alpha = 0.06f), Color.Transparent),
                     ),
                 )
-                .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(32.dp))
+                .border(1.dp, AstraColors.GlassEdge, RoundedCornerShape(32.dp))
                 .padding(horizontal = AstraSpacing.L)
                 .padding(top = AstraSpacing.M, bottom = AstraSpacing.L),
             verticalArrangement = Arrangement.spacedBy(AstraSpacing.S),
@@ -696,7 +693,7 @@ fun AstraGlassRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
             .background(AstraColors.Surface.copy(alpha = 0.6f))
-            .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(18.dp))
+            .border(1.dp, AstraColors.GlassEdge.copy(alpha = 0.07f), RoundedCornerShape(18.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = AstraSpacing.M, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -741,13 +738,13 @@ fun AstraNavigationBar(
                 .height(68.dp)
                 .shadow(20.dp, RoundedCornerShape(28.dp), clip = false)
                 .clip(RoundedCornerShape(28.dp))
-                .background(DockGlass.copy(alpha = 0.92f))
+                .background(AstraColors.Glass.copy(alpha = 0.92f))
                 .background(
                     Brush.verticalGradient(
                         listOf(Color.White.copy(alpha = 0.05f), Color.Transparent),
                     ),
                 )
-                .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(28.dp))
+                .border(1.dp, AstraColors.GlassEdge, RoundedCornerShape(28.dp))
                 .padding(horizontal = AstraSpacing.S),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,

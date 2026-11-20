@@ -1,5 +1,6 @@
 package com.kevin.astra.core.design
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
@@ -12,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +36,12 @@ data class AstraColorPalette(
     val TextSecondary: Color,
     val TextDisabled: Color,
     val Border: Color,
+    /** Floating dock / glass panels base color. */
+    val Glass: Color,
+    /** Hairline edge of glass surfaces (dock, sheets, tiles). */
+    val GlassEdge: Color,
+    /** True for the light palette (system bar icons, window background). */
+    val isLight: Boolean,
 )
 
 private val DarkPalette = AstraColorPalette(
@@ -49,6 +57,9 @@ private val DarkPalette = AstraColorPalette(
     TextSecondary = Color(0xFF9CA3AF),
     TextDisabled = Color(0xFF6B7280),
     Border = Color(0xFF273449),
+    Glass = Color(0xFF152033),
+    GlassEdge = Color.White.copy(alpha = 0.10f),
+    isLight = false,
 )
 
 private val LightPalette = AstraColorPalette(
@@ -64,6 +75,9 @@ private val LightPalette = AstraColorPalette(
     TextSecondary = Color(0xFF475569),
     TextDisabled = Color(0xFF94A3B8),
     Border = Color(0xFFCBD5E1),
+    Glass = Color(0xFFFFFFFF),
+    GlassEdge = Color(0xFF0F172A).copy(alpha = 0.10f),
+    isLight = true,
 )
 
 // ── Reactive color singleton ──────────────────────────────────────────────────
@@ -83,6 +97,9 @@ object AstraColors {
     val TextSecondary: Color get() = _palette.TextSecondary
     val TextDisabled: Color get() = _palette.TextDisabled
     val Border: Color get() = _palette.Border
+    val Glass: Color get() = _palette.Glass
+    val GlassEdge: Color get() = _palette.GlassEdge
+    val isLight: Boolean get() = _palette.isLight
 
     internal fun applyPalette(p: AstraColorPalette) { _palette = p }
 }
@@ -174,11 +191,16 @@ private val MaterialAstraTypography = Typography(
     labelMedium = AstraTypography.Caption,
 )
 
+/** Window background (ARGB) of a palette, for the platform window behind Compose. */
+fun astraWindowBackgroundArgb(isLight: Boolean): Int =
+    (if (isLight) LightPalette else DarkPalette).Background.toArgb()
+
 // ── Theme composable ──────────────────────────────────────────────────────────
 
 @Composable
 fun AstraTheme(content: @Composable () -> Unit) {
-    val isLight by ThemeHolder.isLight.collectAsState()
+    val mode by ThemeHolder.mode.collectAsState()
+    val isLight = mode.isLight(systemInDarkTheme = isSystemInDarkTheme())
     val palette = if (isLight) LightPalette else DarkPalette
     SideEffect { AstraColors.applyPalette(palette) }
     MaterialTheme(

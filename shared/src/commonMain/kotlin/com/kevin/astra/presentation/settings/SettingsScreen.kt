@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import com.kevin.astra.domain.modelmanager.ModelReadiness
+import com.kevin.astra.domain.settings.ThemeMode
 import com.kevin.astra.domain.modelmanager.ModelReadinessStatus
 import com.kevin.astra.domain.modelmanager.RequiredModelFile
 
@@ -150,9 +151,9 @@ private fun SettingsContent(
             enabled = state.demoModeEnabled,
             onToggle = { onIntent(SettingsIntent.ToggleDemoMode(it)) },
         )
-        LightThemeCard(
-            enabled = state.lightThemeEnabled,
-            onToggle = { onIntent(SettingsIntent.ToggleLightTheme(it)) },
+        ThemeCard(
+            mode = state.themeMode,
+            onSelect = { onIntent(SettingsIntent.SelectThemeMode(it)) },
         )
         ExperimentalFeaturesCard(
             enabled = state.experimentalFeaturesEnabled,
@@ -423,31 +424,26 @@ private fun DemoModeCard(
 }
 
 @Composable
-private fun LightThemeCard(
-    enabled: Boolean,
-    onToggle: (Boolean) -> Unit,
+private fun ThemeCard(
+    mode: ThemeMode,
+    onSelect: (ThemeMode) -> Unit,
 ) {
     AstraCard(
-        title = "Light Theme",
-        subtitle = "Switch between dark and light color palettes. Dark mode is the default for edge environments.",
-        status = if (enabled) "LIGHT" else "DARK",
+        title = "Theme",
+        subtitle = "Follow the phone's setting, or keep ASTRA dark or light. Dark is the default for edge environments.",
+        status = mode.label.uppercase(),
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            AstraButton(
-                text = if (enabled) "Switch to dark" else "Switch to light",
-                onClick = { onToggle(!enabled) },
-                modifier = Modifier.weight(1f),
-                style = AstraButtonStyle.Secondary,
-            )
-            AstraChip(
-                label = if (enabled) "☀" else "🌙",
-                color = if (enabled) AstraColors.Warning else AstraColors.Primary,
-            )
+        SelectableOptionRow {
+            ThemeMode.entries.forEach { option ->
+                SelectableOption(
+                    label = option.label,
+                    selected = option == mode,
+                    enabled = true,
+                    status = if (option == mode) "SELECTED" else null,
+                    onClick = { onSelect(option) },
+                )
+            }
         }
     }
 }
