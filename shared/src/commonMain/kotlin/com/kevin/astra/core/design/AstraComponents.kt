@@ -1,6 +1,20 @@
 package com.kevin.astra.core.design
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.scale
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -752,13 +766,15 @@ fun AstraNavigationBar(
     selectedDestination: AstraDestination,
     onDestinationSelected: (AstraDestination) -> Unit,
 ) {
+    val destinations = AstraDestination.primaryNavDestinations
+    val selectedIndex = destinations.indexOf(selectedDestination)
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
             .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
     ) {
-        Row(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(68.dp)
@@ -772,20 +788,43 @@ fun AstraNavigationBar(
                 )
                 .border(1.dp, AstraColors.GlassEdge, RoundedCornerShape(28.dp))
                 .padding(horizontal = AstraSpacing.S),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
         ) {
-            AstraDestination.primaryNavDestinations.forEach { destination ->
-                NavBarItem(
-                    icon = navIconFor(destination),
-                    label = destination.shortLabel,
-                    selected = destination == selectedDestination,
-                    onClick = { onDestinationSelected(destination) },
+            // One pill slides under the selected tab instead of each tab switching its own background.
+            val slotWidth = maxWidth / destinations.size
+            val pillOffset by animateDpAsState(
+                targetValue = slotWidth * selectedIndex.coerceAtLeast(0),
+                animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow),
+                label = "dock-pill",
+            )
+            if (selectedIndex >= 0) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .offset(x = pillOffset + NavPillInset)
+                        .size(width = slotWidth - NavPillInset * 2, height = 52.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(AstraColors.Primary.copy(alpha = 0.18f)),
                 )
+            }
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                destinations.forEach { destination ->
+                    NavBarItem(
+                        icon = navIconFor(destination),
+                        label = destination.shortLabel,
+                        selected = destination == selectedDestination,
+                        onClick = { onDestinationSelected(destination) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
     }
 }
+
+private val NavPillInset = 3.dp
 
 private fun navIconFor(destination: AstraDestination): ImageVector = when (destination) {
     AstraDestination.ProjectOverview -> AstraIcons.Home
@@ -797,30 +836,53 @@ private fun navIconFor(destination: AstraDestination): ImageVector = when (desti
 }
 
 @Composable
-private fun NavBarItem(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
+private fun NavBarItem(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.92f else 1f, label = "nav-press")
+    val iconTint by animateColorAsState(
+        if (selected) AstraColors.Secondary else AstraColors.TextSecondary,
+        animationSpec = tween(220),
+        label = "nav-icon",
+    )
+    val labelColor by animateColorAsState(
+        if (selected) AstraColors.TextPrimary else AstraColors.TextSecondary,
+        animationSpec = tween(220),
+        label = "nav-label",
+    )
     Column(
-        modifier = Modifier
+        modifier = modifier
+            .fillMaxHeight()
             .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
-            .background(
-                color = if (selected) AstraColors.Primary.copy(alpha = 0.18f) else Color.Transparent,
-                shape = RoundedCornerShape(16.dp),
+            .selectable(
+                selected = selected,
+                interactionSource = interactionSource,
+                indication = null,
+                role = Role.Tab,
+                onClick = onClick,
             )
-            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
+            .scale(scale),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         AstraIcon(
             icon = icon,
-            tint = if (selected) AstraColors.Secondary else AstraColors.TextSecondary,
+            tint = iconTint,
             size = 22.dp,
         )
         Spacer(Modifier.height(AstraSpacing.XS))
         Text(
             text = label,
             style = AstraTypography.Caption.copy(fontSize = 11.sp),
-            color = if (selected) AstraColors.TextPrimary else AstraColors.TextSecondary,
+            color = labelColor,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            maxLines = 1,
         )
     }
 }
