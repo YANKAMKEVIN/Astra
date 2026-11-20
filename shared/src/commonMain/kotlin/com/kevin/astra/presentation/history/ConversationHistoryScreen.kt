@@ -19,7 +19,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -59,6 +65,26 @@ fun ConversationHistoryScreen(
         viewModel.dispatch(ConversationHistoryIntent.LoadHistory)
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(Unit) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is ConversationHistoryEffect.ConversationDeleted -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = "Conversation deleted",
+                        actionLabel = "Undo",
+                        duration = SnackbarDuration.Short,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.dispatch(ConversationHistoryIntent.UndoDelete)
+                    }
+                }
+                is ConversationHistoryEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
+            }
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
     if (state.selectedConversation != null) {
         AstraScreen(
             title = state.selectedConversation!!.title,
@@ -114,6 +140,19 @@ fun ConversationHistoryScreen(
                 }
             }
         }
+    }
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter).padding(contentPadding),
+        snackbar = { data ->
+            Snackbar(
+                snackbarData = data,
+                containerColor = AstraColors.SurfaceElevated,
+                contentColor = AstraColors.TextPrimary,
+                actionColor = AstraColors.Primary,
+            )
+        },
+    )
     }
 }
 

@@ -38,12 +38,26 @@ class ConversationHistoryViewModel(
             }
 
             is ConversationHistoryIntent.DeleteConversation -> {
+                val deleted = conversationRepository.getById(intent.id)
                 conversationRepository.delete(intent.id)
                 updateState {
                     val updated = conversationRepository.search(searchQuery)
                     copy(
                         conversations = updated,
                         selectedConversation = if (selectedConversation?.id == intent.id) null else selectedConversation,
+                        recentlyDeleted = deleted,
+                    )
+                }
+                if (deleted != null) emitEffect(ConversationHistoryEffect.ConversationDeleted(deleted.title))
+            }
+
+            ConversationHistoryIntent.UndoDelete -> {
+                val deleted = state.value.recentlyDeleted ?: return
+                conversationRepository.save(deleted)
+                updateState {
+                    copy(
+                        conversations = conversationRepository.search(searchQuery),
+                        recentlyDeleted = null,
                     )
                 }
             }
