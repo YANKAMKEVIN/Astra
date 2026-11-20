@@ -121,6 +121,7 @@ fun VoiceAssistantScreen(
             // Waveform bars behind the button
             WaveformVisualizer(
                 isActive = isListening,
+                level = state.inputLevel,
                 modifier = Modifier
                     .width(260.dp)
                     .height(80.dp)
@@ -232,7 +233,7 @@ private fun PhaseIndicator(phase: VoicePhase) {
 // ── Waveform visualizer ───────────────────────────────────────────────────────
 
 @Composable
-private fun WaveformVisualizer(isActive: Boolean, modifier: Modifier = Modifier) {
+private fun WaveformVisualizer(isActive: Boolean, level: Float, modifier: Modifier = Modifier) {
     val infinite = rememberInfiniteTransition(label = "waveform")
     val rawHeights = BAR_MAX_HEIGHTS.mapIndexed { i, maxH ->
         infinite.animateFloat(
@@ -247,6 +248,12 @@ private fun WaveformVisualizer(isActive: Boolean, modifier: Modifier = Modifier)
         animationSpec = tween(400),
         label = "waveform-factor",
     )
+    // Bar height follows what the microphone hears: flat in silence, tall when speaking.
+    val amplitude by animateFloatAsState(
+        targetValue = if (isActive) level.coerceIn(0f, 1f) else 0f,
+        animationSpec = tween(120),
+        label = "waveform-level",
+    )
 
     Row(
         modifier = modifier,
@@ -254,7 +261,7 @@ private fun WaveformVisualizer(isActive: Boolean, modifier: Modifier = Modifier)
         verticalAlignment = Alignment.CenterVertically,
     ) {
         rawHeights.forEachIndexed { i, rawH ->
-            val height = 0.08f + (rawH.value - 0.08f) * factor
+            val height = 0.08f + (rawH.value - 0.08f) * amplitude
             val barColor = if (isActive) AstraColors.Secondary else AstraColors.TextDisabled
             Box(
                 modifier = Modifier

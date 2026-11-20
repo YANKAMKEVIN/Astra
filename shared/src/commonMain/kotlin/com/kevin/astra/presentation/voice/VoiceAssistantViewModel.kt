@@ -18,6 +18,8 @@ import com.kevin.astra.domain.voice.TextToSpeechService
 import com.kevin.astra.domain.voice.TtsState
 import com.kevin.astra.core.ai.PromptIndustry
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -33,8 +35,11 @@ class VoiceAssistantViewModel(
 ) : AstraViewModel<VoiceAssistantState, VoiceAssistantIntent, VoiceAssistantEffect>(
     initialState = VoiceAssistantState(),
 ) {
+    private var wordPulseJob: Job? = null
+
     init {
         collectSpeechState()
+        collectInputLevel()
         collectTtsState()
     }
 
@@ -47,7 +52,8 @@ class VoiceAssistantViewModel(
                     }
                     VoicePhase.Listening -> {
                         speechRecognitionService.stopListening()
-                        updateState { copy(phase = VoicePhase.Idle, transcript = "") }
+                        wordPulseJob?.cancel()
+                        updateState { copy(phase = VoicePhase.Idle, transcript = "", inputLevel = 0f) }
                     }
                     VoicePhase.Speaking -> {
                         textToSpeechService.stop()
@@ -70,7 +76,7 @@ class VoiceAssistantViewModel(
     }
 
     private fun startListening() {
-        updateState { copy(phase = VoicePhase.Listening, transcript = "", response = "", error = null) }
+        updateState { copy(phase = VoicePhase.Listening, transcript = "", response = "", error = null, inputLevel = 0f) }
         speechRecognitionService.startListening()
     }
 
@@ -82,17 +88,50 @@ class VoiceAssistantViewModel(
                         updateState { copy(phase = VoicePhase.Listening) }
                     }
                     is SpeechRecognitionState.Partial -> {
+                        val grew = srState.text.length > state.value.transcript.length
                         updateState { copy(transcript = srState.text) }
+                        if (grew && !speechRecognitionService.reportsInputLevel) pulseOnNewWords()
                     }
                     is SpeechRecognitionState.Result -> {
-                        updateState { copy(phase = VoicePhase.Processing, transcript = srState.text) }
+                        wordPulseJob?.cancel()
+                        updateState { copy(phase = VoicePhase.Processing, transcript = srState.text, inputLevel = 0f) }
                         processQuestion(srState.text)
                     }
                     is SpeechRecognitionState.Error -> {
-                        updateState { copy(phase = VoicePhase.Idle, error = srState.message) }
+                        wordPulseJob?.cancel()
+                        updateState { copy(phase = VoicePhase.Idle, error = srState.message, inputLevel = 0f) }
                     }
                     SpeechRecognitionState.Idle -> {}
                 }
+            }
+        }
+    }
+
+    /** Real microphone level, where the platform measures it. */
+    private fun collectInputLevel() {
+        if (!speechRecognitionService.reportsInputLevel) return
+        viewModelScope.launch {
+            speechRecognitionService.inputLevel.collect { level ->
+                val shown = if (state.value.phase == VoicePhase.Listening) level else 0f
+                if (shown != state.value.inputLevel) updateState { copy(inputLevel = shown) }
+            }
+        }
+    }
+
+    /**
+     * Without a level meter, newly transcribed words are the sign that the microphone hears
+     * something: the waveform jumps, then settles back to flat.
+     */
+    private fun pulseOnNewWords() {
+        wordPulseJob?.cancel()
+        wordPulseJob = viewModelScope.launch {
+            WordPulseLevels.forEach { level ->
+                if (state.value.phase != VoicePhase.Listening) {
+                    updateState { copy(inputLevel = 0f) }
+                    return@launch
+                }
+                updateState { copy(inputLevel = level) }
+                delay(WordPulseStepMillis)
             }
         }
     }
@@ -174,3 +213,6 @@ class VoiceAssistantViewModel(
         textToSpeechService.destroy()
     }
 }
+
+private val WordPulseLevels = listOf(0.85f, 0.55f, 0.25f, 0f)
+private const val WordPulseStepMillis = 180L

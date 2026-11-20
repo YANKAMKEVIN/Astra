@@ -16,6 +16,8 @@ data class VoiceAssistantState(
     val transcript: String = "",
     val response: String = "",
     val error: String? = null,
+    /** How loud the user is speaking while listening (0..1); drives the waveform. */
+    val inputLevel: Float = 0f,
 ) : AstraState
 
 sealed interface VoiceAssistantIntent : AstraIntent {
