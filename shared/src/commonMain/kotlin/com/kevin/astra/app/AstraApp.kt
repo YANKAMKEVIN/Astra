@@ -47,6 +47,7 @@ import com.kevin.astra.presentation.settings.SettingsViewModel
 import com.kevin.astra.domain.onboarding.OnboardingRepository
 import com.kevin.astra.presentation.onboarding.OnboardingScreen
 import com.kevin.astra.presentation.splash.SplashScreen
+import com.kevin.astra.presentation.splash.SplashTiming
 
 @Composable
 fun AstraApp(
@@ -115,6 +116,9 @@ fun AstraApp(
                     when (destination) {
                         AstraDestination.Splash -> SplashScreen(
                             contentPadding = contentPadding,
+                            durationMillis = SplashTiming.durationMillis(
+                                isFirstLaunch = !onboardingRepository.isOnboardingCompleted(),
+                            ),
                             onFinished = {
                                 if (onboardingRepository.isOnboardingCompleted()) {
                                     navigator.navigateTo(AstraDestination.ProjectOverview)

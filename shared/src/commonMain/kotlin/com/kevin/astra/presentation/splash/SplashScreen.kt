@@ -21,6 +21,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,14 +48,31 @@ import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
 import kotlinx.coroutines.delay
 
+/** How long the splash stays: the full animation on first launch, a short beat afterwards. */
+object SplashTiming {
+    const val FirstLaunchMillis = 2_400L
+    const val ReturningMillis = 800L
+
+    fun durationMillis(isFirstLaunch: Boolean): Long =
+        if (isFirstLaunch) FirstLaunchMillis else ReturningMillis
+}
+
 @Composable
 fun SplashScreen(
     contentPadding: PaddingValues,
     onFinished: () -> Unit,
+    durationMillis: Long = SplashTiming.FirstLaunchMillis,
 ) {
+    var finished by remember { mutableStateOf(false) }
+    val finish = {
+        if (!finished) {
+            finished = true
+            onFinished()
+        }
+    }
     LaunchedEffect(Unit) {
-        delay(2400)
-        onFinished()
+        delay(durationMillis)
+        finish()
     }
 
     val infinite = rememberInfiniteTransition(label = "splash")
@@ -65,6 +87,13 @@ fun SplashScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(AstraColors.Background)
+            // A tap skips the splash.
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClickLabel = "Skip",
+                onClick = finish,
+            )
             .padding(contentPadding),
     ) {
         SplashBackdrop()
