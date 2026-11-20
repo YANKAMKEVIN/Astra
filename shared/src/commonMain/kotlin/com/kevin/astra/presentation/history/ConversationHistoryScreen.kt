@@ -227,13 +227,14 @@ private fun ConversationListItem(conversation: ChatConversation, bucket: History
         ) {
             MetaChip(conversation.modelName)
             MetaChip(conversation.industry)
-            Spacer(Modifier.weight(1f))
-            Text(
-                text = listOfNotNull(timeLabel, countLabel).joinToString(" · "),
-                style = AstraTypography.Caption,
-                color = AstraColors.TextSecondary,
-            )
         }
+        Spacer(Modifier.height(AstraSpacing.XS))
+        Text(
+            text = listOfNotNull(timeLabel, countLabel).joinToString(" · "),
+            style = AstraTypography.Caption,
+            color = AstraColors.TextSecondary,
+            maxLines = 1,
+        )
     }
 }
 
