@@ -108,6 +108,22 @@ class SettingsViewModel(
                 settingsScope.launch { aiConfigurationRepository.updateContextWindow(intent.contextWindow) }
             }
 
+            SettingsIntent.ResetInferenceParameters -> {
+                val defaults = AiConfiguration()
+                updateState {
+                    copy(
+                        temperature = defaults.temperature,
+                        maxTokens = defaults.maxTokens,
+                        contextWindow = defaults.contextWindow,
+                    )
+                }
+                settingsScope.launch {
+                    aiConfigurationRepository.updateTemperature(defaults.temperature)
+                    aiConfigurationRepository.updateMaxTokens(defaults.maxTokens)
+                    aiConfigurationRepository.updateContextWindow(defaults.contextWindow)
+                }
+            }
+
             is SettingsIntent.UpdateQuantization -> {
                 updateState { copy(quantization = intent.quantization) }
                 settingsScope.launch { aiConfigurationRepository.updateQuantization(intent.quantization) }

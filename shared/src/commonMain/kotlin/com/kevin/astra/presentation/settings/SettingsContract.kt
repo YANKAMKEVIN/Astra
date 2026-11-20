@@ -35,6 +35,8 @@ sealed interface SettingsIntent : AstraIntent {
     data class UpdateTemperature(val temperature: Double) : SettingsIntent
     data class UpdateMaxTokens(val maxTokens: Int) : SettingsIntent
     data class UpdateContextWindow(val contextWindow: Int) : SettingsIntent
+    /** Puts temperature, max tokens and context window back to their defaults. */
+    data object ResetInferenceParameters : SettingsIntent
     data class UpdateQuantization(val quantization: String) : SettingsIntent
     data class ToggleExperimentalFeatures(val enabled: Boolean) : SettingsIntent
     data class ToggleDemoMode(val enabled: Boolean) : SettingsIntent

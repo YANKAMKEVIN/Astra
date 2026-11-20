@@ -17,6 +17,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -310,48 +318,59 @@ private fun InferenceParametersCard(
         subtitle = "In-memory runtime parameters used when ASTRA builds local prompt requests.",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
-        ParameterStepper(
+        val scale = InferenceParameterScale
+        ParameterSlider(
             label = "Temperature",
             description = "Controls randomness of the output. Low = focused, high = creative.",
-            value = state.temperature.toString(),
-            rangeLabel = "0.0 – 2.0",
-            canDecrease = state.temperature > 0.0,
-            canIncrease = state.temperature < 2.0,
-            onDecrease = {
-                onIntent(SettingsIntent.UpdateTemperature(roundParameter(state.temperature - 0.1)))
+            valueText = "${state.temperature} · ${scale.temperatureLabel(state.temperature)}",
+            value = state.temperature.toFloat(),
+            valueRange = scale.TemperatureMin.toFloat()..scale.TemperatureMax.toFloat(),
+            steps = 9,
+            onValueChange = { raw ->
+                val snapped = scale.snapTemperature(raw)
+                if (snapped != state.temperature) onIntent(SettingsIntent.UpdateTemperature(snapped))
             },
-            onIncrease = {
-                onIntent(SettingsIntent.UpdateTemperature(roundParameter(state.temperature + 0.1)))
+            presets = scale.TemperaturePresets.map { (name, value) ->
+                ParameterPreset(name, selected = scale.temperatureLabel(state.temperature) == name) {
+                    onIntent(SettingsIntent.UpdateTemperature(value))
+                }
             },
         )
-        ParameterStepper(
+        ParameterSlider(
             label = "Max tokens",
             description = "Maximum number of tokens the model will generate per response.",
-            value = state.maxTokens.toString(),
-            rangeLabel = "128 – 4 096",
-            canDecrease = state.maxTokens > 128,
-            canIncrease = state.maxTokens < 4_096,
-            onDecrease = {
-                onIntent(SettingsIntent.UpdateMaxTokens(state.maxTokens - 128))
+            valueText = formatTokens(state.maxTokens),
+            value = state.maxTokens.toFloat(),
+            valueRange = scale.MaxTokensMin.toFloat()..scale.MaxTokensMax.toFloat(),
+            steps = scale.sliderSteps(scale.MaxTokensMin, scale.MaxTokensMax, scale.MaxTokensStep),
+            onValueChange = { raw ->
+                val snapped = scale.snap(raw, scale.MaxTokensMin, scale.MaxTokensMax, scale.MaxTokensStep)
+                if (snapped != state.maxTokens) onIntent(SettingsIntent.UpdateMaxTokens(snapped))
             },
-            onIncrease = {
-                onIntent(SettingsIntent.UpdateMaxTokens(state.maxTokens + 128))
+            presets = scale.MaxTokensPresets.map { tokens ->
+                ParameterPreset(formatTokens(tokens), selected = state.maxTokens == tokens) {
+                    onIntent(SettingsIntent.UpdateMaxTokens(tokens))
+                }
             },
         )
-        ParameterStepper(
+        ParameterSlider(
             label = "Context window",
             description = "Total tokens (prompt + response) the model can process at once.",
-            value = state.contextWindow.toString(),
-            rangeLabel = "1 024 – 32 768",
-            canDecrease = state.contextWindow > 1_024,
-            canIncrease = state.contextWindow < 32_768,
-            onDecrease = {
-                onIntent(SettingsIntent.UpdateContextWindow(state.contextWindow - 1_024))
-            },
-            onIncrease = {
-                onIntent(SettingsIntent.UpdateContextWindow(state.contextWindow + 1_024))
+            valueText = formatTokens(state.contextWindow),
+            value = state.contextWindow.toFloat(),
+            valueRange = scale.ContextWindowMin.toFloat()..scale.ContextWindowMax.toFloat(),
+            steps = scale.sliderSteps(scale.ContextWindowMin, scale.ContextWindowMax, scale.ContextWindowStep),
+            onValueChange = { raw ->
+                val snapped = scale.snap(raw, scale.ContextWindowMin, scale.ContextWindowMax, scale.ContextWindowStep)
+                if (snapped != state.contextWindow) onIntent(SettingsIntent.UpdateContextWindow(snapped))
             },
         )
+        TextButton(
+            onClick = { onIntent(SettingsIntent.ResetInferenceParameters) },
+            modifier = Modifier.align(Alignment.End),
+        ) {
+            Text("Reset defaults", color = AstraColors.Secondary, style = AstraTypography.Caption)
+        }
         Spacer(Modifier.height(AstraSpacing.S))
         Text(
             text = "Quantization",
@@ -523,16 +542,18 @@ private fun SelectableOption(
     }
 }
 
+private class ParameterPreset(val label: String, val selected: Boolean, val onClick: () -> Unit)
+
 @Composable
-private fun ParameterStepper(
+private fun ParameterSlider(
     label: String,
     description: String,
-    value: String,
-    rangeLabel: String,
-    canDecrease: Boolean,
-    canIncrease: Boolean,
-    onDecrease: () -> Unit,
-    onIncrease: () -> Unit,
+    valueText: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    onValueChange: (Float) -> Unit,
+    presets: List<ParameterPreset> = emptyList(),
 ) {
     Column(
         modifier = Modifier
@@ -541,51 +562,60 @@ private fun ParameterStepper(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+            verticalAlignment = Alignment.Top,
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = label, style = AstraTypography.Body, color = AstraColors.TextPrimary, fontWeight = FontWeight.SemiBold)
                 Text(text = description, style = AstraTypography.Caption, color = AstraColors.TextSecondary)
             }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                MiniControlButton(text = "−", enabled = canDecrease, onClick = onDecrease)
-                Text(text = value, style = AstraTypography.Body, color = AstraColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                MiniControlButton(text = "+", enabled = canIncrease, onClick = onIncrease)
+            Text(text = valueText, style = AstraTypography.Metric, color = AstraColors.Secondary)
+        }
+        Slider(
+            value = value.coerceIn(valueRange),
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            steps = steps,
+            modifier = Modifier.semantics { contentDescription = label },
+            colors = SliderDefaults.colors(
+                thumbColor = AstraColors.Secondary,
+                activeTrackColor = AstraColors.Primary,
+                inactiveTrackColor = AstraColors.Border,
+                activeTickColor = Color.Transparent,
+                inactiveTickColor = Color.Transparent,
+            ),
+        )
+        if (presets.isNotEmpty()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+                presets.forEach { preset -> PresetChip(preset) }
             }
         }
-        Spacer(Modifier.height(AstraSpacing.XS))
-        Text(text = "Range: $rangeLabel", style = AstraTypography.Caption, color = AstraColors.TextDisabled)
         Spacer(Modifier.height(AstraSpacing.S))
     }
 }
 
 @Composable
-private fun MiniControlButton(
-    text: String,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
+private fun PresetChip(preset: ParameterPreset) {
+    val accent = if (preset.selected) AstraColors.Secondary else AstraColors.Border
     Box(
         modifier = Modifier
-            .heightIn(min = 40.dp)
-            .alpha(if (enabled) 1f else 0.35f)
-            .background(AstraColors.SurfaceElevated, RoundedCornerShape(12.dp))
-            .border(1.dp, if (enabled) AstraColors.Border else AstraColors.TextDisabled, RoundedCornerShape(12.dp))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
+            .heightIn(min = 36.dp)
+            .clip(RoundedCornerShape(50))
+            .background(if (preset.selected) AstraColors.Secondary.copy(alpha = 0.14f) else AstraColors.SurfaceElevated)
+            .border(1.dp, accent, RoundedCornerShape(50))
+            .selectable(selected = preset.selected, role = Role.RadioButton, onClick = preset.onClick)
+            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.XS),
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = text,
-            style = AstraTypography.Title,
-            color = if (enabled) AstraColors.TextPrimary else AstraColors.TextDisabled,
+            text = preset.label,
+            style = AstraTypography.Caption,
+            color = if (preset.selected) AstraColors.TextPrimary else AstraColors.TextSecondary,
+            fontWeight = if (preset.selected) FontWeight.SemiBold else FontWeight.Normal,
         )
     }
 }
 
-private fun roundParameter(value: Double): Double =
-    (value * 10).toInt() / 10.0
+/** 4096 → "4 096". */
+private fun formatTokens(tokens: Int): String =
+    tokens.toString().reversed().chunked(3).joinToString(" ").reversed()
