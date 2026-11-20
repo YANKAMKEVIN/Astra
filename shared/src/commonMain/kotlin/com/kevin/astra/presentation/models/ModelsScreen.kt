@@ -562,6 +562,9 @@ private fun ModelRow(
                 style = AstraTypography.Caption,
                 color = AstraColors.Primary,
             )
+            rememberDownloadPaceText(downloading)?.let { pace ->
+                Text(text = pace, style = AstraTypography.Caption, color = AstraColors.TextSecondary)
+            }
         }
 
         AnimatedVisibility(visible = expanded && downloading == null) {

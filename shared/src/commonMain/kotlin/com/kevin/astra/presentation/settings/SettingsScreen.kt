@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import com.kevin.astra.domain.modelmanager.ModelReadiness
+import com.kevin.astra.presentation.models.rememberDownloadPaceText
 import com.kevin.astra.domain.settings.ThemeMode
 import com.kevin.astra.domain.modelmanager.ModelReadinessStatus
 import com.kevin.astra.domain.modelmanager.RequiredModelFile
@@ -171,10 +172,12 @@ private fun ActiveModelCard(
     onManageModels: () -> Unit,
 ) {
     val downloading = downloadState as? ModelDownloadState.Downloading
+    val pace = rememberDownloadPaceText(downloading)
     AstraCard(
         title = "Active model",
         subtitle = when {
-            downloading != null -> "A model is downloading — ${downloading.progressPercent}%. Follow it in Models."
+            downloading != null -> "A model is downloading — ${downloading.progressPercent}%" +
+                (pace?.let { " · $it" } ?: "") + ". Follow it in Models."
             else -> "$installedCount of $totalCount models on this device. Download, switch or delete them in Models."
         },
         status = selectedModel?.displayName ?: "No model",
