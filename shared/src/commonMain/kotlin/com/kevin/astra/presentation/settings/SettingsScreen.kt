@@ -284,13 +284,13 @@ private fun IndustryConfigurationCard(
 ) {
     AstraCard(
         title = "Industry Persona",
-        subtitle = "Contextualise les réponses de l'assistant. Désactivez pour un mode général sans persona.",
+        subtitle = "Tailors answers to a sector. Tap the selected sector again for general mode.",
         status = selectedIndustry?.label ?: "None",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
         if (selectedIndustry == null) {
             Text(
-                text = "✦ Mode général actif — pas de persona sectoriel. Sélectionnez un secteur ci-dessous pour spécialiser les réponses.",
+                text = "✦ General mode — no sector persona. Pick a sector below to tailor the answers.",
                 style = AstraTypography.Caption,
                 color = AstraColors.TextSecondary,
             )
