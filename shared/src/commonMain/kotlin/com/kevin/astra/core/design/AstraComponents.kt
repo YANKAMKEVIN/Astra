@@ -49,7 +49,15 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import com.kevin.astra.domain.settings.DemoModeHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -516,10 +524,55 @@ fun AstraEmptyView(
     }
 }
 
+/** Display name of the model the app currently runs, for screen headers. Provided by the app shell. */
+val LocalActiveModelName = compositionLocalOf<String?> { null }
+
+/** Opens Settings, where Offline Demo Mode is switched. Provided by the app shell. */
+val LocalOpenDemoModeSetting = staticCompositionLocalOf<(() -> Unit)?> { null }
+
+/**
+ * Header status: the "DEMO" pill while Offline Demo Mode is on (tap = open the setting),
+ * otherwise the name of the active local model, so it is always clear where answers come from.
+ */
 @Composable
-fun AstraDemoModeIndicator(modifier: Modifier = Modifier) {
+fun AstraHeaderStatus(modifier: Modifier = Modifier) {
+    val isDemoMode by DemoModeHolder.enabled.collectAsState()
+    if (isDemoMode) {
+        AstraDemoModeIndicator(modifier = modifier, onClick = LocalOpenDemoModeSetting.current)
+    } else {
+        val modelName = LocalActiveModelName.current ?: return
+        Box(
+            modifier = modifier
+                .widthIn(max = 160.dp)
+                .background(AstraColors.SurfaceElevated, RoundedCornerShape(50))
+                .border(1.dp, AstraColors.Border, RoundedCornerShape(50))
+                .semantics { contentDescription = "Active model: $modelName" }
+                .padding(horizontal = AstraSpacing.S, vertical = 2.dp),
+        ) {
+            Text(
+                text = modelName,
+                style = AstraTypography.Caption.copy(fontSize = 11.sp),
+                color = AstraColors.TextSecondary,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+fun AstraDemoModeIndicator(modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
     Box(
         modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(onClickLabel = "Open Offline Demo Mode setting", role = Role.Button, onClick = onClick)
+                } else {
+                    Modifier
+                },
+            )
             .background(AstraColors.Secondary.copy(alpha = 0.08f), RoundedCornerShape(50))
             .border(1.dp, AstraColors.Secondary.copy(alpha = 0.22f), RoundedCornerShape(50))
             .padding(horizontal = AstraSpacing.S, vertical = 2.dp),

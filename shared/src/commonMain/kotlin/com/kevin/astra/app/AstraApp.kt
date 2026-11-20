@@ -12,11 +12,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kevin.astra.core.design.AstraBackHandler
 import com.kevin.astra.core.design.AstraColors
+import com.kevin.astra.core.design.LocalActiveModelName
+import com.kevin.astra.core.design.LocalOpenDemoModeSetting
 import com.kevin.astra.core.design.AstraNavigationBar
 import com.kevin.astra.core.design.AstraTheme
 import com.kevin.astra.core.navigation.AstraDestination
@@ -63,9 +67,17 @@ fun AstraApp(
     // A secondary screen keeps the tab it was opened from highlighted in the dock.
     val dockSelection = backStack.lastOrNull { it.isPrimaryNav } ?: currentDestination
     val overviewState by projectOverviewViewModel.state.collectAsStateWithLifecycle()
+    val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
+    val openDemoModeSetting: () -> Unit = remember(navigator) {
+        { navigator.navigateTo(AstraDestination.Settings) }
+    }
 
     AstraTheme {
         AstraBackHandler(enabled = backStack.size > 1) { navigator.goBack() }
+        CompositionLocalProvider(
+            LocalActiveModelName provides settingsState.selectedModel?.displayName,
+            LocalOpenDemoModeSetting provides openDemoModeSetting,
+        ) {
         Scaffold(
             modifier = Modifier
                 .fillMaxSize()
@@ -172,6 +184,7 @@ fun AstraApp(
                     }
                 }
             }
+        }
         }
     }
 }

@@ -26,6 +26,7 @@ fun AstraScreen(
     title: String,
     description: String? = null,
     contentPadding: PaddingValues,
+    /** Shows the header status: "DEMO" in Offline Demo Mode, otherwise the active model. */
     showDemoIndicator: Boolean = true,
     /** When set, a "Back" control is shown above the title (secondary screens). */
     onBack: (() -> Unit)? = null,
@@ -56,7 +57,7 @@ fun AstraScreen(
             if (showDemoIndicator) {
                 // Align with the first title line (the chip used to float mid-height when the
                 // title wrapped to two lines).
-                AstraDemoModeIndicator(modifier = Modifier.padding(top = AstraSpacing.XS))
+                AstraHeaderStatus(modifier = Modifier.padding(top = AstraSpacing.XS))
             }
         }
         if (!description.isNullOrBlank()) {
