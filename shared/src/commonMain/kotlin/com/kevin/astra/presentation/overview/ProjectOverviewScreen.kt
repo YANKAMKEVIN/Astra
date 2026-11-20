@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kevin.astra.core.design.AstraChip
 import com.kevin.astra.core.design.AstraColors
 import com.kevin.astra.core.design.AstraCore
+import com.kevin.astra.core.design.AstraDestinationTile
 import com.kevin.astra.core.design.AstraIcon
 import com.kevin.astra.core.design.AstraIcons
 import com.kevin.astra.core.design.AstraScreen
@@ -83,12 +84,43 @@ fun ProjectOverviewScreen(
         showDemoIndicator = false,
     ) {
         StatusHeader(state = state, isDemoMode = isDemoMode)
+        QuickActions(onNavigate = onNavigate)
         PrivateComputeStrip()
         LiveMetricsGrid(state = state)
         ModelsCard(state = state, onSeeAll = { onNavigate(AstraDestination.Models) })
         AiFeaturesSection(features = state.aiFeatures)
         if (!state.isLoadingCapabilities) {
             DeviceDetailSection(state = state)
+        }
+    }
+}
+
+// ── Quick actions ─────────────────────────────────────────────────────────────
+
+/** Voice, Vision, guided demo and history in one tap from the opening screen. */
+@Composable
+private fun QuickActions(onNavigate: (AstraDestination) -> Unit) {
+    val actions = listOf(
+        AstraDestination.VoiceAssistant to AstraDestination.VoiceAssistant.shortLabel,
+        AstraDestination.VisionAssistant to AstraDestination.VisionAssistant.shortLabel,
+        AstraDestination.Demo to "Guided demo",
+        AstraDestination.History to AstraDestination.History.label,
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+        actions.chunked(2).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+            ) {
+                row.forEach { (destination, title) ->
+                    AstraDestinationTile(
+                        destination = destination,
+                        title = title,
+                        onClick = { onNavigate(destination) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
         }
     }
 }
