@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -44,6 +45,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kevin.astra.core.design.AstraBackButton
 import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraColors
@@ -72,6 +74,7 @@ fun ModelsScreen(
     contentPadding: PaddingValues,
     viewModel: SettingsViewModel,
     deviceCapabilities: DeviceCapabilities?,
+    onBack: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -126,6 +129,9 @@ fun ModelsScreen(
                 .padding(top = AstraSpacing.L, bottom = AstraSpacing.L),
             verticalArrangement = Arrangement.spacedBy(AstraSpacing.M),
         ) {
+            if (onBack != null) {
+                AstraBackButton(onClick = onBack, modifier = Modifier.offset(x = (-4).dp))
+            }
             Text(
                 text = "Models",
                 style = AstraTypography.Headline,

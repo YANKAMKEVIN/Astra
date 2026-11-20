@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -40,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kevin.astra.core.design.AstraBackButton
 import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraColors
@@ -58,6 +60,7 @@ private val BAR_DURATIONS   = listOf(420,   360,   480,   390,   450,   370,   5
 fun VoiceAssistantScreen(
     viewModel: VoiceAssistantViewModel,
     contentPadding: PaddingValues,
+    onBack: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val isDemoMode by DemoModeHolder.enabled.collectAsStateWithLifecycle()
@@ -72,9 +75,18 @@ fun VoiceAssistantScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(AstraSpacing.M),
     ) {
-        if (isDemoMode) DemoModeBanner(modifier = Modifier.padding(top = AstraSpacing.M))
+        if (onBack != null) {
+            AstraBackButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .align(Alignment.Start)
+                    .padding(top = AstraSpacing.S)
+                    .offset(x = (-4).dp),
+            )
+        }
+        if (isDemoMode) DemoModeBanner(modifier = Modifier.padding(top = if (onBack != null) 0.dp else AstraSpacing.M))
 
-        Spacer(Modifier.height(AstraSpacing.L))
+        Spacer(Modifier.height(if (onBack != null) 0.dp else AstraSpacing.L))
 
         // Header
         Text(

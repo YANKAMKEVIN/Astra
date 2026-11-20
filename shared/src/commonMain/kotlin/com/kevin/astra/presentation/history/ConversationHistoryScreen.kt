@@ -33,6 +33,7 @@ import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraCard
 import com.kevin.astra.core.design.AstraColors
+import com.kevin.astra.core.design.AstraBackHandler
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
@@ -45,8 +46,14 @@ import com.kevin.astra.domain.history.ChatMessage
 fun ConversationHistoryScreen(
     viewModel: ConversationHistoryViewModel,
     contentPadding: PaddingValues,
+    onBack: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // Back closes an open conversation before leaving the screen.
+    AstraBackHandler(enabled = state.selectedConversation != null) {
+        viewModel.dispatch(ConversationHistoryIntent.CloseDetail)
+    }
 
     LaunchedEffect(Unit) {
         viewModel.dispatch(ConversationHistoryIntent.LoadHistory)
@@ -76,6 +83,7 @@ fun ConversationHistoryScreen(
             description = "Your past ASTRA conversations.",
             contentPadding = contentPadding,
             showDemoIndicator = false,
+            onBack = onBack,
         ) {
             SearchBar(
                 query = state.searchQuery,

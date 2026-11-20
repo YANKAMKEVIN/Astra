@@ -38,6 +38,7 @@ import com.kevin.astra.core.design.AstraTypography
 fun DemoScreen(
     contentPadding: PaddingValues,
     viewModel: DemoViewModel,
+    onBack: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -45,6 +46,7 @@ fun DemoScreen(
         state = state,
         contentPadding = contentPadding,
         onIntent = viewModel::dispatch,
+        onBack = onBack,
     )
 }
 
@@ -53,11 +55,13 @@ private fun DemoContent(
     state: DemoState,
     contentPadding: PaddingValues,
     onIntent: (DemoIntent) -> Unit,
+    onBack: (() -> Unit)?,
 ) {
     AstraScreen(
         title = "Demo Mode",
         description = "A guided five-minute path for engineers, managers and innovation committees.",
         contentPadding = contentPadding,
+        onBack = onBack,
     ) {
         DemoOverviewCard(state = state, onRefresh = { onIntent(DemoIntent.Refresh) })
         ReadinessCard(indicators = state.readinessIndicators)

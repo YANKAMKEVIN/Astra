@@ -50,6 +50,7 @@ import com.kevin.astra.domain.vision.ImageClassificationResult
 fun VisionAssistantScreen(
     viewModel: VisionAssistantViewModel,
     contentPadding: PaddingValues,
+    onBack: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val isDemoMode by DemoModeHolder.enabled.collectAsStateWithLifecycle()
@@ -62,6 +63,7 @@ fun VisionAssistantScreen(
         description = "Point the camera at anything. ASTRA will describe and analyze it.",
         contentPadding = contentPadding,
         showDemoIndicator = false,
+        onBack = onBack,
     ) {
         if (isDemoMode) DemoModeBanner()
         // Mock classifier warning

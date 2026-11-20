@@ -55,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -528,6 +529,32 @@ fun AstraDemoModeIndicator(modifier: Modifier = Modifier) {
             style = AstraTypography.Caption.copy(fontSize = 10.sp, letterSpacing = 0.8.sp),
             color = AstraColors.Secondary,
             fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+/** Compact "Back" control for secondary screens: arrow + label, 48 dp tall. */
+@Composable
+fun AstraBackButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    label: String = "Back",
+) {
+    Row(
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClickLabel = "Go back", role = Role.Button, onClick = onClick)
+            .padding(end = AstraSpacing.S),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
+    ) {
+        AstraIcon(icon = AstraIcons.ArrowBack, tint = AstraColors.Secondary, size = 20.dp)
+        Text(
+            text = label,
+            style = AstraTypography.Body,
+            color = AstraColors.Secondary,
+            fontWeight = FontWeight.Medium,
         )
     }
 }

@@ -169,6 +169,12 @@ object AstraIcons {
         moveTo(9f, 5f); lineTo(16f, 12f); lineTo(9f, 19f)
     }
 
+    /** Arrow pointing left — back. */
+    val ArrowBack: ImageVector = lineIcon("ArrowBack") {
+        moveTo(19f, 12f); lineTo(5f, 12f)
+        moveTo(11f, 6f); lineTo(5f, 12f); lineTo(11f, 18f)
+    }
+
     /** Chevron pointing down — expandable section. */
     val ChevronDown: ImageVector = lineIcon("ChevronDown") {
         moveTo(5f, 9f); lineTo(12f, 16f); lineTo(19f, 9f)

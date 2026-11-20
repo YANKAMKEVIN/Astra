@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kevin.astra.core.design.AstraBackHandler
 import com.kevin.astra.core.design.AstraColors
 import com.kevin.astra.core.design.AstraNavigationBar
 import com.kevin.astra.core.design.AstraTheme
@@ -58,9 +59,13 @@ fun AstraApp(
     visionViewModel: VisionAssistantViewModel,
 ) {
     val currentDestination by navigator.currentDestination.collectAsStateWithLifecycle()
+    val backStack by navigator.backStack.collectAsStateWithLifecycle()
+    // A secondary screen keeps the tab it was opened from highlighted in the dock.
+    val dockSelection = backStack.lastOrNull { it.isPrimaryNav } ?: currentDestination
     val overviewState by projectOverviewViewModel.state.collectAsStateWithLifecycle()
 
     AstraTheme {
+        AstraBackHandler(enabled = backStack.size > 1) { navigator.goBack() }
         Scaffold(
             modifier = Modifier
                 .fillMaxSize()
@@ -69,7 +74,7 @@ fun AstraApp(
             bottomBar = {
                 if (currentDestination.showsNavigationBar) {
                     AstraNavigationBar(
-                        selectedDestination = currentDestination,
+                        selectedDestination = dockSelection,
                         onDestinationSelected = navigator::navigateTo,
                     )
                 }
@@ -118,6 +123,7 @@ fun AstraApp(
                         AstraDestination.Demo -> DemoScreen(
                             contentPadding = contentPadding,
                             viewModel = demoViewModel,
+                            onBack = { navigator.goBack() },
                         )
                         AstraDestination.ProjectOverview -> ProjectOverviewScreen(
                             contentPadding = contentPadding,
@@ -128,6 +134,7 @@ fun AstraApp(
                             contentPadding = contentPadding,
                             viewModel = settingsViewModel,
                             deviceCapabilities = overviewState.capabilities,
+                            onBack = { navigator.goBack() },
                         )
                         AstraDestination.Assistant -> AssistantScreen(
                             contentPadding = contentPadding,
@@ -150,14 +157,17 @@ fun AstraApp(
                         AstraDestination.History -> ConversationHistoryScreen(
                             contentPadding = contentPadding,
                             viewModel = historyViewModel,
+                            onBack = { navigator.goBack() },
                         )
                         AstraDestination.VoiceAssistant -> VoiceAssistantScreen(
                             contentPadding = contentPadding,
                             viewModel = voiceViewModel,
+                            onBack = { navigator.goBack() },
                         )
                         AstraDestination.VisionAssistant -> VisionAssistantScreen(
                             contentPadding = contentPadding,
                             viewModel = visionViewModel,
+                            onBack = { navigator.goBack() },
                         )
                     }
                 }

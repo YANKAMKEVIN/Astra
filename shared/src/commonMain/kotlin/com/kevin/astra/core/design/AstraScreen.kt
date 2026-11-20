@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -26,6 +27,8 @@ fun AstraScreen(
     description: String? = null,
     contentPadding: PaddingValues,
     showDemoIndicator: Boolean = true,
+    /** When set, a "Back" control is shown above the title (secondary screens). */
+    onBack: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
@@ -36,6 +39,9 @@ fun AstraScreen(
             .padding(AstraSpacing.L),
         verticalArrangement = Arrangement.spacedBy(AstraSpacing.M),
     ) {
+        if (onBack != null) {
+            AstraBackButton(onClick = onBack, modifier = Modifier.offset(x = (-4).dp))
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
