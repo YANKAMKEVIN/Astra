@@ -11,6 +11,8 @@ data class ConversationHistoryState(
     val searchQuery: String = "",
     val selectedConversation: ChatConversation? = null,
     val isLoading: Boolean = false,
+    /** Last deleted conversation, kept so the deletion can be undone. */
+    val recentlyDeleted: ChatConversation? = null,
 ) : AstraState
 
 sealed interface ConversationHistoryIntent : AstraIntent {
@@ -19,9 +21,13 @@ sealed interface ConversationHistoryIntent : AstraIntent {
     data class SelectConversation(val id: String) : ConversationHistoryIntent
     data object CloseDetail : ConversationHistoryIntent
     data class DeleteConversation(val id: String) : ConversationHistoryIntent
+    /** Restores the conversation deleted last (the "Undo" of the deletion message). */
+    data object UndoDelete : ConversationHistoryIntent
     data class ExportConversation(val id: String, val format: ExportFormat) : ConversationHistoryIntent
 }
 
 sealed interface ConversationHistoryEffect : AstraEffect {
     data class ShowError(val message: String) : ConversationHistoryEffect
+    /** A conversation was deleted; the screen offers to undo it. */
+    data class ConversationDeleted(val title: String) : ConversationHistoryEffect
 }

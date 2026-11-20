@@ -37,6 +37,7 @@ import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraCard
 import com.kevin.astra.core.design.AstraColors
 import com.kevin.astra.core.design.AstraIcon
+import com.kevin.astra.core.design.AstraIconLabel
 import com.kevin.astra.core.design.AstraIcons
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
@@ -50,18 +51,24 @@ import com.kevin.astra.domain.vision.ImageClassificationResult
 fun VisionAssistantScreen(
     viewModel: VisionAssistantViewModel,
     contentPadding: PaddingValues,
+    onBack: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val isDemoMode by DemoModeHolder.enabled.collectAsStateWithLifecycle()
     val captureLauncher = rememberImageCaptureLauncher { bytes ->
         viewModel.dispatch(VisionAssistantIntent.PhotoCaptured(bytes))
     }
+    val galleryLauncher = rememberGalleryImageLauncher { bytes ->
+        viewModel.dispatch(VisionAssistantIntent.PhotoCaptured(bytes))
+    }
+    val canPickImage = state.phase == VisionPhase.Idle || state.phase == VisionPhase.Done
 
     AstraScreen(
         title = "Vision",
         description = "Point the camera at anything. ASTRA will describe and analyze it.",
         contentPadding = contentPadding,
         showDemoIndicator = false,
+        onBack = onBack,
     ) {
         if (isDemoMode) DemoModeBanner()
         // Mock classifier warning
@@ -85,22 +92,31 @@ fun VisionAssistantScreen(
             ),
         )
 
-        // Camera button
+        // Image sources: camera or a prepared picture from the gallery
         Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
             AstraButton(
                 text = "Take Photo",
                 onClick = captureLauncher,
                 modifier = Modifier.weight(1f),
-                enabled = state.phase == VisionPhase.Idle || state.phase == VisionPhase.Done,
+                enabled = canPickImage,
                 leadingIcon = AstraIcons.Camera,
             )
-            if (state.phase == VisionPhase.Done || state.capturedImageBytes != null) {
-                AstraButton(
-                    text = "Reset",
-                    onClick = { viewModel.dispatch(VisionAssistantIntent.Reset) },
-                    style = AstraButtonStyle.Secondary,
-                )
-            }
+            AstraButton(
+                text = "Gallery",
+                onClick = galleryLauncher,
+                modifier = Modifier.weight(1f),
+                enabled = canPickImage,
+                style = AstraButtonStyle.Secondary,
+                leadingIcon = AstraIcons.Image,
+            )
+        }
+        if (state.phase == VisionPhase.Done || state.capturedImageBytes != null) {
+            AstraButton(
+                text = "Reset",
+                onClick = { viewModel.dispatch(VisionAssistantIntent.Reset) },
+                style = AstraButtonStyle.Ghost,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
 
         // Progress
@@ -157,7 +173,7 @@ fun VisionAssistantScreen(
                     textAlign = TextAlign.Center,
                 )
                 Text(
-                    text = "Tap \"Take Photo\" above to capture an image.\nASTRA will classify and analyze it on-device.",
+                    text = "Take a photo, or choose a picture from your gallery.\nASTRA will classify and analyze it on-device.",
                     style = AstraTypography.Body,
                     color = AstraColors.TextSecondary,
                     textAlign = TextAlign.Center,
@@ -198,9 +214,9 @@ private fun MockWarningBanner() {
             .background(AstraColors.Secondary.copy(alpha = 0.12f))
             .padding(AstraSpacing.M),
     ) {
-        Text(
-            text = "⚠ Vision unavailable",
-            style = AstraTypography.Caption,
+        AstraIconLabel(
+            icon = AstraIcons.Alert,
+            text = "Vision unavailable",
             color = AstraColors.Secondary,
             fontWeight = FontWeight.Bold,
         )
@@ -269,7 +285,7 @@ private fun ErrorBanner(message: String) {
             .background(AstraColors.Error.copy(alpha = 0.12f))
             .padding(AstraSpacing.M),
     ) {
-        Text("⚠ Error", style = AstraTypography.Caption, color = AstraColors.Error, fontWeight = FontWeight.Bold)
+        AstraIconLabel(icon = AstraIcons.Alert, text = "Error", color = AstraColors.Error, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(AstraSpacing.XS))
         Text(message, style = AstraTypography.Body, color = AstraColors.TextPrimary)
     }

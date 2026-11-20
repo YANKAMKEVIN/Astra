@@ -19,7 +19,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import com.kevin.astra.core.time.localUtcOffsetSeconds
+import kotlin.time.Clock
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -33,6 +44,8 @@ import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraCard
 import com.kevin.astra.core.design.AstraColors
+import com.kevin.astra.core.design.AstraIcons
+import com.kevin.astra.core.design.AstraBackHandler
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
@@ -45,13 +58,39 @@ import com.kevin.astra.domain.history.ChatMessage
 fun ConversationHistoryScreen(
     viewModel: ConversationHistoryViewModel,
     contentPadding: PaddingValues,
+    onBack: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // Back closes an open conversation before leaving the screen.
+    AstraBackHandler(enabled = state.selectedConversation != null) {
+        viewModel.dispatch(ConversationHistoryIntent.CloseDetail)
+    }
 
     LaunchedEffect(Unit) {
         viewModel.dispatch(ConversationHistoryIntent.LoadHistory)
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(Unit) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is ConversationHistoryEffect.ConversationDeleted -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = "Conversation deleted",
+                        actionLabel = "Undo",
+                        duration = SnackbarDuration.Short,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.dispatch(ConversationHistoryIntent.UndoDelete)
+                    }
+                }
+                is ConversationHistoryEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
+            }
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
     if (state.selectedConversation != null) {
         AstraScreen(
             title = state.selectedConversation!!.title,
@@ -76,6 +115,7 @@ fun ConversationHistoryScreen(
             description = "Your past ASTRA conversations.",
             contentPadding = contentPadding,
             showDemoIndicator = false,
+            onBack = onBack,
         ) {
             SearchBar(
                 query = state.searchQuery,
@@ -94,18 +134,50 @@ fun ConversationHistoryScreen(
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
-                    state.conversations.forEach { conversation ->
-                        ConversationListItem(
-                            conversation = conversation,
-                            onClick = {
-                                viewModel.dispatch(ConversationHistoryIntent.SelectConversation(conversation.id))
-                            },
-                        )
+                val sections = remember(state.conversations) {
+                    groupConversationsByDay(
+                        conversations = state.conversations,
+                        nowMillis = Clock.System.now().toEpochMilliseconds(),
+                        utcOffsetSeconds = ::localUtcOffsetSeconds,
+                    )
+                }
+                sections.forEach { section ->
+                    Text(
+                        text = section.bucket.label,
+                        style = AstraTypography.Caption,
+                        color = AstraColors.TextSecondary,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .padding(top = AstraSpacing.XS)
+                            .semantics { heading() },
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+                        section.conversations.forEach { conversation ->
+                            ConversationListItem(
+                                conversation = conversation,
+                                bucket = section.bucket,
+                                onClick = {
+                                    viewModel.dispatch(ConversationHistoryIntent.SelectConversation(conversation.id))
+                                },
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter).padding(contentPadding),
+        snackbar = { data ->
+            Snackbar(
+                snackbarData = data,
+                containerColor = AstraColors.SurfaceElevated,
+                contentColor = AstraColors.TextPrimary,
+                actionColor = AstraColors.Primary,
+            )
+        },
+    )
     }
 }
 
@@ -129,22 +201,52 @@ private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
 }
 
 @Composable
-private fun ConversationListItem(conversation: ChatConversation, onClick: () -> Unit) {
+private fun ConversationListItem(conversation: ChatConversation, bucket: HistoryBucket, onClick: () -> Unit) {
+    val createdAtMillis = parseCreatedAtMillis(conversation.createdAt)
+    val timeLabel = createdAtMillis?.let { historyTimeLabel(it, bucket, localUtcOffsetSeconds(it)) }
+    val messageCount = conversation.messages.size
+    val countLabel = "$messageCount message${if (messageCount == 1) "" else "s"}"
+    val excerpt = conversationExcerpt(conversation)
     AstraCard(
         title = conversation.title,
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+        if (excerpt != null) {
+            Text(
+                text = excerpt,
+                style = AstraTypography.Caption,
+                color = AstraColors.TextSecondary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(AstraSpacing.S))
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             MetaChip(conversation.modelName)
             MetaChip(conversation.industry)
         }
         Spacer(Modifier.height(AstraSpacing.XS))
         Text(
-            text = conversation.createdAt,
+            text = listOfNotNull(timeLabel, countLabel).joinToString(" · "),
             style = AstraTypography.Caption,
             color = AstraColors.TextSecondary,
+            maxLines = 1,
         )
     }
+}
+
+/**
+ * Preview line under the title: the first question when the title doesn't already show it
+ * whole, otherwise the start of the first answer.
+ */
+private fun conversationExcerpt(conversation: ChatConversation): String? {
+    val question = conversation.messages.firstOrNull { it.role == "user" }?.content?.trim()
+    if (!question.isNullOrEmpty() && question != conversation.title.trim()) return question.replace('\n', ' ')
+    return conversation.messages.firstOrNull { it.role == "assistant" }?.content?.trim()
+        ?.takeIf { it.isNotEmpty() }?.replace('\n', ' ')
 }
 
 @Composable
@@ -172,16 +274,17 @@ private fun ConversationDetailContent(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        AstraButton(text = "← Back", onClick = onClose, style = AstraButtonStyle.Secondary)
+        AstraButton(text = "Back", onClick = onClose, style = AstraButtonStyle.Secondary, leadingIcon = AstraIcons.ArrowBack)
         AstraButton(text = "Delete", onClick = onDelete, style = AstraButtonStyle.Danger)
     }
     Spacer(Modifier.height(AstraSpacing.S))
     Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
         ExportFormat.entries.forEach { format ->
             AstraButton(
-                text = "↗ ${format.label}",
+                text = format.label,
                 onClick = { onExport(format) },
                 style = AstraButtonStyle.Ghost,
+                leadingIcon = AstraIcons.Share,
             )
         }
     }

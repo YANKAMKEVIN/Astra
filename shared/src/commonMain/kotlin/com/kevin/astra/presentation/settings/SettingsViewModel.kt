@@ -108,6 +108,22 @@ class SettingsViewModel(
                 settingsScope.launch { aiConfigurationRepository.updateContextWindow(intent.contextWindow) }
             }
 
+            SettingsIntent.ResetInferenceParameters -> {
+                val defaults = AiConfiguration()
+                updateState {
+                    copy(
+                        temperature = defaults.temperature,
+                        maxTokens = defaults.maxTokens,
+                        contextWindow = defaults.contextWindow,
+                    )
+                }
+                settingsScope.launch {
+                    aiConfigurationRepository.updateTemperature(defaults.temperature)
+                    aiConfigurationRepository.updateMaxTokens(defaults.maxTokens)
+                    aiConfigurationRepository.updateContextWindow(defaults.contextWindow)
+                }
+            }
+
             is SettingsIntent.UpdateQuantization -> {
                 updateState { copy(quantization = intent.quantization) }
                 settingsScope.launch { aiConfigurationRepository.updateQuantization(intent.quantization) }
@@ -123,9 +139,9 @@ class SettingsViewModel(
                 settingsScope.launch { aiConfigurationRepository.updateDemoModeEnabled(intent.enabled) }
             }
 
-            is SettingsIntent.ToggleLightTheme -> {
-                updateState { copy(lightThemeEnabled = intent.enabled) }
-                settingsScope.launch { aiConfigurationRepository.updateLightThemeEnabled(intent.enabled) }
+            is SettingsIntent.SelectThemeMode -> {
+                updateState { copy(themeMode = intent.mode) }
+                settingsScope.launch { aiConfigurationRepository.updateThemeMode(intent.mode) }
             }
 
             is SettingsIntent.DownloadModel -> {
@@ -210,7 +226,7 @@ private fun AiConfiguration.toSettingsState(
         quantization = quantization,
         experimentalFeaturesEnabled = experimentalFeaturesEnabled,
         demoModeEnabled = demoModeEnabled,
-        lightThemeEnabled = lightThemeEnabled,
+        themeMode = themeMode,
         huggingFaceToken = huggingFaceToken ?: "",
         downloadState = downloadState,
         storageUsageMb = storageUsageMb,

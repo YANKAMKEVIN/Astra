@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -21,6 +22,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Snackbar
@@ -44,9 +47,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kevin.astra.core.design.AstraBackButton
 import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraColors
+import com.kevin.astra.core.design.AstraGlassSheet
 import com.kevin.astra.core.design.AstraIcon
 import com.kevin.astra.core.design.AstraIcons
 import com.kevin.astra.core.design.AstraSpacing
@@ -72,6 +77,7 @@ fun ModelsScreen(
     contentPadding: PaddingValues,
     viewModel: SettingsViewModel,
     deviceCapabilities: DeviceCapabilities?,
+    onBack: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -82,6 +88,8 @@ fun ModelsScreen(
     val notificationPermission = rememberDownloadNotificationPermission()
     // Download waiting for the user to answer the notification explanation.
     var pendingDownloadId by remember { mutableStateOf<String?>(null) }
+    // Model waiting for the user to confirm its deletion.
+    var pendingDeleteId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.effects.collect { effect ->
@@ -113,7 +121,7 @@ fun ModelsScreen(
         },
         onCancel = { viewModel.dispatch(SettingsIntent.CancelDownload(it)) },
         onUse = { viewModel.dispatch(SettingsIntent.SelectModel(it)) },
-        onDelete = { viewModel.dispatch(SettingsIntent.DeleteModel(it)) },
+        onDelete = { pendingDeleteId = it },
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -126,6 +134,9 @@ fun ModelsScreen(
                 .padding(top = AstraSpacing.L, bottom = AstraSpacing.L),
             verticalArrangement = Arrangement.spacedBy(AstraSpacing.M),
         ) {
+            if (onBack != null) {
+                AstraBackButton(onClick = onBack, modifier = Modifier.offset(x = (-4).dp))
+            }
             Text(
                 text = "Models",
                 style = AstraTypography.Headline,
@@ -240,6 +251,19 @@ fun ModelsScreen(
             )
         }
 
+        pendingDeleteId?.let { id ->
+            val readiness = state.modelReadiness.find { it.modelId == id }
+            DeleteModelSheet(
+                name = readiness?.displayName ?: id,
+                size = readiness?.expectedSize.orEmpty(),
+                onConfirm = {
+                    pendingDeleteId = null
+                    viewModel.dispatch(SettingsIntent.DeleteModel(id))
+                },
+                onDismiss = { pendingDeleteId = null },
+            )
+        }
+
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter).padding(contentPadding),
@@ -252,6 +276,40 @@ fun ModelsScreen(
                 )
             },
         )
+    }
+}
+
+/** Confirmation before deleting a downloaded model: names it and the space it frees. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DeleteModelSheet(name: String, size: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AstraGlassSheet(
+        title = "Delete $name?",
+        subtitle = if (size.isNotBlank()) "Frees about $size on this device" else null,
+        onDismiss = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        Text(
+            text = "The model file is removed from this phone. To use it again you will have to download it again.",
+            style = AstraTypography.Body,
+            color = AstraColors.TextSecondary,
+        )
+        Spacer(Modifier.height(AstraSpacing.S))
+        Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+            AstraButton(
+                text = "Cancel",
+                onClick = onDismiss,
+                style = AstraButtonStyle.Ghost,
+                modifier = Modifier.weight(1f),
+            )
+            AstraButton(
+                text = "Delete",
+                onClick = onConfirm,
+                style = AstraButtonStyle.Danger,
+                leadingIcon = AstraIcons.Trash,
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 
@@ -504,6 +562,9 @@ private fun ModelRow(
                 style = AstraTypography.Caption,
                 color = AstraColors.Primary,
             )
+            rememberDownloadPaceText(downloading)?.let { pace ->
+                Text(text = pace, style = AstraTypography.Caption, color = AstraColors.TextSecondary)
+            }
         }
 
         AnimatedVisibility(visible = expanded && downloading == null) {

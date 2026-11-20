@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -25,7 +26,10 @@ fun AstraScreen(
     title: String,
     description: String? = null,
     contentPadding: PaddingValues,
+    /** Shows the header status: "DEMO" in Offline Demo Mode, otherwise the active model. */
     showDemoIndicator: Boolean = true,
+    /** When set, a "Back" control is shown above the title (secondary screens). */
+    onBack: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
@@ -36,6 +40,9 @@ fun AstraScreen(
             .padding(AstraSpacing.L),
         verticalArrangement = Arrangement.spacedBy(AstraSpacing.M),
     ) {
+        if (onBack != null) {
+            AstraBackButton(onClick = onBack, modifier = Modifier.offset(x = (-4).dp))
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(AstraSpacing.M),
@@ -50,7 +57,7 @@ fun AstraScreen(
             if (showDemoIndicator) {
                 // Align with the first title line (the chip used to float mid-height when the
                 // title wrapped to two lines).
-                AstraDemoModeIndicator(modifier = Modifier.padding(top = AstraSpacing.XS))
+                AstraHeaderStatus(modifier = Modifier.padding(top = AstraSpacing.XS))
             }
         }
         if (!description.isNullOrBlank()) {

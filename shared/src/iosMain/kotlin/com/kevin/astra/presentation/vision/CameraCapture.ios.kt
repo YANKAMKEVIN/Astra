@@ -22,6 +22,11 @@ actual fun rememberImageCaptureLauncher(onImageCaptured: (ByteArray) -> Unit): (
     }
 }
 
+/** On iOS the capture launcher already opens the photo library picker (PHPicker). */
+@Composable
+actual fun rememberGalleryImageLauncher(onImagePicked: (ByteArray) -> Unit): () -> Unit =
+    rememberImageCaptureLauncher(onImagePicked)
+
 @OptIn(ExperimentalForeignApi::class)
 private fun showImagePicker(onImageCaptured: (ByteArray) -> Unit) {
     val config = PHPickerConfiguration()

@@ -103,6 +103,32 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun resetPutsInferenceParametersBackToDefaults() = runBlocking {
+        val observationScope = CoroutineScope(coroutineContext + Job())
+        val viewModel = testViewModel(observationScope)
+        try {
+            delay(50)
+            viewModel.dispatch(SettingsIntent.UpdateTemperature(0.9))
+            viewModel.dispatch(SettingsIntent.UpdateMaxTokens(2_048))
+            viewModel.dispatch(SettingsIntent.UpdateContextWindow(16_384))
+            viewModel.dispatch(SettingsIntent.UpdateQuantization("8-bit"))
+            delay(150)
+
+            viewModel.dispatch(SettingsIntent.ResetInferenceParameters)
+            delay(150)
+
+            val state = viewModel.state.value
+            assertEquals(0.3, state.temperature)
+            assertEquals(512, state.maxTokens)
+            assertEquals(4_096, state.contextWindow)
+            // Quantization is a separate choice and is left alone.
+            assertEquals("8-bit", state.quantization)
+        } finally {
+            observationScope.cancel()
+        }
+    }
+
+    @Test
     fun togglesDemoMode() = runBlocking {
         val observationScope = CoroutineScope(coroutineContext + Job())
         val viewModel = testViewModel(observationScope)

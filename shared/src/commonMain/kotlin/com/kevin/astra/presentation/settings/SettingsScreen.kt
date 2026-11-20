@@ -17,6 +17,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,7 +46,10 @@ import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraCard
 import com.kevin.astra.core.design.AstraChip
 import com.kevin.astra.core.design.AstraColors
+import com.kevin.astra.core.design.AstraIcon
 import com.kevin.astra.core.design.AstraIcons
+import com.kevin.astra.core.design.AstraSnackbar
+import com.kevin.astra.core.design.AstraSnackbarVisuals
 import com.kevin.astra.core.design.AstraMetricCard
 import com.kevin.astra.core.design.AstraScreen
 import com.kevin.astra.core.design.AstraSpacing
@@ -58,6 +69,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import com.kevin.astra.domain.modelmanager.ModelReadiness
+import com.kevin.astra.presentation.models.rememberDownloadPaceText
+import com.kevin.astra.domain.settings.ThemeMode
 import com.kevin.astra.domain.modelmanager.ModelReadinessStatus
 import com.kevin.astra.domain.modelmanager.RequiredModelFile
 
@@ -74,7 +87,9 @@ fun SettingsScreen(
         viewModel.effects.collect { effect ->
             when (effect) {
                 is SettingsEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
-                is SettingsEffect.DownloadCompleted -> snackbarHostState.showSnackbar("✓ ${effect.modelName} downloaded successfully")
+                is SettingsEffect.DownloadCompleted -> snackbarHostState.showSnackbar(
+                    AstraSnackbarVisuals("${effect.modelName} downloaded successfully", icon = AstraIcons.Check),
+                )
             }
         }
     }
@@ -89,14 +104,7 @@ fun SettingsScreen(
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter),
-            snackbar = { data ->
-                Snackbar(
-                    snackbarData = data,
-                    containerColor = AstraColors.SurfaceElevated,
-                    contentColor = AstraColors.TextPrimary,
-                    actionColor = AstraColors.Primary,
-                )
-            },
+            snackbar = { data -> AstraSnackbar(data) },
         )
     }
 }
@@ -142,9 +150,9 @@ private fun SettingsContent(
             enabled = state.demoModeEnabled,
             onToggle = { onIntent(SettingsIntent.ToggleDemoMode(it)) },
         )
-        LightThemeCard(
-            enabled = state.lightThemeEnabled,
-            onToggle = { onIntent(SettingsIntent.ToggleLightTheme(it)) },
+        ThemeCard(
+            mode = state.themeMode,
+            onSelect = { onIntent(SettingsIntent.SelectThemeMode(it)) },
         )
         ExperimentalFeaturesCard(
             enabled = state.experimentalFeaturesEnabled,
@@ -162,10 +170,12 @@ private fun ActiveModelCard(
     onManageModels: () -> Unit,
 ) {
     val downloading = downloadState as? ModelDownloadState.Downloading
+    val pace = rememberDownloadPaceText(downloading)
     AstraCard(
         title = "Active model",
         subtitle = when {
-            downloading != null -> "A model is downloading — ${downloading.progressPercent}%. Follow it in Models."
+            downloading != null -> "A model is downloading — ${downloading.progressPercent}%" +
+                (pace?.let { " · $it" } ?: "") + ". Follow it in Models."
             else -> "$installedCount of $totalCount models on this device. Download, switch or delete them in Models."
         },
         status = selectedModel?.displayName ?: "No model",
@@ -272,16 +282,19 @@ private fun IndustryConfigurationCard(
 ) {
     AstraCard(
         title = "Industry Persona",
-        subtitle = "Contextualise les réponses de l'assistant. Désactivez pour un mode général sans persona.",
+        subtitle = "Tailors answers to a sector. Tap the selected sector again for general mode.",
         status = selectedIndustry?.label ?: "None",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
         if (selectedIndustry == null) {
-            Text(
-                text = "✦ Mode général actif — pas de persona sectoriel. Sélectionnez un secteur ci-dessous pour spécialiser les réponses.",
-                style = AstraTypography.Caption,
-                color = AstraColors.TextSecondary,
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.XS)) {
+                AstraIcon(icon = AstraIcons.Sparkle, tint = AstraColors.TextSecondary, size = 16.dp)
+                Text(
+                    text = "General mode — no sector persona. Pick a sector below to tailor the answers.",
+                    style = AstraTypography.Caption,
+                    color = AstraColors.TextSecondary,
+                )
+            }
             Spacer(Modifier.height(AstraSpacing.S))
         }
         SelectableOptionRow {
@@ -310,48 +323,59 @@ private fun InferenceParametersCard(
         subtitle = "In-memory runtime parameters used when ASTRA builds local prompt requests.",
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
-        ParameterStepper(
+        val scale = InferenceParameterScale
+        ParameterSlider(
             label = "Temperature",
             description = "Controls randomness of the output. Low = focused, high = creative.",
-            value = state.temperature.toString(),
-            rangeLabel = "0.0 – 2.0",
-            canDecrease = state.temperature > 0.0,
-            canIncrease = state.temperature < 2.0,
-            onDecrease = {
-                onIntent(SettingsIntent.UpdateTemperature(roundParameter(state.temperature - 0.1)))
+            valueText = "${state.temperature} · ${scale.temperatureLabel(state.temperature)}",
+            value = state.temperature.toFloat(),
+            valueRange = scale.TemperatureMin.toFloat()..scale.TemperatureMax.toFloat(),
+            steps = 9,
+            onValueChange = { raw ->
+                val snapped = scale.snapTemperature(raw)
+                if (snapped != state.temperature) onIntent(SettingsIntent.UpdateTemperature(snapped))
             },
-            onIncrease = {
-                onIntent(SettingsIntent.UpdateTemperature(roundParameter(state.temperature + 0.1)))
+            presets = scale.TemperaturePresets.map { (name, value) ->
+                ParameterPreset(name, selected = scale.temperatureLabel(state.temperature) == name) {
+                    onIntent(SettingsIntent.UpdateTemperature(value))
+                }
             },
         )
-        ParameterStepper(
+        ParameterSlider(
             label = "Max tokens",
             description = "Maximum number of tokens the model will generate per response.",
-            value = state.maxTokens.toString(),
-            rangeLabel = "128 – 4 096",
-            canDecrease = state.maxTokens > 128,
-            canIncrease = state.maxTokens < 4_096,
-            onDecrease = {
-                onIntent(SettingsIntent.UpdateMaxTokens(state.maxTokens - 128))
+            valueText = formatTokens(state.maxTokens),
+            value = state.maxTokens.toFloat(),
+            valueRange = scale.MaxTokensMin.toFloat()..scale.MaxTokensMax.toFloat(),
+            steps = scale.sliderSteps(scale.MaxTokensMin, scale.MaxTokensMax, scale.MaxTokensStep),
+            onValueChange = { raw ->
+                val snapped = scale.snap(raw, scale.MaxTokensMin, scale.MaxTokensMax, scale.MaxTokensStep)
+                if (snapped != state.maxTokens) onIntent(SettingsIntent.UpdateMaxTokens(snapped))
             },
-            onIncrease = {
-                onIntent(SettingsIntent.UpdateMaxTokens(state.maxTokens + 128))
+            presets = scale.MaxTokensPresets.map { tokens ->
+                ParameterPreset(formatTokens(tokens), selected = state.maxTokens == tokens) {
+                    onIntent(SettingsIntent.UpdateMaxTokens(tokens))
+                }
             },
         )
-        ParameterStepper(
+        ParameterSlider(
             label = "Context window",
             description = "Total tokens (prompt + response) the model can process at once.",
-            value = state.contextWindow.toString(),
-            rangeLabel = "1 024 – 32 768",
-            canDecrease = state.contextWindow > 1_024,
-            canIncrease = state.contextWindow < 32_768,
-            onDecrease = {
-                onIntent(SettingsIntent.UpdateContextWindow(state.contextWindow - 1_024))
-            },
-            onIncrease = {
-                onIntent(SettingsIntent.UpdateContextWindow(state.contextWindow + 1_024))
+            valueText = formatTokens(state.contextWindow),
+            value = state.contextWindow.toFloat(),
+            valueRange = scale.ContextWindowMin.toFloat()..scale.ContextWindowMax.toFloat(),
+            steps = scale.sliderSteps(scale.ContextWindowMin, scale.ContextWindowMax, scale.ContextWindowStep),
+            onValueChange = { raw ->
+                val snapped = scale.snap(raw, scale.ContextWindowMin, scale.ContextWindowMax, scale.ContextWindowStep)
+                if (snapped != state.contextWindow) onIntent(SettingsIntent.UpdateContextWindow(snapped))
             },
         )
+        TextButton(
+            onClick = { onIntent(SettingsIntent.ResetInferenceParameters) },
+            modifier = Modifier.align(Alignment.End),
+        ) {
+            Text("Reset defaults", color = AstraColors.Secondary, style = AstraTypography.Caption)
+        }
         Spacer(Modifier.height(AstraSpacing.S))
         Text(
             text = "Quantization",
@@ -404,31 +428,26 @@ private fun DemoModeCard(
 }
 
 @Composable
-private fun LightThemeCard(
-    enabled: Boolean,
-    onToggle: (Boolean) -> Unit,
+private fun ThemeCard(
+    mode: ThemeMode,
+    onSelect: (ThemeMode) -> Unit,
 ) {
     AstraCard(
-        title = "Light Theme",
-        subtitle = "Switch between dark and light color palettes. Dark mode is the default for edge environments.",
-        status = if (enabled) "LIGHT" else "DARK",
+        title = "Theme",
+        subtitle = "Follow the phone's setting, or keep ASTRA dark or light. Dark is the default for edge environments.",
+        status = mode.label.uppercase(),
     ) {
         Spacer(Modifier.height(AstraSpacing.M))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            AstraButton(
-                text = if (enabled) "Switch to dark" else "Switch to light",
-                onClick = { onToggle(!enabled) },
-                modifier = Modifier.weight(1f),
-                style = AstraButtonStyle.Secondary,
-            )
-            AstraChip(
-                label = if (enabled) "☀" else "🌙",
-                color = if (enabled) AstraColors.Warning else AstraColors.Primary,
-            )
+        SelectableOptionRow {
+            ThemeMode.entries.forEach { option ->
+                SelectableOption(
+                    label = option.label,
+                    selected = option == mode,
+                    enabled = true,
+                    status = if (option == mode) "SELECTED" else null,
+                    onClick = { onSelect(option) },
+                )
+            }
         }
     }
 }
@@ -523,16 +542,18 @@ private fun SelectableOption(
     }
 }
 
+private class ParameterPreset(val label: String, val selected: Boolean, val onClick: () -> Unit)
+
 @Composable
-private fun ParameterStepper(
+private fun ParameterSlider(
     label: String,
     description: String,
-    value: String,
-    rangeLabel: String,
-    canDecrease: Boolean,
-    canIncrease: Boolean,
-    onDecrease: () -> Unit,
-    onIncrease: () -> Unit,
+    valueText: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    onValueChange: (Float) -> Unit,
+    presets: List<ParameterPreset> = emptyList(),
 ) {
     Column(
         modifier = Modifier
@@ -541,51 +562,60 @@ private fun ParameterStepper(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+            verticalAlignment = Alignment.Top,
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = label, style = AstraTypography.Body, color = AstraColors.TextPrimary, fontWeight = FontWeight.SemiBold)
                 Text(text = description, style = AstraTypography.Caption, color = AstraColors.TextSecondary)
             }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                MiniControlButton(text = "−", enabled = canDecrease, onClick = onDecrease)
-                Text(text = value, style = AstraTypography.Body, color = AstraColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                MiniControlButton(text = "+", enabled = canIncrease, onClick = onIncrease)
+            Text(text = valueText, style = AstraTypography.Metric, color = AstraColors.Secondary)
+        }
+        Slider(
+            value = value.coerceIn(valueRange),
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            steps = steps,
+            modifier = Modifier.semantics { contentDescription = label },
+            colors = SliderDefaults.colors(
+                thumbColor = AstraColors.Secondary,
+                activeTrackColor = AstraColors.Primary,
+                inactiveTrackColor = AstraColors.Border,
+                activeTickColor = Color.Transparent,
+                inactiveTickColor = Color.Transparent,
+            ),
+        )
+        if (presets.isNotEmpty()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
+                presets.forEach { preset -> PresetChip(preset) }
             }
         }
-        Spacer(Modifier.height(AstraSpacing.XS))
-        Text(text = "Range: $rangeLabel", style = AstraTypography.Caption, color = AstraColors.TextDisabled)
         Spacer(Modifier.height(AstraSpacing.S))
     }
 }
 
 @Composable
-private fun MiniControlButton(
-    text: String,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
+private fun PresetChip(preset: ParameterPreset) {
+    val accent = if (preset.selected) AstraColors.Secondary else AstraColors.Border
     Box(
         modifier = Modifier
-            .heightIn(min = 40.dp)
-            .alpha(if (enabled) 1f else 0.35f)
-            .background(AstraColors.SurfaceElevated, RoundedCornerShape(12.dp))
-            .border(1.dp, if (enabled) AstraColors.Border else AstraColors.TextDisabled, RoundedCornerShape(12.dp))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
+            .heightIn(min = 36.dp)
+            .clip(RoundedCornerShape(50))
+            .background(if (preset.selected) AstraColors.Secondary.copy(alpha = 0.14f) else AstraColors.SurfaceElevated)
+            .border(1.dp, accent, RoundedCornerShape(50))
+            .selectable(selected = preset.selected, role = Role.RadioButton, onClick = preset.onClick)
+            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.XS),
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = text,
-            style = AstraTypography.Title,
-            color = if (enabled) AstraColors.TextPrimary else AstraColors.TextDisabled,
+            text = preset.label,
+            style = AstraTypography.Caption,
+            color = if (preset.selected) AstraColors.TextPrimary else AstraColors.TextSecondary,
+            fontWeight = if (preset.selected) FontWeight.SemiBold else FontWeight.Normal,
         )
     }
 }
 
-private fun roundParameter(value: Double): Double =
-    (value * 10).toInt() / 10.0
+/** 4096 → "4 096". */
+private fun formatTokens(tokens: Int): String =
+    tokens.toString().reversed().chunked(3).joinToString(" ").reversed()

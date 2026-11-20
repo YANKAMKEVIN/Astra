@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -40,10 +41,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kevin.astra.core.design.AstraBackButton
 import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraColors
 import com.kevin.astra.core.design.AstraIcon
+import com.kevin.astra.core.design.AstraIconLabel
 import com.kevin.astra.core.design.AstraIcons
 import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
@@ -58,6 +61,7 @@ private val BAR_DURATIONS   = listOf(420,   360,   480,   390,   450,   370,   5
 fun VoiceAssistantScreen(
     viewModel: VoiceAssistantViewModel,
     contentPadding: PaddingValues,
+    onBack: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val isDemoMode by DemoModeHolder.enabled.collectAsStateWithLifecycle()
@@ -72,9 +76,18 @@ fun VoiceAssistantScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(AstraSpacing.M),
     ) {
-        if (isDemoMode) DemoModeBanner(modifier = Modifier.padding(top = AstraSpacing.M))
+        if (onBack != null) {
+            AstraBackButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .align(Alignment.Start)
+                    .padding(top = AstraSpacing.S)
+                    .offset(x = (-4).dp),
+            )
+        }
+        if (isDemoMode) DemoModeBanner(modifier = Modifier.padding(top = if (onBack != null) 0.dp else AstraSpacing.M))
 
-        Spacer(Modifier.height(AstraSpacing.L))
+        Spacer(Modifier.height(if (onBack != null) 0.dp else AstraSpacing.L))
 
         // Header
         Text(
@@ -108,6 +121,7 @@ fun VoiceAssistantScreen(
             // Waveform bars behind the button
             WaveformVisualizer(
                 isActive = isListening,
+                level = state.inputLevel,
                 modifier = Modifier
                     .width(260.dp)
                     .height(80.dp)
@@ -219,7 +233,7 @@ private fun PhaseIndicator(phase: VoicePhase) {
 // ── Waveform visualizer ───────────────────────────────────────────────────────
 
 @Composable
-private fun WaveformVisualizer(isActive: Boolean, modifier: Modifier = Modifier) {
+private fun WaveformVisualizer(isActive: Boolean, level: Float, modifier: Modifier = Modifier) {
     val infinite = rememberInfiniteTransition(label = "waveform")
     val rawHeights = BAR_MAX_HEIGHTS.mapIndexed { i, maxH ->
         infinite.animateFloat(
@@ -234,6 +248,12 @@ private fun WaveformVisualizer(isActive: Boolean, modifier: Modifier = Modifier)
         animationSpec = tween(400),
         label = "waveform-factor",
     )
+    // Bar height follows what the microphone hears: flat in silence, tall when speaking.
+    val amplitude by animateFloatAsState(
+        targetValue = if (isActive) level.coerceIn(0f, 1f) else 0f,
+        animationSpec = tween(120),
+        label = "waveform-level",
+    )
 
     Row(
         modifier = modifier,
@@ -241,7 +261,7 @@ private fun WaveformVisualizer(isActive: Boolean, modifier: Modifier = Modifier)
         verticalAlignment = Alignment.CenterVertically,
     ) {
         rawHeights.forEachIndexed { i, rawH ->
-            val height = 0.08f + (rawH.value - 0.08f) * factor
+            val height = 0.08f + (rawH.value - 0.08f) * amplitude
             val barColor = if (isActive) AstraColors.Secondary else AstraColors.TextDisabled
             Box(
                 modifier = Modifier
@@ -354,7 +374,7 @@ private fun ErrorCard(message: String) {
             .border(1.dp, AstraColors.Error.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
             .padding(AstraSpacing.M),
     ) {
-        Text(text = "⚠ Error", style = AstraTypography.Caption, color = AstraColors.Error, fontWeight = FontWeight.Bold)
+        AstraIconLabel(icon = AstraIcons.Alert, text = "Error", color = AstraColors.Error, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(AstraSpacing.XS))
         Text(text = message, style = AstraTypography.Body, color = AstraColors.TextPrimary)
     }

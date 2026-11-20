@@ -8,6 +8,7 @@ import com.kevin.astra.core.mvi.AstraIntent
 import com.kevin.astra.core.mvi.AstraState
 import com.kevin.astra.domain.modelmanager.ModelDownloadState
 import com.kevin.astra.domain.modelmanager.ModelReadiness
+import com.kevin.astra.domain.settings.ThemeMode
 
 data class SettingsState(
     val availableModels: List<LocalModel> = emptyList(),
@@ -22,7 +23,7 @@ data class SettingsState(
     val quantization: String = "4-bit",
     val experimentalFeaturesEnabled: Boolean = false,
     val demoModeEnabled: Boolean = false,
-    val lightThemeEnabled: Boolean = false,
+    val themeMode: ThemeMode = ThemeMode.Dark,
     val huggingFaceToken: String = "",
     val downloadState: ModelDownloadState = ModelDownloadState.Idle,
     val storageUsageMb: Float = 0f,
@@ -35,10 +36,12 @@ sealed interface SettingsIntent : AstraIntent {
     data class UpdateTemperature(val temperature: Double) : SettingsIntent
     data class UpdateMaxTokens(val maxTokens: Int) : SettingsIntent
     data class UpdateContextWindow(val contextWindow: Int) : SettingsIntent
+    /** Puts temperature, max tokens and context window back to their defaults. */
+    data object ResetInferenceParameters : SettingsIntent
     data class UpdateQuantization(val quantization: String) : SettingsIntent
     data class ToggleExperimentalFeatures(val enabled: Boolean) : SettingsIntent
     data class ToggleDemoMode(val enabled: Boolean) : SettingsIntent
-    data class ToggleLightTheme(val enabled: Boolean) : SettingsIntent
+    data class SelectThemeMode(val mode: ThemeMode) : SettingsIntent
     data class UpdateHuggingFaceToken(val token: String) : SettingsIntent
     data class DownloadModel(val modelId: String) : SettingsIntent
     data class DeleteModel(val modelId: String) : SettingsIntent

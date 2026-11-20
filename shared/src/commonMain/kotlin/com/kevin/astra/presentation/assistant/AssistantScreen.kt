@@ -1,6 +1,11 @@
 package com.kevin.astra.presentation.assistant
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -89,6 +94,7 @@ import com.kevin.astra.core.design.AstraButton
 import com.kevin.astra.core.design.AstraButtonStyle
 import com.kevin.astra.core.design.AstraColors
 import com.kevin.astra.core.design.AstraCore
+import com.kevin.astra.core.design.AstraDestinationTile
 import com.kevin.astra.core.design.AstraErrorView
 import com.kevin.astra.core.design.AstraIcon
 import com.kevin.astra.core.design.AstraIcons
@@ -506,8 +512,28 @@ private fun AssistantContent(
     var shareTargetBubbleId by remember { mutableStateOf<String?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    val scrollScope = rememberCoroutineScope()
+    // Follow the answer as it streams only while the user is at the bottom: dragging up to
+    // reread stops the follow, coming back to the bottom (or sending a question) resumes it.
+    var followBottom by remember { mutableStateOf(true) }
+    var seenMessageCount by remember { mutableStateOf(state.messages.size) }
+    val isAtBottom by remember { derivedStateOf { !listState.canScrollForward } }
+    LaunchedEffect(listState) {
+        listState.interactionSource.interactions.collect { interaction ->
+            if (interaction is DragInteraction.Start) followBottom = false
+        }
+    }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }.collect { scrolling ->
+            if (!scrolling && !followBottom && !listState.canScrollForward) followBottom = true
+        }
+    }
     LaunchedEffect(state.messages.size, state.streamingText) {
-        if (state.messages.isNotEmpty() || state.streamingText.isNotEmpty()) {
+        if (state.messages.size > seenMessageCount && state.messages.lastOrNull()?.role == ChatRole.User) {
+            followBottom = true
+        }
+        seenMessageCount = state.messages.size
+        if (followBottom && (state.messages.isNotEmpty() || state.streamingText.isNotEmpty())) {
             listState.animateScrollToItem(Int.MAX_VALUE)
         }
     }
@@ -581,8 +607,8 @@ private fun AssistantContent(
                     horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
                 ) {
                     rowItems.forEach { dest ->
-                        ToolTile(
-                            dest = dest,
+                        AstraDestinationTile(
+                            destination = dest,
                             modifier = Modifier.weight(1f),
                             onClick = {
                                 showToolsSheet = false
@@ -633,9 +659,10 @@ private fun AssistantContent(
                 onSuggestionSelected = { onIntent(AssistantIntent.UpdateQuestion(it)) },
             )
         } else {
+            Box(modifier = Modifier.weight(1f)) {
             LazyColumn(
                 state = listState,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = AstraSpacing.L, vertical = AstraSpacing.M),
                 verticalArrangement = Arrangement.spacedBy(AstraSpacing.M),
             ) {
@@ -653,6 +680,24 @@ private fun AssistantContent(
                 if (state.isStreaming) {
                     item { StreamingBubble(text = state.streamingText) }
                 }
+            }
+            // Qualified: inside this Box the ColumnScope overload would otherwise be picked.
+            androidx.compose.animation.AnimatedVisibility(
+                visible = !followBottom && !isAtBottom,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = AstraSpacing.S),
+            ) {
+                JumpToLatestPill(
+                    label = if (state.isGenerating) "New text" else "Latest",
+                    onClick = {
+                        followBottom = true
+                        scrollScope.launch { listState.animateScrollToItem(Int.MAX_VALUE) }
+                    },
+                )
+            }
             }
         }
 
@@ -679,6 +724,33 @@ private fun AssistantContent(
             onRemoveImage = { onIntent(AssistantIntent.RemoveImage) },
             onRemoveEmail = { onIntent(AssistantIntent.RemoveEmail) },
             onToggleVoice = { onIntent(AssistantIntent.ToggleVoiceInput) },
+        )
+    }
+}
+
+// ── Jump to latest ────────────────────────────────────────────────────────────
+
+/** Floating pill shown above the composer while the user reads further up the thread. */
+@Composable
+private fun JumpToLatestPill(label: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .heightIn(min = MinTouchTarget)
+            .shadow(12.dp, RoundedCornerShape(50), clip = false)
+            .clip(RoundedCornerShape(50))
+            .background(AstraColors.SurfaceElevated)
+            .border(1.dp, AstraColors.Secondary.copy(alpha = 0.4f), RoundedCornerShape(50))
+            .clickable(onClickLabel = "Scroll to the latest message", role = Role.Button, onClick = onClick)
+            .padding(horizontal = AstraSpacing.M),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
+    ) {
+        AstraIcon(icon = AstraIcons.ChevronDown, tint = AstraColors.Secondary, size = 16.dp)
+        Text(
+            text = label,
+            style = AstraTypography.Caption,
+            color = AstraColors.TextPrimary,
+            fontWeight = FontWeight.SemiBold,
         )
     }
 }
@@ -731,63 +803,6 @@ private fun TapTarget(
 }
 
 private val MinTouchTarget = 48.dp
-
-@Composable
-private fun ToolTile(dest: AstraDestination, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val icon = when (dest) {
-        AstraDestination.VoiceAssistant -> AstraIcons.Mic
-        AstraDestination.VisionAssistant -> AstraIcons.Camera
-        AstraDestination.History -> AstraIcons.Clock
-        AstraDestination.Demo -> AstraIcons.Play
-        AstraDestination.Models -> AstraIcons.Cube
-        else -> AstraIcons.Sparkle
-    }
-    val subtitle = when (dest) {
-        AstraDestination.VoiceAssistant -> "Speech-to-text & TTS"
-        AstraDestination.VisionAssistant -> "Analyze images on device"
-        AstraDestination.History -> "Past conversations"
-        AstraDestination.Demo -> "Guided offline demo"
-        AstraDestination.Models -> "Manage models & runtimes"
-        else -> "On-device"
-    }
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
-            .background(AstraColors.Surface.copy(alpha = 0.6f))
-            .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick)
-            .padding(AstraSpacing.M),
-        verticalArrangement = Arrangement.spacedBy(AstraSpacing.S),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(AstraColors.Secondary.copy(alpha = 0.14f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                AstraIcon(icon = icon, tint = AstraColors.Secondary, size = 20.dp)
-            }
-            AstraIcon(icon = AstraIcons.ChevronRight, tint = AstraColors.TextDisabled, size = 16.dp)
-        }
-        Text(
-            text = dest.label,
-            style = AstraTypography.Body,
-            color = AstraColors.TextPrimary,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Text(
-            text = subtitle,
-            style = AstraTypography.Caption,
-            color = AstraColors.TextDisabled,
-        )
-    }
-}
 
 /** Compact on-device indicator shown in the Chat header next to the model name. */
 @Composable

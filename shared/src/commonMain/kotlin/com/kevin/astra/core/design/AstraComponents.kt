@@ -1,6 +1,20 @@
 package com.kevin.astra.core.design
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.scale
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -49,12 +63,21 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import com.kevin.astra.domain.settings.DemoModeHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -85,7 +108,7 @@ fun AstraCard(
                     listOf(Color.White.copy(alpha = 0.035f), Color.Transparent),
                 ),
             )
-            .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(18.dp))
+            .border(1.dp, AstraColors.GlassEdge.copy(alpha = 0.07f), RoundedCornerShape(18.dp))
             .padding(AstraSpacing.L),
     ) {
         Row(
@@ -242,6 +265,7 @@ fun AstraGradientButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    leadingIcon: ImageVector? = null,
 ) {
     Box(
         modifier = modifier
@@ -261,12 +285,37 @@ fun AstraGradientButton(
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = text,
-            style = AstraTypography.Body,
-            color = Color.White,
-            fontWeight = FontWeight.SemiBold,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+        ) {
+            if (leadingIcon != null) AstraIcon(icon = leadingIcon, tint = Color.White, size = 18.dp)
+            Text(
+                text = text,
+                style = AstraTypography.Body,
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
+
+/** A line icon followed by a short label, aligned on the text (banners, status lines). */
+@Composable
+fun AstraIconLabel(
+    icon: ImageVector,
+    text: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    fontWeight: FontWeight? = null,
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
+    ) {
+        AstraIcon(icon = icon, tint = color, size = 16.dp)
+        Text(text = text, style = AstraTypography.Caption, color = color, fontWeight = fontWeight)
     }
 }
 
@@ -515,10 +564,55 @@ fun AstraEmptyView(
     }
 }
 
+/** Display name of the model the app currently runs, for screen headers. Provided by the app shell. */
+val LocalActiveModelName = compositionLocalOf<String?> { null }
+
+/** Opens Settings, where Offline Demo Mode is switched. Provided by the app shell. */
+val LocalOpenDemoModeSetting = staticCompositionLocalOf<(() -> Unit)?> { null }
+
+/**
+ * Header status: the "DEMO" pill while Offline Demo Mode is on (tap = open the setting),
+ * otherwise the name of the active local model, so it is always clear where answers come from.
+ */
 @Composable
-fun AstraDemoModeIndicator(modifier: Modifier = Modifier) {
+fun AstraHeaderStatus(modifier: Modifier = Modifier) {
+    val isDemoMode by DemoModeHolder.enabled.collectAsState()
+    if (isDemoMode) {
+        AstraDemoModeIndicator(modifier = modifier, onClick = LocalOpenDemoModeSetting.current)
+    } else {
+        val modelName = LocalActiveModelName.current ?: return
+        Box(
+            modifier = modifier
+                .widthIn(max = 160.dp)
+                .background(AstraColors.SurfaceElevated, RoundedCornerShape(50))
+                .border(1.dp, AstraColors.Border, RoundedCornerShape(50))
+                .semantics { contentDescription = "Active model: $modelName" }
+                .padding(horizontal = AstraSpacing.S, vertical = 2.dp),
+        ) {
+            Text(
+                text = modelName,
+                style = AstraTypography.Caption.copy(fontSize = 11.sp),
+                color = AstraColors.TextSecondary,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+fun AstraDemoModeIndicator(modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
     Box(
         modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(onClickLabel = "Open Offline Demo Mode setting", role = Role.Button, onClick = onClick)
+                } else {
+                    Modifier
+                },
+            )
             .background(AstraColors.Secondary.copy(alpha = 0.08f), RoundedCornerShape(50))
             .border(1.dp, AstraColors.Secondary.copy(alpha = 0.22f), RoundedCornerShape(50))
             .padding(horizontal = AstraSpacing.S, vertical = 2.dp),
@@ -532,8 +626,31 @@ fun AstraDemoModeIndicator(modifier: Modifier = Modifier) {
     }
 }
 
-/** Floating glass dock surface color (approx. #152033 translucent). */
-private val DockGlass = Color(0xFF152033)
+/** Compact "Back" control for secondary screens: arrow + label, 48 dp tall. */
+@Composable
+fun AstraBackButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    label: String = "Back",
+) {
+    Row(
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClickLabel = "Go back", role = Role.Button, onClick = onClick)
+            .padding(end = AstraSpacing.S),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AstraSpacing.XS),
+    ) {
+        AstraIcon(icon = AstraIcons.ArrowBack, tint = AstraColors.Secondary, size = 20.dp)
+        Text(
+            text = label,
+            style = AstraTypography.Body,
+            color = AstraColors.Secondary,
+            fontWeight = FontWeight.Medium,
+        )
+    }
+}
 
 /**
  * Reusable floating "frosted glass" bottom sheet: a translucent, suspended
@@ -570,7 +687,7 @@ fun AstraGlassSheet(
                         listOf(Color.White.copy(alpha = 0.06f), Color.Transparent),
                     ),
                 )
-                .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(32.dp))
+                .border(1.dp, AstraColors.GlassEdge, RoundedCornerShape(32.dp))
                 .padding(horizontal = AstraSpacing.L)
                 .padding(top = AstraSpacing.M, bottom = AstraSpacing.L),
             verticalArrangement = Arrangement.spacedBy(AstraSpacing.S),
@@ -616,7 +733,7 @@ fun AstraGlassRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
             .background(AstraColors.Surface.copy(alpha = 0.6f))
-            .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(18.dp))
+            .border(1.dp, AstraColors.GlassEdge.copy(alpha = 0.07f), RoundedCornerShape(18.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = AstraSpacing.M, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -649,40 +766,65 @@ fun AstraNavigationBar(
     selectedDestination: AstraDestination,
     onDestinationSelected: (AstraDestination) -> Unit,
 ) {
+    val destinations = AstraDestination.primaryNavDestinations
+    val selectedIndex = destinations.indexOf(selectedDestination)
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
             .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
     ) {
-        Row(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(68.dp)
                 .shadow(20.dp, RoundedCornerShape(28.dp), clip = false)
                 .clip(RoundedCornerShape(28.dp))
-                .background(DockGlass.copy(alpha = 0.92f))
+                .background(AstraColors.Glass.copy(alpha = 0.92f))
                 .background(
                     Brush.verticalGradient(
                         listOf(Color.White.copy(alpha = 0.05f), Color.Transparent),
                     ),
                 )
-                .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(28.dp))
+                .border(1.dp, AstraColors.GlassEdge, RoundedCornerShape(28.dp))
                 .padding(horizontal = AstraSpacing.S),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
         ) {
-            AstraDestination.primaryNavDestinations.forEach { destination ->
-                NavBarItem(
-                    icon = navIconFor(destination),
-                    label = destination.shortLabel,
-                    selected = destination == selectedDestination,
-                    onClick = { onDestinationSelected(destination) },
+            // One pill slides under the selected tab instead of each tab switching its own background.
+            val slotWidth = maxWidth / destinations.size
+            val pillOffset by animateDpAsState(
+                targetValue = slotWidth * selectedIndex.coerceAtLeast(0),
+                animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow),
+                label = "dock-pill",
+            )
+            if (selectedIndex >= 0) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .offset(x = pillOffset + NavPillInset)
+                        .size(width = slotWidth - NavPillInset * 2, height = 52.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(AstraColors.Primary.copy(alpha = 0.18f)),
                 )
+            }
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                destinations.forEach { destination ->
+                    NavBarItem(
+                        icon = navIconFor(destination),
+                        label = destination.shortLabel,
+                        selected = destination == selectedDestination,
+                        onClick = { onDestinationSelected(destination) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
     }
 }
+
+private val NavPillInset = 3.dp
 
 private fun navIconFor(destination: AstraDestination): ImageVector = when (destination) {
     AstraDestination.ProjectOverview -> AstraIcons.Home
@@ -694,30 +836,53 @@ private fun navIconFor(destination: AstraDestination): ImageVector = when (desti
 }
 
 @Composable
-private fun NavBarItem(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
+private fun NavBarItem(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.92f else 1f, label = "nav-press")
+    val iconTint by animateColorAsState(
+        if (selected) AstraColors.Secondary else AstraColors.TextSecondary,
+        animationSpec = tween(220),
+        label = "nav-icon",
+    )
+    val labelColor by animateColorAsState(
+        if (selected) AstraColors.TextPrimary else AstraColors.TextSecondary,
+        animationSpec = tween(220),
+        label = "nav-label",
+    )
     Column(
-        modifier = Modifier
+        modifier = modifier
+            .fillMaxHeight()
             .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
-            .background(
-                color = if (selected) AstraColors.Primary.copy(alpha = 0.18f) else Color.Transparent,
-                shape = RoundedCornerShape(16.dp),
+            .selectable(
+                selected = selected,
+                interactionSource = interactionSource,
+                indication = null,
+                role = Role.Tab,
+                onClick = onClick,
             )
-            .padding(horizontal = AstraSpacing.M, vertical = AstraSpacing.S),
+            .scale(scale),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         AstraIcon(
             icon = icon,
-            tint = if (selected) AstraColors.Secondary else AstraColors.TextSecondary,
+            tint = iconTint,
             size = 22.dp,
         )
         Spacer(Modifier.height(AstraSpacing.XS))
         Text(
             text = label,
             style = AstraTypography.Caption.copy(fontSize = 11.sp),
-            color = if (selected) AstraColors.TextPrimary else AstraColors.TextSecondary,
+            color = labelColor,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            maxLines = 1,
         )
     }
 }

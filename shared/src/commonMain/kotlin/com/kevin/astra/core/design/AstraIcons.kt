@@ -169,6 +169,31 @@ object AstraIcons {
         moveTo(9f, 5f); lineTo(16f, 12f); lineTo(9f, 19f)
     }
 
+    /** Arrow pointing left — back. */
+    val ArrowBack: ImageVector = lineIcon("ArrowBack") {
+        moveTo(19f, 12f); lineTo(5f, 12f)
+        moveTo(11f, 6f); lineTo(5f, 12f); lineTo(11f, 18f)
+    }
+
+    /** Tick — success. */
+    val Check: ImageVector = lineIcon("Check") {
+        moveTo(5f, 12.5f); lineTo(10f, 17.5f); lineTo(19f, 7f)
+    }
+
+    /** Triangle with an exclamation mark — warning / error. */
+    val Alert: ImageVector = lineIcon("Alert") {
+        moveTo(12f, 4f); lineTo(21f, 19.5f); lineTo(3f, 19.5f); close()
+        moveTo(12f, 10f); lineTo(12f, 14f)
+        moveTo(12f, 16.6f); lineTo(12f, 17f)
+    }
+
+    /** Arrow leaving a box — share / export. */
+    val Share: ImageVector = lineIcon("Share") {
+        moveTo(14f, 4f); lineTo(20f, 4f); lineTo(20f, 10f)
+        moveTo(20f, 4f); lineTo(11f, 13f)
+        moveTo(17f, 14f); lineTo(17f, 19f); lineTo(5f, 19f); lineTo(5f, 7f); lineTo(10f, 7f)
+    }
+
     /** Chevron pointing down — expandable section. */
     val ChevronDown: ImageVector = lineIcon("ChevronDown") {
         moveTo(5f, 9f); lineTo(12f, 16f); lineTo(19f, 9f)
@@ -258,6 +283,18 @@ object AstraIcons {
     /** Play triangle — demo. */
     val Play: ImageVector = lineIcon("Play") {
         moveTo(8f, 6f); lineTo(18f, 12f); lineTo(8f, 18f); close()
+    }
+
+    /** Picture frame with a mountain — photo library. */
+    val Image: ImageVector = lineIcon("Image") {
+        moveTo(4f, 5f); lineTo(20f, 5f); lineTo(20f, 19f); lineTo(4f, 19f); close()
+        moveTo(4f, 16f); lineTo(9f, 11f); lineTo(13f, 15f); lineTo(15.5f, 12.5f); lineTo(20f, 17f)
+        moveTo(15.5f, 8f)
+        curveTo(16.3f, 8f, 17f, 8.7f, 17f, 9.5f)
+        curveTo(17f, 10.3f, 16.3f, 11f, 15.5f, 11f)
+        curveTo(14.7f, 11f, 14f, 10.3f, 14f, 9.5f)
+        curveTo(14f, 8.7f, 14.7f, 8f, 15.5f, 8f)
+        close()
     }
 
     /** Camera — vision. */

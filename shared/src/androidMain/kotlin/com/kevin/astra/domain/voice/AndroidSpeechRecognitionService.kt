@@ -21,6 +21,10 @@ private class AndroidSpeechRecognitionService(private val context: Context) : Sp
     private val _state = MutableStateFlow<SpeechRecognitionState>(SpeechRecognitionState.Idle)
     override val state: StateFlow<SpeechRecognitionState> = _state.asStateFlow()
 
+    private val _inputLevel = MutableStateFlow(0f)
+    override val inputLevel: StateFlow<Float> = _inputLevel.asStateFlow()
+    override val reportsInputLevel: Boolean = true
+
     private var recognizer: SpeechRecognizer? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -37,9 +41,13 @@ private class AndroidSpeechRecognitionService(private val context: Context) : Sp
                         _state.value = SpeechRecognitionState.Listening
                     }
                     override fun onBeginningOfSpeech() {}
-                    override fun onRmsChanged(rmsdB: Float) {}
+                    override fun onRmsChanged(rmsdB: Float) {
+                        _inputLevel.value = normalizeRmsDb(rmsdB)
+                    }
                     override fun onBufferReceived(buffer: ByteArray?) {}
-                    override fun onEndOfSpeech() {}
+                    override fun onEndOfSpeech() {
+                        _inputLevel.value = 0f
+                    }
                     override fun onPartialResults(partialResults: Bundle?) {
                         val text = partialResults
                             ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
@@ -56,6 +64,7 @@ private class AndroidSpeechRecognitionService(private val context: Context) : Sp
                         else SpeechRecognitionState.Error("No speech detected")
                     }
                     override fun onError(error: Int) {
+                        _inputLevel.value = 0f
                         val msg = when (error) {
                             SpeechRecognizer.ERROR_NO_MATCH -> "No speech detected — try speaking again"
                             SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Listening timed out"
@@ -85,6 +94,7 @@ private class AndroidSpeechRecognitionService(private val context: Context) : Sp
     override fun stopListening() {
         mainHandler.post {
             recognizer?.stopListening()
+            _inputLevel.value = 0f
             _state.value = SpeechRecognitionState.Idle
         }
     }
