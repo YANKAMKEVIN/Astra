@@ -19,6 +19,7 @@ import com.kevin.astra.domain.documents.DocumentContextRetriever
 import com.kevin.astra.domain.documents.FetchGmailUseCase
 import com.kevin.astra.domain.documents.IndexEmailFileUseCase
 import com.kevin.astra.domain.documents.PdfExtractor
+import com.kevin.astra.domain.gmail.GmailApiException
 import com.kevin.astra.domain.gmail.GmailIntegration
 import com.kevin.astra.domain.export.ConversationShareHelper
 import com.kevin.astra.domain.history.ChatConversation
@@ -289,7 +290,16 @@ class AssistantViewModel(
             }.onSuccess { attached ->
                 updateState { copy(attachedEmail = attached, isFetchingEmail = false, gmailConnected = true) }
             }.onFailure { e ->
-                updateState { copy(attachedEmail = null, isFetchingEmail = false, error = e.message ?: "Gmail error.") }
+                // 401/403: the stored authorization is useless; drop it so the next tap reconnects.
+                if (e is GmailApiException && e.needsReconnect) controller.disconnect()
+                updateState {
+                    copy(
+                        attachedEmail = null,
+                        isFetchingEmail = false,
+                        error = e.message ?: "Gmail error.",
+                        gmailConnected = controller.isConnected(),
+                    )
+                }
             }
         }
     }

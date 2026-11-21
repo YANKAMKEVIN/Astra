@@ -56,6 +56,7 @@ import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
 import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.domain.documents.DocumentStatus
+import com.kevin.astra.domain.documents.FetchGmailUseCase
 import com.kevin.astra.domain.documents.RetrievedDocumentContext
 import androidx.compose.ui.Alignment
 
@@ -129,6 +130,8 @@ private fun DocumentsContent(
                 onQueryChange = { onIntent(DocumentsIntent.UpdateGmailQuery(it)) },
                 onFetchRecent = { onIntent(DocumentsIntent.FetchGmailRecent) },
                 onFetchSearch = { onIntent(DocumentsIntent.FetchGmailSearch) },
+                canFetchMore = state.gmailFetch?.hasMore == true,
+                onFetchMore = { onIntent(DocumentsIntent.FetchGmailMore) },
             )
         }
 
@@ -368,6 +371,8 @@ private fun GmailCard(
     onQueryChange: (String) -> Unit,
     onFetchRecent: () -> Unit,
     onFetchSearch: () -> Unit,
+    canFetchMore: Boolean,
+    onFetchMore: () -> Unit,
 ) {
     AstraCard(
         title = "Gmail",
@@ -440,7 +445,7 @@ private fun GmailCard(
             Spacer(Modifier.height(AstraSpacing.M))
             Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
                 AstraButton(
-                    text = if (isFetching) "Fetching…" else "Latest 20",
+                    text = if (isFetching) "Fetching…" else "Latest ${FetchGmailUseCase.PAGE_SIZE}",
                     onClick = onFetchRecent,
                     enabled = enabled,
                     modifier = Modifier.weight(1f),
@@ -453,6 +458,17 @@ private fun GmailCard(
                     style = AstraButtonStyle.Secondary,
                     modifier = Modifier.weight(1f),
                     leadingIcon = AstraIcons.Search,
+                )
+            }
+            if (canFetchMore) {
+                Spacer(Modifier.height(AstraSpacing.S))
+                AstraButton(
+                    text = "Load ${FetchGmailUseCase.PAGE_SIZE} more",
+                    onClick = onFetchMore,
+                    enabled = enabled,
+                    style = AstraButtonStyle.Secondary,
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = AstraIcons.Download,
                 )
             }
             Spacer(Modifier.height(AstraSpacing.S))

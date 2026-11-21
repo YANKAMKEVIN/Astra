@@ -5,6 +5,7 @@ import com.kevin.astra.core.mvi.AstraEffect
 import com.kevin.astra.core.mvi.AstraIntent
 import com.kevin.astra.core.mvi.AstraState
 import com.kevin.astra.domain.documents.DocumentStatus
+import com.kevin.astra.domain.documents.FetchGmailUseCase
 import com.kevin.astra.domain.documents.IndexedDocumentChunk
 import com.kevin.astra.domain.documents.RetrievedDocumentContext
 
@@ -49,6 +50,8 @@ data class DocumentsState(
     val gmailConnected: Boolean = false,
     val gmailQuery: String = "",
     val isFetchingGmail: Boolean = false,
+    /** The Gmail request behind the loaded messages (null query = latest), kept to load more. */
+    val gmailFetch: GmailFetch? = null,
 ) : AstraState {
     val canIndex: Boolean
         get() = loadedFileName != null && !isIndexing && !isLoading &&
@@ -77,6 +80,11 @@ sealed interface DocumentsIntent : AstraIntent {
     data class UpdateGmailQuery(val query: String) : DocumentsIntent
     data object FetchGmailRecent : DocumentsIntent
     data object FetchGmailSearch : DocumentsIntent
+    /** Refetches the same Gmail request with [FetchGmailUseCase.PAGE_SIZE] more messages. */
+    data object FetchGmailMore : DocumentsIntent
 }
+
+/** A Gmail fetch: its query, how many messages were asked, and whether older ones remain. */
+data class GmailFetch(val query: String?, val count: Int, val hasMore: Boolean)
 
 sealed interface DocumentsEffect : AstraEffect

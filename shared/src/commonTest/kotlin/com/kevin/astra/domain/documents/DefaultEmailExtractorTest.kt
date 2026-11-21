@@ -167,4 +167,122 @@ class DefaultEmailExtractorTest {
         assertContains(result.rawText, "Second body.")
         assertTrue(result.rawText.contains("---")) // messages joined by separator
     }
+
+    // A mail with an attachment: multipart/mixed > multipart/alternative > text/plain + text/html,
+    // then a PDF. The body used to be lost because only the first level was read.
+    @OptIn(ExperimentalEncodingApi::class)
+    @Test
+    fun readsTheBodyOfANestedMultipartWithAnAttachment() {
+        val pdf = Base64.encode("%PDF-1.4 fake".encodeToByteArray())
+        val eml = """
+            Subject: Facture
+            Content-Type: multipart/mixed; boundary="MixedBoundary"
+
+            This is a multi-part message in MIME format.
+            --MixedBoundary
+            Content-Type: multipart/alternative; boundary="AltBoundary"
+
+            --AltBoundary
+            Content-Type: text/plain; charset="UTF-8"
+            Content-Transfer-Encoding: quoted-printable
+
+            Votre facture de 42 =E2=82=AC est jointe.
+            --AltBoundary
+            Content-Type: text/html; charset="UTF-8"
+
+            <p>Votre facture HTML</p>
+            --AltBoundary--
+
+            --MixedBoundary
+            Content-Type: application/pdf; name="facture.pdf"
+            Content-Disposition: attachment; filename="facture.pdf"
+            Content-Transfer-Encoding: base64
+
+            $pdf
+            --MixedBoundary--
+        """.trimIndent()
+
+        val result = extractor.extractEml(eml.encodeToByteArray(), "mail.eml")
+
+        assertContains(result.rawText, "Votre facture de 42 € est jointe.")
+        assertFalse(result.rawText.contains("HTML"))
+        assertFalse(result.rawText.contains("PDF"))
+        assertFalse(result.rawText.contains("MIME format"))
+    }
+
+    @OptIn(ExperimentalEncodingApi::class)
+    @Test
+    fun fallsBackToConvertedHtmlDeepInTheTree() {
+        val html = Base64.encode("<html><body><p>Bonjour&nbsp;Kevin</p><br>Rendez-vous lundi</body></html>".encodeToByteArray())
+        val eml = """
+            Subject: Invitation
+            Content-Type: multipart/mixed; boundary=outer
+
+            --outer
+            Content-Type: multipart/related; boundary=related
+
+            --related
+            Content-Type: multipart/alternative; boundary=alt
+
+            --alt
+            Content-Type: text/html; charset=utf-8
+            Content-Transfer-Encoding: base64
+
+            $html
+            --alt--
+            --related
+            Content-Type: image/png
+            Content-Disposition: inline; filename="logo.png"
+
+            iVBORw0KGgo=
+            --related--
+            --outer
+            Content-Type: text/calendar; method=REQUEST
+
+            BEGIN:VCALENDAR
+            --outer--
+        """.trimIndent()
+
+        val result = extractor.extractEml(eml.encodeToByteArray(), "mail.eml")
+
+        assertContains(result.rawText, "Bonjour Kevin")
+        assertContains(result.rawText, "Rendez-vous lundi")
+        assertFalse(result.rawText.contains("<"))
+        assertFalse(result.rawText.contains("VCALENDAR"))
+    }
+
+    @Test
+    fun prefersPlainTextEvenWhenTheHtmlPartComesFirst() {
+        val eml = """
+            Subject: Order
+            Content-Type: multipart/alternative; boundary="b1"
+
+            --b1
+            Content-Type: text/html
+
+            <p>HTML first</p>
+            --b1
+            Content-Type: text/plain
+
+            Plain second.
+            --b1--
+        """.trimIndent()
+
+        val result = extractor.extractEml(eml.encodeToByteArray(), "mail.eml")
+
+        assertContains(result.rawText, "Plain second.")
+        assertFalse(result.rawText.contains("HTML first"))
+    }
+
+    @Test
+    fun keepsTheCaseOfTheBoundaryAndReadsCrlfMessages() {
+        val eml = "Subject: Crlf\r\nContent-Type: multipart/mixed; boundary=\"AbC\"\r\n\r\n" +
+            "--AbC\r\nContent-Type: multipart/alternative; boundary=\"DeF\"\r\n\r\n" +
+            "--DeF\r\nContent-Type: text/plain\r\n\r\nCorps en CRLF.\r\n--DeF--\r\n" +
+            "--AbC--\r\n"
+
+        val result = extractor.extractEml(eml.encodeToByteArray(), "mail.eml")
+
+        assertContains(result.rawText, "Corps en CRLF.")
+    }
 }

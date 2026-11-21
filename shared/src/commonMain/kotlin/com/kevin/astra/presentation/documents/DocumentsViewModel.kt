@@ -17,6 +17,7 @@ import com.kevin.astra.domain.documents.DocumentStatus
 import com.kevin.astra.domain.documents.FetchGmailUseCase
 import com.kevin.astra.domain.documents.IndexEmailFileUseCase
 import com.kevin.astra.domain.documents.PdfExtractor
+import com.kevin.astra.domain.gmail.GmailApiException
 import com.kevin.astra.domain.gmail.GmailIntegration
 import com.kevin.astra.domain.settings.AiConfigurationRepository
 import kotlinx.coroutines.CoroutineScope
@@ -85,10 +86,13 @@ class DocumentsViewModel(
             is DocumentsIntent.UpdateGmailQuery -> updateState { copy(gmailQuery = intent.query, error = null) }
             DocumentsIntent.FetchGmailRecent -> fetchGmail(query = null)
             DocumentsIntent.FetchGmailSearch -> fetchGmail(query = state.value.gmailQuery.ifBlank { null })
+            DocumentsIntent.FetchGmailMore -> state.value.gmailFetch?.takeIf { it.hasMore }?.let { last ->
+                fetchGmail(query = last.query, count = last.count + FetchGmailUseCase.PAGE_SIZE)
+            }
         }
     }
 
-    private fun fetchGmail(query: String?) {
+    private fun fetchGmail(query: String?, count: Int = FetchGmailUseCase.PAGE_SIZE) {
         if (!fetchGmailUseCase.isAvailable) return
         generationJob?.cancel()
         generationJob = null
@@ -108,10 +112,11 @@ class DocumentsViewModel(
                     extractedContext = null,
                     documentSummary = null,
                     metrics = DocumentsMetrics(),
+                    gmailFetch = null,
                 )
             }
             try {
-                val indexed = withContext(Dispatchers.Default) { fetchGmailUseCase(query = query) }
+                val indexed = withContext(Dispatchers.Default) { fetchGmailUseCase(query = query, maxResults = count) }
                 updateState {
                     copy(
                         isFetchingGmail = false,
@@ -119,9 +124,20 @@ class DocumentsViewModel(
                         emailCount = indexed.emailCount,
                         indexedChunks = indexed.chunks,
                         documentStatus = DocumentStatus.Indexed,
+                        gmailFetch = GmailFetch(query = query, count = count, hasMore = indexed.hasMore),
                     )
                 }
                 generateSummaryInternal(indexed.chunks)
+            } catch (e: GmailApiException) {
+                // 401/403: the stored authorization is useless; drop it so "Connect Gmail" shows again.
+                if (e.needsReconnect) GmailIntegration.controller?.disconnect()
+                updateState {
+                    copy(
+                        isFetchingGmail = false,
+                        error = e.message,
+                        gmailConnected = GmailIntegration.controller?.isConnected() == true,
+                    )
+                }
             } catch (e: Exception) {
                 updateState { copy(isFetchingGmail = false, error = e.message ?: "Failed to fetch Gmail.") }
             }
@@ -137,6 +153,7 @@ class DocumentsViewModel(
                     isLoading = true,
                     error = null,
                     loadedFileName = null,
+                    gmailFetch = null,
                     pageCount = 0,
                     question = "",
                     documentStatus = DocumentStatus.NotIndexed,
@@ -177,6 +194,7 @@ class DocumentsViewModel(
                     isLoading = true,
                     error = null,
                     loadedFileName = null,
+                    gmailFetch = null,
                     emailCount = 0,
                     pageCount = 0,
                     question = "",

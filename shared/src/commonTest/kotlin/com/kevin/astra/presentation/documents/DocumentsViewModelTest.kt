@@ -25,7 +25,12 @@ import com.kevin.astra.domain.documents.IndexEmailFileUseCase
 import com.kevin.astra.domain.documents.LoadedEmailDocument
 import com.kevin.astra.domain.documents.LoadedPdfDocument
 import com.kevin.astra.domain.documents.PdfExtractor
+import com.kevin.astra.domain.gmail.GmailApiException
+import com.kevin.astra.domain.gmail.GmailController
+import com.kevin.astra.domain.gmail.GmailIntegration
 import com.kevin.astra.domain.gmail.GmailMessageSource
+import com.kevin.astra.domain.gmail.GmailTokenProvider
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -33,6 +38,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -128,6 +134,83 @@ class DocumentsViewModelTest {
         assertTrue(state.indexedChunks.isNotEmpty())
         assertEquals(3, state.emailCount)
         assertFalse(state.isFetchingGmail)
+    }
+
+    @Test
+    fun loadMoreRefetchesTheSameGmailRequestWithTwentyMoreMessages() = runBlocking {
+        val calls = mutableListOf<Pair<String?, Int>>()
+        val source = GmailMessageSource { query, maxResults, _ ->
+            calls += query to maxResults
+            LoadedEmailDocument(
+                fileName = "Gmail",
+                emailCount = maxResults,
+                rawText = "Subject: Invoice. Payment is due next week. ".repeat(60),
+                hasMore = maxResults < 40,
+            )
+        }
+        val viewModel = testViewModel(workScope = CoroutineScope(coroutineContext), gmailSource = source)
+
+        viewModel.dispatch(DocumentsIntent.UpdateGmailQuery("from:bank"))
+        viewModel.dispatch(DocumentsIntent.FetchGmailSearch)
+        yield()
+        delay(200)
+        assertEquals(GmailFetch(query = "from:bank", count = 20, hasMore = true), viewModel.state.value.gmailFetch)
+
+        viewModel.dispatch(DocumentsIntent.FetchGmailMore)
+        yield()
+        delay(200)
+
+        assertEquals(listOf<Pair<String?, Int>>("from:bank" to 20, "from:bank" to 40), calls)
+        assertEquals(40, viewModel.state.value.emailCount)
+        assertEquals(false, viewModel.state.value.gmailFetch?.hasMore)
+
+        // Nothing more to load: the intent is ignored.
+        viewModel.dispatch(DocumentsIntent.FetchGmailMore)
+        yield()
+        delay(100)
+        assertEquals(2, calls.size)
+    }
+
+    @Test
+    fun anExpiredGmailTokenShowsAReconnectMessageNotAnEmptyInbox() = runBlocking {
+        val controller = FakeGmailController(connected = true)
+        GmailIntegration.controller = controller
+        try {
+            val source = GmailMessageSource { _, _, _ -> throw GmailApiException(HttpStatusCode.Unauthorized) }
+            val viewModel = testViewModel(workScope = CoroutineScope(coroutineContext), gmailSource = source)
+
+            viewModel.dispatch(DocumentsIntent.FetchGmailRecent)
+            yield()
+            delay(200)
+
+            val state = viewModel.state.value
+            assertContains(state.error.orEmpty(), "Reconnect your Gmail account")
+            assertFalse(state.isFetchingGmail)
+            assertFalse(state.gmailConnected)
+            assertTrue(controller.disconnected)
+        } finally {
+            GmailIntegration.controller = null
+        }
+    }
+
+    @Test
+    fun aGmailServerErrorKeepsTheAccountConnected() = runBlocking {
+        val controller = FakeGmailController(connected = true)
+        GmailIntegration.controller = controller
+        try {
+            val source = GmailMessageSource { _, _, _ -> throw GmailApiException(HttpStatusCode.ServiceUnavailable) }
+            val viewModel = testViewModel(workScope = CoroutineScope(coroutineContext), gmailSource = source)
+
+            viewModel.dispatch(DocumentsIntent.FetchGmailRecent)
+            yield()
+            delay(200)
+
+            assertContains(viewModel.state.value.error.orEmpty(), "503")
+            assertTrue(viewModel.state.value.gmailConnected)
+            assertFalse(controller.disconnected)
+        } finally {
+            GmailIntegration.controller = null
+        }
     }
 
     @Test
@@ -311,4 +394,14 @@ private class FakeEmailExtractor : EmailExtractor {
 
     override fun extractMbox(bytes: ByteArray, fileName: String): LoadedEmailDocument =
         LoadedEmailDocument(fileName = fileName, emailCount = 1, rawText = bytes.decodeToString())
+}
+
+private class FakeGmailController(private var connected: Boolean) : GmailController {
+    var disconnected = false
+        private set
+    override val isSupported: Boolean = true
+    override fun isConnected(): Boolean = connected
+    override fun connect() { connected = true }
+    override fun disconnect() { connected = false; disconnected = true }
+    override fun tokenProvider(): GmailTokenProvider? = null
 }
