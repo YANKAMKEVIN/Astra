@@ -366,8 +366,10 @@ class AssistantViewModel(
                 streamingText = "",
                 isGenerating = false,
                 error = null,
+                // Another conversation: the attachments of the current one do not belong to it.
                 attachedPdf = null,
                 attachedImage = null,
+                attachedEmail = null,
             )
         }
     }
@@ -498,9 +500,9 @@ class AssistantViewModel(
                     streamingText = "",
                     messages = messages + assistantMessage,
                     metrics = assistantMetrics,
-                    attachedPdf = null,
-                    attachedImage = null,
-                    attachedEmail = null,
+                    // Attachments stay with the conversation, as in any chat app: a follow-up
+                    // question is still answered from the PDF / mail / image until the user removes
+                    // it or starts a new conversation (they used to vanish after each answer).
                 )
             }
 

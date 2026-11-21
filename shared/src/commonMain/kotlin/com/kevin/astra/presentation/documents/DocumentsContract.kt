@@ -7,6 +7,7 @@ import com.kevin.astra.core.mvi.AstraState
 import com.kevin.astra.domain.documents.DocumentStatus
 import com.kevin.astra.domain.documents.FetchGmailUseCase
 import com.kevin.astra.domain.documents.IndexedDocumentChunk
+import com.kevin.astra.domain.documents.IndexedSource
 import com.kevin.astra.domain.documents.RetrievedDocumentContext
 
 data class DocumentsMetrics(
@@ -52,14 +53,22 @@ data class DocumentsState(
     val isFetchingGmail: Boolean = false,
     /** The Gmail request behind the loaded messages (null query = latest), kept to load more. */
     val gmailFetch: GmailFetch? = null,
+    /** Every indexed source questions are answered from (several PDFs / e-mails at once), saved locally. */
+    val library: List<IndexedSource> = emptyList(),
+    /** The library entry shown in the document card (the last one added). */
+    val currentSourceId: String? = null,
 ) : AstraState {
     val canIndex: Boolean
         get() = loadedFileName != null && !isIndexing && !isLoading &&
             documentStatus == DocumentStatus.NotIndexed
 
+    /** True when there is something to ask about: the current document or the saved library. */
+    val hasIndexedContent: Boolean
+        get() = documentStatus == DocumentStatus.Indexed || library.isNotEmpty()
+
     val canAsk: Boolean
         get() = question.isNotBlank() &&
-            documentStatus == DocumentStatus.Indexed &&
+            hasIndexedContent &&
             !isGenerating && !isIndexing && !isSummarizing
 }
 
@@ -69,7 +78,10 @@ sealed interface DocumentsIntent : AstraIntent {
     data object IndexDocument : DocumentsIntent
     data class UpdateQuestion(val question: String) : DocumentsIntent
     data object AskDocument : DocumentsIntent
+    /** Clears every loaded document and the saved index. */
     data object ClearDocument : DocumentsIntent
+    /** Removes one source from the library (and from the saved index). */
+    data class RemoveSource(val sourceId: String) : DocumentsIntent
     data object ClearAnswer : DocumentsIntent
     data class SelectSessionModel(val modelId: String) : DocumentsIntent
     data object RefreshModels : DocumentsIntent

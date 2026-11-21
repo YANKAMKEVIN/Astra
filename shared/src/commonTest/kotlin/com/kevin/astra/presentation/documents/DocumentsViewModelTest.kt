@@ -13,6 +13,9 @@ import com.kevin.astra.core.navigation.AstraDestination
 import com.kevin.astra.core.notification.NotificationService
 import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
+import com.kevin.astra.data.documents.DocumentIndexFile
+import com.kevin.astra.data.documents.DocumentIndexStore
+import com.kevin.astra.data.documents.NoOpDocumentIndexFile
 import com.kevin.astra.data.documents.SmartTextChunker
 import com.kevin.astra.data.documents.TfIdfContextRetriever
 import com.kevin.astra.data.settings.testAiConfigurationRepository
@@ -22,6 +25,7 @@ import com.kevin.astra.domain.documents.DocumentStatus
 import com.kevin.astra.domain.documents.EmailExtractor
 import com.kevin.astra.domain.documents.FetchGmailUseCase
 import com.kevin.astra.domain.documents.IndexEmailFileUseCase
+import com.kevin.astra.domain.documents.IndexedSource
 import com.kevin.astra.domain.documents.LoadedEmailDocument
 import com.kevin.astra.domain.documents.LoadedPdfDocument
 import com.kevin.astra.domain.documents.PdfExtractor
@@ -32,10 +36,14 @@ import com.kevin.astra.domain.gmail.GmailMessageSource
 import com.kevin.astra.domain.gmail.GmailTokenProvider
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import com.kevin.astra.test.awaitCondition
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlin.concurrent.Volatile
 import kotlinx.coroutines.yield
 import kotlin.test.Test
 import kotlin.test.assertContains
@@ -214,6 +222,144 @@ class DocumentsViewModelTest {
     }
 
     @Test
+    fun aSecondDocumentJoinsTheLibraryAndQuestionsSearchBoth() = runBlocking {
+        var capturedRequest: PromptRequest? = null
+        val viewModel = testViewModel(
+            workScope = CoroutineScope(coroutineContext),
+            inferenceEngine = recordingEngine { capturedRequest = it },
+        )
+
+        viewModel.dispatch(DocumentsIntent.PdfLoaded(pumpText.encodeToByteArray(), "pump.pdf"))
+        awaitState(viewModel) { library.size == 1 && !isSummarizing }
+        viewModel.dispatch(DocumentsIntent.PdfLoaded(invoiceText.encodeToByteArray(), "invoice.pdf"))
+        awaitState(viewModel) { library.size == 2 && !isSummarizing }
+
+        assertEquals(listOf("pump.pdf", "invoice.pdf"), viewModel.state.value.library.map { it.name })
+        assertEquals("invoice.pdf", viewModel.state.value.loadedFileName)
+
+        viewModel.dispatch(DocumentsIntent.UpdateQuestion("How do I restart the pump?"))
+        viewModel.dispatch(DocumentsIntent.AskDocument)
+        awaitState(viewModel) { answer != null && !isGenerating }
+
+        // The pump guide is no longer the current document, but it is still searched.
+        val context = viewModel.state.value.extractedContext?.text.orEmpty()
+        assertContains(context, "Pump restart procedure")
+        assertContains(capturedRequest?.prompt.orEmpty(), "Pump restart procedure")
+    }
+
+    @Test
+    fun withSeveralDocumentsASummaryQuestionIsAnsweredFromThemAll() = runBlocking {
+        var generations = 0
+        val viewModel = testViewModel(
+            workScope = CoroutineScope(coroutineContext),
+            inferenceEngine = recordingEngine { generations++ },
+        )
+        viewModel.dispatch(DocumentsIntent.PdfLoaded(pumpText.encodeToByteArray(), "pump.pdf"))
+        awaitState(viewModel) { library.size == 1 && !isSummarizing }
+        viewModel.dispatch(DocumentsIntent.PdfLoaded(invoiceText.encodeToByteArray(), "invoice.pdf"))
+        awaitState(viewModel) { library.size == 2 && !isSummarizing && documentSummary != null }
+        val before = generations
+
+        viewModel.dispatch(DocumentsIntent.UpdateQuestion("Résume ces documents"))
+        viewModel.dispatch(DocumentsIntent.AskDocument)
+        awaitState(viewModel) { answer != null && !isGenerating }
+
+        assertEquals(before + 1, generations)
+        assertTrue(viewModel.state.value.answer?.title != "Document Summary")
+    }
+
+    @Test
+    fun withOneDocumentASummaryQuestionUsesTheSavedSummary() = runBlocking {
+        val viewModel = testViewModel(workScope = CoroutineScope(coroutineContext))
+        viewModel.dispatch(DocumentsIntent.PdfLoaded(pumpText.encodeToByteArray(), "pump.pdf"))
+        awaitState(viewModel) { documentSummary != null && !isSummarizing }
+
+        viewModel.dispatch(DocumentsIntent.UpdateQuestion("De quoi parle ce document ?"))
+        viewModel.dispatch(DocumentsIntent.AskDocument)
+
+        assertEquals("Document Summary", viewModel.state.value.answer?.title)
+    }
+
+    @Test
+    fun removingTheCurrentSourceShowsThePreviousOne() = runBlocking {
+        val viewModel = testViewModel(workScope = CoroutineScope(coroutineContext))
+        viewModel.dispatch(DocumentsIntent.PdfLoaded(pumpText.encodeToByteArray(), "pump.pdf"))
+        awaitState(viewModel) { library.size == 1 && !isSummarizing }
+        viewModel.dispatch(DocumentsIntent.EmailLoaded(invoiceText.encodeToByteArray(), "invoice.eml"))
+        awaitState(viewModel) { library.size == 2 && !isSummarizing }
+
+        viewModel.dispatch(DocumentsIntent.RemoveSource(IndexedSource.emailId("invoice.eml")))
+
+        val state = viewModel.state.value
+        assertEquals(listOf("pump.pdf"), state.library.map { it.name })
+        assertEquals("pump.pdf", state.loadedFileName)
+        assertEquals(DocumentSourceType.Pdf, state.sourceType)
+        assertTrue(state.indexedChunks.isNotEmpty())
+
+        viewModel.dispatch(DocumentsIntent.RemoveSource(IndexedSource.pdfId("pump.pdf")))
+        assertNull(viewModel.state.value.loadedFileName)
+        assertFalse(viewModel.state.value.hasIndexedContent)
+    }
+
+    @Test
+    fun theIndexIsSavedAndRestoredByTheNextViewModel() = runBlocking {
+        val file = InMemoryDocumentIndexFile()
+        val first = testViewModel(workScope = CoroutineScope(coroutineContext), indexFile = file)
+        first.dispatch(DocumentsIntent.PdfLoaded(pumpText.encodeToByteArray(), "pump.pdf"))
+        awaitState(first) { documentSummary != null && !isSummarizing }
+        awaitCondition { file.text?.contains("Answer") == true } // summary saved too
+
+        val restored = testViewModel(workScope = CoroutineScope(coroutineContext), indexFile = file)
+        awaitState(restored) { library.isNotEmpty() }
+
+        val state = restored.state.value
+        assertEquals("pump.pdf", state.loadedFileName)
+        assertEquals(DocumentStatus.Indexed, state.documentStatus)
+        assertEquals(first.state.value.indexedChunks, state.indexedChunks)
+        assertEquals(first.state.value.documentSummary, state.documentSummary)
+        restored.dispatch(DocumentsIntent.UpdateQuestion("How do I restart the pump?"))
+        assertTrue(restored.state.value.canAsk)
+    }
+
+    @Test
+    fun clearingEverythingDeletesTheSavedIndex() = runBlocking {
+        val file = InMemoryDocumentIndexFile()
+        val viewModel = testViewModel(workScope = CoroutineScope(coroutineContext), indexFile = file)
+        viewModel.dispatch(DocumentsIntent.PdfLoaded(pumpText.encodeToByteArray(), "pump.pdf"))
+        awaitState(viewModel) { library.size == 1 && !isSummarizing }
+        awaitCondition { file.text != null }
+
+        viewModel.dispatch(DocumentsIntent.ClearDocument)
+
+        awaitCondition { file.text == null }
+        assertTrue(viewModel.state.value.library.isEmpty())
+    }
+
+    @Test
+    fun disconnectingGmailForgetsTheFetchedMail() = runBlocking {
+        val controller = FakeGmailController(connected = true)
+        GmailIntegration.controller = controller
+        try {
+            val gmailDoc = LoadedEmailDocument(fileName = "Gmail (latest 20)", emailCount = 2, rawText = invoiceText)
+            val viewModel = testViewModel(
+                workScope = CoroutineScope(coroutineContext),
+                gmailSource = FakeGmailSource(gmailDoc),
+            )
+            viewModel.dispatch(DocumentsIntent.PdfLoaded(pumpText.encodeToByteArray(), "pump.pdf"))
+            awaitState(viewModel) { library.size == 1 && !isSummarizing }
+            viewModel.dispatch(DocumentsIntent.FetchGmailRecent)
+            awaitState(viewModel) { library.size == 2 && !isSummarizing }
+
+            viewModel.dispatch(DocumentsIntent.DisconnectGmail)
+
+            assertEquals(listOf("pump.pdf"), viewModel.state.value.library.map { it.name })
+            assertEquals("pump.pdf", viewModel.state.value.loadedFileName)
+        } finally {
+            GmailIntegration.controller = null
+        }
+    }
+
+    @Test
     fun asksDocumentAfterIndexing() = runBlocking {
         var capturedRequest: PromptRequest? = null
         val viewModel = testViewModel(
@@ -276,21 +422,22 @@ class DocumentsViewModelTest {
         val viewModel = testViewModel(workScope = CoroutineScope(coroutineContext))
 
         viewModel.dispatch(DocumentsIntent.PdfLoaded("first doc content".repeat(50).encodeToByteArray(), "first.pdf"))
-        delay(200)
-        assertEquals("first.pdf", viewModel.state.value.loadedFileName)
-        assertEquals(DocumentStatus.Indexed, viewModel.state.value.documentStatus)
+        awaitState(viewModel) { loadedFileName == "first.pdf" && documentStatus == DocumentStatus.Indexed }
 
+        // Record every state: the extraction runs on another thread and can finish before the
+        // test looks, so a single read after yield() raced with it (it failed on a busy machine).
+        val states = mutableListOf<DocumentsState>()
+        val recorder = launch(Dispatchers.Unconfined) { viewModel.state.collect { states += it } }
         viewModel.dispatch(DocumentsIntent.PdfLoaded("second doc content".repeat(50).encodeToByteArray(), "second.pdf"))
-        yield()
+        awaitState(viewModel) { loadedFileName == "second.pdf" }
+        recorder.cancel()
 
         // During loading transition: previous file metadata must be cleared immediately
-        val transitioning = viewModel.state.value
-        assertNull(transitioning.loadedFileName)
+        val transitioning = states.firstOrNull { it.loadedFileName == null }
+        assertNotNull(transitioning, "no cleared state between the two documents")
         assertNull(transitioning.answer)
         assertNull(transitioning.extractedContext)
-
-        delay(200)
-        assertEquals("second.pdf", viewModel.state.value.loadedFileName)
+        assertTrue(states.indexOf(transitioning) < states.indexOfFirst { it.loadedFileName == "second.pdf" })
     }
 
     @Test
@@ -346,6 +493,7 @@ class DocumentsViewModelTest {
         workScope: CoroutineScope? = null,
         gmailSource: GmailMessageSource? = null,
         modelCatalog: DefaultModelCatalog = DefaultModelCatalog(),
+        indexFile: DocumentIndexFile = NoOpDocumentIndexFile,
     ): DocumentsViewModel {
         val chunker = SmartTextChunker()
         return DocumentsViewModel(
@@ -360,9 +508,31 @@ class DocumentsViewModelTest {
             backendCatalog = DefaultBackendCatalog(),
             promptPipeline = DefaultPromptPipeline(DefaultPromptBuilder()),
             notificationService = NoOpNotificationService(),
+            documentIndexStore = DocumentIndexStore(indexFile),
             workScope = workScope,
         )
     }
+
+    private val pumpText = "Pump restart procedure: turn off power, wait 30 seconds, then restart. ".repeat(40)
+    private val invoiceText = "Invoice 2026-114: the payment of 420 euros is due on 30 November. ".repeat(40)
+
+    private fun recordingEngine(onGenerate: (PromptRequest) -> Unit) = object : InferenceEngine {
+        override fun generateStream(request: PromptRequest): Flow<StreamEvent> = emptyFlow()
+        override suspend fun generate(request: PromptRequest): GenerationResult {
+            onGenerate(request)
+            return GenerationResult(
+                text = "Answer\n\nContent",
+                metrics = GenerationMetrics(1_200, 320, 80, 18, 384),
+                model = request.model,
+                backend = request.backend,
+                generatedAt = "ts",
+            )
+        }
+    }
+
+    // Waits for the state instead of a fixed delay, so a busy machine does not fail the test.
+    private suspend fun awaitState(viewModel: DocumentsViewModel, condition: DocumentsState.() -> Boolean) =
+        awaitCondition { viewModel.state.value.condition() }
 }
 
 private class FakeGmailSource(private val doc: LoadedEmailDocument) : GmailMessageSource {
@@ -404,4 +574,13 @@ private class FakeGmailController(private var connected: Boolean) : GmailControl
     override fun connect() { connected = true }
     override fun disconnect() { connected = false; disconnected = true }
     override fun tokenProvider(): GmailTokenProvider? = null
+}
+
+private class InMemoryDocumentIndexFile : DocumentIndexFile {
+    @Volatile
+    var text: String? = null
+        private set
+    override fun read(): String? = text
+    override fun write(text: String) { this.text = text }
+    override fun delete() { text = null }
 }

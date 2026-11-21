@@ -323,6 +323,30 @@ class AssistantViewModelTest {
     }
 
     @Test
+    fun theAttachedEmailStaysForFollowUpQuestions() = runBlocking {
+        val recordingRetriever = RecordingContextRetriever()
+        val viewModel = testViewModel(
+            contextRetriever = recordingRetriever,
+            generationScope = CoroutineScope(coroutineContext),
+        )
+        val eml = "Subject: Invoice\nFrom: billing@shop.com\n\nAmount due is 42 euros. ".repeat(40)
+        viewModel.dispatch(AssistantIntent.EmailFileAttached(eml.encodeToByteArray(), "invoice.eml"))
+        awaitCondition { viewModel.state.value.attachedEmail?.status == AttachmentStatus.Ready }
+
+        ask(viewModel, "How much do I owe?")
+        assertEquals("invoice.eml", viewModel.state.value.attachedEmail?.label)
+
+        // The follow-up is still answered from the mail.
+        ask(viewModel, "And who sent it?")
+        assertEquals("And who sent it?", recordingRetriever.lastQuestion)
+        assertEquals("invoice.eml", viewModel.state.value.attachedEmail?.label)
+
+        // A new conversation drops it.
+        viewModel.dispatch(AssistantIntent.ClearConversation)
+        assertEquals(null, viewModel.state.value.attachedEmail)
+    }
+
+    @Test
     fun attachingEmailFileIndexesAsAttachedEmailAndUnblocksAsk() = runBlocking {
         val viewModel = testViewModel(generationScope = CoroutineScope(coroutineContext))
         val eml = "Subject: Invoice\nFrom: billing@shop.com\n\nAmount due is 42 euros. ".repeat(40)

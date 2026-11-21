@@ -10,12 +10,17 @@ import com.kevin.astra.core.ai.PromptRequest
 import com.kevin.astra.core.mvi.AstraViewModel
 import com.kevin.astra.core.navigation.AstraDestination
 import com.kevin.astra.core.notification.NotificationService
+import com.kevin.astra.data.documents.DocumentIndexStore
+import com.kevin.astra.data.documents.NoOpDocumentIndexFile
 import com.kevin.astra.data.documents.SmartTextChunker
 import com.kevin.astra.domain.assistant.AskLocalAssistantUseCase
 import com.kevin.astra.domain.documents.DocumentContextRetriever
+import com.kevin.astra.domain.documents.DocumentLibrary
+import com.kevin.astra.domain.documents.DocumentQuestionRouter
 import com.kevin.astra.domain.documents.DocumentStatus
 import com.kevin.astra.domain.documents.FetchGmailUseCase
 import com.kevin.astra.domain.documents.IndexEmailFileUseCase
+import com.kevin.astra.domain.documents.IndexedSource
 import com.kevin.astra.domain.documents.PdfExtractor
 import com.kevin.astra.domain.gmail.GmailApiException
 import com.kevin.astra.domain.gmail.GmailIntegration
@@ -39,6 +44,7 @@ class DocumentsViewModel(
     private val backendCatalog: BackendCatalog,
     private val promptPipeline: PromptPipeline,
     private val notificationService: NotificationService,
+    private val documentIndexStore: DocumentIndexStore = DocumentIndexStore(NoOpDocumentIndexFile),
     private val workScope: CoroutineScope? = null,
 ) : AstraViewModel<DocumentsState, DocumentsIntent, DocumentsEffect>(
     initialState = DocumentsState(
@@ -49,6 +55,11 @@ class DocumentsViewModel(
     ),
 ) {
     private var generationJob: Job? = null
+    private val persistDispatcher = Dispatchers.Default.limitedParallelism(1)
+
+    init {
+        restoreLibrary()
+    }
 
     override fun handleIntent(intent: DocumentsIntent) {
         when (intent) {
@@ -60,8 +71,18 @@ class DocumentsViewModel(
             DocumentsIntent.ClearDocument -> {
                 generationJob?.cancel()
                 generationJob = null
-                updateState { DocumentsState(availableModels = availableModels, sessionModel = sessionModel, activeModel = activeModel) }
+                updateState {
+                    DocumentsState(
+                        availableModels = availableModels,
+                        sessionModel = sessionModel,
+                        activeModel = activeModel,
+                        gmailSupported = gmailSupported,
+                        gmailConnected = gmailConnected,
+                    )
+                }
+                persistLibrary()
             }
+            is DocumentsIntent.RemoveSource -> removeSources { it.id == intent.sourceId }
             DocumentsIntent.ClearAnswer -> updateState { copy(answer = null, extractedContext = null, metrics = DocumentsMetrics(), error = null, documentSummary = null) }
             // The installed list and the app-wide model change from the Models screen; a snapshot
             // taken at startup kept answering with the launch-time model (often Mock).
@@ -82,6 +103,8 @@ class DocumentsViewModel(
             DocumentsIntent.DisconnectGmail -> {
                 GmailIntegration.controller?.disconnect()
                 updateState { copy(gmailConnected = GmailIntegration.controller?.isConnected() == true) }
+                // Disconnecting also forgets the mail fetched from Gmail, including the saved copy.
+                removeSources { it.isGmail }
             }
             is DocumentsIntent.UpdateGmailQuery -> updateState { copy(gmailQuery = intent.query, error = null) }
             DocumentsIntent.FetchGmailRecent -> fetchGmail(query = null)
@@ -113,6 +136,7 @@ class DocumentsViewModel(
                     documentSummary = null,
                     metrics = DocumentsMetrics(),
                     gmailFetch = null,
+                    currentSourceId = null,
                 )
             }
             try {
@@ -127,7 +151,15 @@ class DocumentsViewModel(
                         gmailFetch = GmailFetch(query = query, count = count, hasMore = indexed.hasMore),
                     )
                 }
-                generateSummaryInternal(indexed.chunks)
+                val source = IndexedSource(
+                    id = IndexedSource.gmailId(query),
+                    name = indexed.label,
+                    isEmail = true,
+                    emailCount = indexed.emailCount,
+                    chunks = indexed.chunks,
+                )
+                addToLibrary(source)
+                generateSummaryInternal(source.id, indexed.chunks)
             } catch (e: GmailApiException) {
                 // 401/403: the stored authorization is useless; drop it so "Connect Gmail" shows again.
                 if (e.needsReconnect) GmailIntegration.controller?.disconnect()
@@ -154,6 +186,7 @@ class DocumentsViewModel(
                     error = null,
                     loadedFileName = null,
                     gmailFetch = null,
+                    currentSourceId = null,
                     pageCount = 0,
                     question = "",
                     documentStatus = DocumentStatus.NotIndexed,
@@ -195,6 +228,8 @@ class DocumentsViewModel(
                     error = null,
                     loadedFileName = null,
                     gmailFetch = null,
+                    currentSourceId = null,
+                    documentSummary = null,
                     emailCount = 0,
                     pageCount = 0,
                     question = "",
@@ -203,7 +238,6 @@ class DocumentsViewModel(
                     indexedChunks = emptyList(),
                     answer = null,
                     extractedContext = null,
-                    documentSummary = null,
                     metrics = DocumentsMetrics(),
                 )
             }
@@ -218,7 +252,15 @@ class DocumentsViewModel(
                         documentStatus = DocumentStatus.Indexed,
                     )
                 }
-                generateSummaryInternal(indexed.chunks)
+                val source = IndexedSource(
+                    id = IndexedSource.emailId(fileName),
+                    name = indexed.label,
+                    isEmail = true,
+                    emailCount = indexed.emailCount,
+                    chunks = indexed.chunks,
+                )
+                addToLibrary(source)
+                generateSummaryInternal(source.id, indexed.chunks)
             } catch (e: Exception) {
                 updateState { copy(isLoading = false, error = e.message ?: "Failed to read email file.") }
             }
@@ -245,13 +287,24 @@ class DocumentsViewModel(
                     indexedChunks = chunks,
                 )
             }
-            generateSummaryInternal(chunks)
+            val source = IndexedSource(
+                id = IndexedSource.pdfId(fileName),
+                name = pdf.fileName,
+                isEmail = false,
+                pageCount = pdf.pageCount,
+                chunks = chunks,
+            )
+            addToLibrary(source)
+            generateSummaryInternal(source.id, chunks)
         } catch (e: Exception) {
             updateState { copy(isIndexing = false, documentStatus = DocumentStatus.Error, error = "Indexing failed: ${e.message}") }
         }
     }
 
-    private suspend fun generateSummaryInternal(chunks: List<com.kevin.astra.domain.documents.IndexedDocumentChunk>) {
+    private suspend fun generateSummaryInternal(
+        sourceId: String,
+        chunks: List<com.kevin.astra.domain.documents.IndexedDocumentChunk>,
+    ) {
         if (chunks.isEmpty()) return
         updateState { copy(isSummarizing = true) }
         try {
@@ -284,21 +337,82 @@ class DocumentsViewModel(
                     ),
                 )
             }
-            updateState { copy(isSummarizing = false, documentSummary = result.text) }
+            updateState {
+                copy(
+                    isSummarizing = false,
+                    // A newer document may have replaced this one meanwhile: keep its summary out.
+                    documentSummary = if (currentSourceId == sourceId) result.text else documentSummary,
+                    library = library.map { if (it.id == sourceId) it.copy(summary = result.text) else it },
+                )
+            }
+            persistLibrary()
         } catch (e: Exception) {
             updateState { copy(isSummarizing = false) }
         }
+    }
+
+    /** Restores the saved library; the last source becomes the current document. */
+    private fun restoreLibrary() {
+        (workScope ?: viewModelScope).launch {
+            val saved = withContext(Dispatchers.Default) { documentIndexStore.load() }
+            if (saved.isEmpty()) return@launch
+            updateState {
+                // Something was loaded while the file was read: it wins, the rest is kept behind it.
+                if (library.isNotEmpty() || loadedFileName != null) {
+                    copy(library = saved.filterNot { s -> library.any { it.id == s.id } } + library)
+                } else {
+                    showing(saved.last()).copy(library = saved)
+                }
+            }
+        }
+    }
+
+    private fun addToLibrary(source: IndexedSource) {
+        updateState { copy(library = DocumentLibrary.add(library, source), currentSourceId = source.id) }
+        persistLibrary()
+    }
+
+    private fun removeSources(predicate: (IndexedSource) -> Boolean) {
+        val before = state.value
+        if (before.library.none(predicate)) return
+        updateState {
+            val remaining = library.filterNot(predicate)
+            val currentRemoved = library.any { it.id == currentSourceId && predicate(it) }
+            when {
+                !currentRemoved -> copy(library = remaining)
+                remaining.isEmpty() -> DocumentsState(
+                    availableModels = availableModels,
+                    sessionModel = sessionModel,
+                    activeModel = activeModel,
+                    gmailSupported = gmailSupported,
+                    gmailConnected = gmailConnected,
+                    gmailQuery = gmailQuery,
+                )
+                else -> showing(remaining.last()).copy(library = remaining)
+            }
+        }
+        persistLibrary()
+    }
+
+    private fun persistLibrary() {
+        val library = state.value.library
+        // One writer at a time, in order: an older snapshot never lands after a newer one.
+        (workScope ?: viewModelScope).launch(persistDispatcher) { documentIndexStore.save(library) }
     }
 
     private fun askDocument() {
         val snapshot = state.value
         if (!snapshot.canAsk) return
 
-        // General question → return pre-generated summary directly
-        if (isGeneralDocumentQuestion(snapshot.question) && snapshot.documentSummary != null) {
+        // Question about the whole document → return the pre-generated summary directly. With
+        // several documents loaded, one document's summary is not the answer: search them all.
+        if (snapshot.library.size <= 1 &&
+            DocumentQuestionRouter.isWholeDocumentQuestion(snapshot.question) &&
+            snapshot.documentSummary != null
+        ) {
             updateState {
                 copy(
-                    answer = DocumentsAnswer(title = "Document Summary", body = snapshot.documentSummary!!),
+                    answer = DocumentsAnswer(title = "Document Summary", body = snapshot.documentSummary),
                     extractedContext = null,
                     metrics = DocumentsMetrics(),
                 )
@@ -316,7 +430,9 @@ class DocumentsViewModel(
             val context = withContext(Dispatchers.Default) {
                 contextRetriever.retrieve(
                     question = snapshot.question,
-                    chunks = snapshot.indexedChunks,
+                    chunks = snapshot.library.takeIf { it.isNotEmpty() }
+                        ?.let(DocumentLibrary::allChunks)
+                        ?: snapshot.indexedChunks,
                     maxChunks = 4,
                 )
             }
@@ -360,23 +476,15 @@ class DocumentsViewModel(
 
             notificationService.showNotification(
                 title = "Document Analysis Ready",
-                message = "ASTRA answered your question from ${snapshot.loadedFileName}.",
+                message = if (snapshot.library.size > 1) {
+                    "ASTRA answered your question from ${snapshot.library.size} documents."
+                } else {
+                    "ASTRA answered your question from ${snapshot.loadedFileName}."
+                },
                 targetDestination = AstraDestination.Documents,
             )
         }
     }
-}
-
-private fun isGeneralDocumentQuestion(question: String): Boolean {
-    val q = question.lowercase().trim()
-    return listOf(
-        "de quoi", "résumé", "resume", "summary", "summarize",
-        "what is this", "what's this", "about this", "about the doc",
-        "overview", "synthèse", "sujet", "c'est quoi",
-        "qu'est-ce que", "explain this", "describe this",
-        "what does this document", "quel est le sujet",
-        "de quoi il parle", "ça parle de quoi",
-    ).any { q.contains(it) }
 }
 
 private fun GenerationResult.toDocumentsAnswer(): DocumentsAnswer =
@@ -392,3 +500,20 @@ private fun GenerationResult.toDocumentsMetrics(): DocumentsMetrics =
         latency = "${metrics.latencyMillis / 1_000.0} s",
         tokensPerSecond = metrics.tokensPerSecond.toString(),
     )
+
+/** This state with [source] shown as the current document (answer and question cleared). */
+private fun DocumentsState.showing(source: IndexedSource): DocumentsState = copy(
+    currentSourceId = source.id,
+    loadedFileName = source.name,
+    sourceType = if (source.isEmail) DocumentSourceType.Email else DocumentSourceType.Pdf,
+    pageCount = source.pageCount,
+    emailCount = source.emailCount,
+    indexedChunks = source.chunks,
+    documentStatus = DocumentStatus.Indexed,
+    documentSummary = source.summary,
+    gmailFetch = null,
+    answer = null,
+    extractedContext = null,
+    question = "",
+    error = null,
+)
