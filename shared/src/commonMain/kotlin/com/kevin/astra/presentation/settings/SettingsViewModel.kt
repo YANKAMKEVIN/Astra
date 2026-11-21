@@ -139,6 +139,14 @@ class SettingsViewModel(
                 settingsScope.launch { aiConfigurationRepository.updateDemoModeEnabled(intent.enabled) }
             }
 
+            is SettingsIntent.SelectHardwareAcceleration -> {
+                updateState { copy(hardwareAcceleration = intent.acceleration) }
+                settingsScope.launch {
+                    val current = aiConfigurationRepository.getConfiguration()
+                    aiConfigurationRepository.updateConfiguration(current.copy(hardwareAcceleration = intent.acceleration))
+                }
+            }
+
             is SettingsIntent.SelectThemeMode -> {
                 updateState { copy(themeMode = intent.mode) }
                 settingsScope.launch { aiConfigurationRepository.updateThemeMode(intent.mode) }
@@ -228,6 +236,7 @@ private fun AiConfiguration.toSettingsState(
         demoModeEnabled = demoModeEnabled,
         themeMode = themeMode,
         huggingFaceToken = huggingFaceToken ?: "",
+        hardwareAcceleration = hardwareAcceleration,
         downloadState = downloadState,
         storageUsageMb = storageUsageMb,
     )

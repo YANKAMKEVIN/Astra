@@ -2,6 +2,8 @@ package com.kevin.astra.core.ai
 
 import android.content.Context
 import com.kevin.astra.app.di.androidAppContext
+import com.kevin.astra.domain.settings.AiConfigurationRepository
+import org.koin.core.context.GlobalContext
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Contents
@@ -41,7 +43,15 @@ actual fun createInferenceEngine(): InferenceEngine {
                 UnsupportedLiteRtLmModelLoader("Android context is not initialized yet.")
             },
             runtimeSession = if (context != null) {
-                AndroidLiteRtLmRuntimeSession(context = context)
+                AndroidLiteRtLmRuntimeSession(
+                    context = context,
+                    // Read per generation: a change in Settings applies to the next answer.
+                    accelerationProvider = {
+                        runCatching {
+                            GlobalContext.get().get<AiConfigurationRepository>().getConfiguration().hardwareAcceleration
+                        }.getOrDefault(HardwareAcceleration.Cpu)
+                    },
+                )
             } else {
                 UnavailableLiteRtLmRuntimeSession("Android context is not initialized yet.")
             },
@@ -275,10 +285,20 @@ class AndroidAssetLiteRtLmModelLoader(
 class AndroidLiteRtLmRuntimeSession(
     private val context: Context,
     private val logger: EdgeAiLogger = ConsoleEdgeAiLogger,
+    private val accelerationProvider: suspend () -> HardwareAcceleration = { HardwareAcceleration.Cpu },
 ) : LiteRtLmRuntimeSession {
     private var engine: Engine? = null
     private var inference: LlmInference? = null
     private var activeModelPath: String? = null
+
+    // Accelerator asked for when the engine was created, the one it really runs on, and why
+    // they differ (shown under the answer).
+    private var requestedAcceleration: HardwareAcceleration? = null
+    private var activeAcceleration: HardwareAcceleration = HardwareAcceleration.Cpu
+    private var accelerationFallbackReason: String? = null
+
+    // "model path|accelerator" that already failed, with the reason: not retried on every answer.
+    private val failedAccelerations = mutableMapOf<String, String>()
 
     override suspend fun generate(
         request: PromptRequest,
@@ -294,10 +314,28 @@ class AndroidLiteRtLmRuntimeSession(
         val loadTime: Long
         val text: String
         val generationMark: TimeSource.Monotonic.ValueTimeMark
+        var fallbackReason: String? = null
         if (bundle.modelPath.endsWith(".litertlm")) {
-            loadTime = ensureEngine(bundle, window)
-            generationMark = TimeSource.Monotonic.markNow()
-            text = generateWithLiteRtLm(request, window)
+            var load = ensureEngine(bundle, window, accelerationProvider())
+            var mark = TimeSource.Monotonic.markNow()
+            val generated = try {
+                generateWithLiteRtLm(request, window)
+            } catch (error: Throwable) {
+                // A GPU/NPU engine can initialize and still fail on the first message: retry once
+                // on CPU before giving up (the CPU path keeps its usual error handling).
+                if (activeAcceleration == HardwareAcceleration.Cpu) throw error
+                logger.info("LiteRT-LM ${activeAcceleration.label} generation failed (${error.message}); retrying on CPU.")
+                val failed = activeAcceleration
+                failedAccelerations["${bundle.modelPath}|$failed"] =
+                    "${failed.label} generation failed (${error.message ?: error::class.simpleName}); ran on CPU."
+                load += ensureEngine(bundle, window, failed)
+                mark = TimeSource.Monotonic.markNow()
+                generateWithLiteRtLm(request, window)
+            }
+            loadTime = load
+            generationMark = mark
+            text = generated
+            fallbackReason = accelerationFallbackReason
         } else {
             loadTime = ensureInference(bundle)
             generationMark = TimeSource.Monotonic.markNow()
@@ -325,7 +363,7 @@ class AndroidLiteRtLmRuntimeSession(
                 modelLoadTimeMillis = loadTime,
                 inferenceLatencyMillis = generationLatencyMillis,
                 totalExecutionTimeMillis = loadTime + generationLatencyMillis,
-                fallbackReason = null,
+                fallbackReason = fallbackReason,
             ),
         )
     }
@@ -372,25 +410,63 @@ class AndroidLiteRtLmRuntimeSession(
         inference?.close()
         inference = null
         activeModelPath = null
+        requestedAcceleration = null
+        activeAcceleration = HardwareAcceleration.Cpu
+        accelerationFallbackReason = null
     }
 
-    private fun ensureEngine(bundle: LiteRtLmModelBundle, window: Int): Long {
-        if (engine != null && activeModelPath == bundle.modelPath) return 0L
+    private fun ensureEngine(bundle: LiteRtLmModelBundle, window: Int, preferred: HardwareAcceleration): Long {
+        val knownFailure = failedAccelerations["${bundle.modelPath}|$preferred"]
+        val acceleration = if (knownFailure != null) HardwareAcceleration.Cpu else preferred
+        if (engine != null && activeModelPath == bundle.modelPath && requestedAcceleration == acceleration) {
+            accelerationFallbackReason = knownFailure ?: accelerationFallbackReason
+            return 0L
+        }
         close()
 
         val loadMark = TimeSource.Monotonic.markNow()
-        // CPU works on every device; GPU/NPU can be enabled once validated per chipset.
-        engine = Engine(
-            EngineConfig(
-                modelPath = bundle.modelPath,
-                backend = Backend.CPU(),
-                maxNumTokens = window,
-                cacheDir = context.cacheDir.absolutePath,
-            ),
-        ).also { it.initialize() }
+        // CPU works on every device and is the default. GPU/NPU (Settings, "to test") are tried
+        // first when chosen and fall back to CPU if the engine cannot be created on them.
+        val created = initializeWithFallback(
+            preferred = acceleration,
+            onFailure = { failed, error ->
+                logger.info("LiteRT-LM engine could not start on ${failed.label}: ${error.message}")
+            },
+        ) { candidate ->
+            val candidateEngine = Engine(
+                EngineConfig(
+                    modelPath = bundle.modelPath,
+                    backend = candidate.toLiteRtLmBackend(),
+                    maxNumTokens = window,
+                    cacheDir = context.cacheDir.absolutePath,
+                ),
+            )
+            try {
+                candidateEngine.initialize()
+            } catch (error: Throwable) {
+                runCatching { candidateEngine.close() }
+                throw error
+            }
+            candidateEngine
+        }
+        engine = created.engine
         activeModelPath = bundle.modelPath
-        logger.info("LiteRT-LM engine initialized from ${bundle.sourceModelPath} (window $window tokens).")
+        requestedAcceleration = acceleration
+        activeAcceleration = created.acceleration
+        created.fallbackReason?.let { failedAccelerations["${bundle.modelPath}|$acceleration"] = it }
+        accelerationFallbackReason = created.fallbackReason ?: knownFailure
+        logger.info(
+            "LiteRT-LM engine initialized from ${bundle.sourceModelPath} on ${created.acceleration.label} " +
+                "(window $window tokens).",
+        )
         return loadMark.elapsedNow().inWholeMilliseconds.coerceAtLeast(1L)
+    }
+
+    private fun HardwareAcceleration.toLiteRtLmBackend(): Backend = when (this) {
+        HardwareAcceleration.Cpu -> Backend.CPU()
+        HardwareAcceleration.Gpu -> Backend.GPU()
+        // The NPU dispatch libraries are looked up next to the app's own native libraries.
+        HardwareAcceleration.Npu -> Backend.NPU(context.applicationInfo.nativeLibraryDir)
     }
 
     private fun ensureInference(bundle: LiteRtLmModelBundle): Long {

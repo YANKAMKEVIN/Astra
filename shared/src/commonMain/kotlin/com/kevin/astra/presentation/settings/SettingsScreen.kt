@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kevin.astra.core.ai.HardwareAcceleration
 import com.kevin.astra.core.ai.BackendStatus
 import com.kevin.astra.core.ai.InferenceBackendInfo
 import com.kevin.astra.core.ai.LocalModel
@@ -154,10 +155,40 @@ private fun SettingsContent(
             mode = state.themeMode,
             onSelect = { onIntent(SettingsIntent.SelectThemeMode(it)) },
         )
+        HardwareAccelerationCard(
+            selected = state.hardwareAcceleration,
+            onSelect = { onIntent(SettingsIntent.SelectHardwareAcceleration(it)) },
+        )
         ExperimentalFeaturesCard(
             enabled = state.experimentalFeaturesEnabled,
             onToggle = { onIntent(SettingsIntent.ToggleExperimentalFeatures(it)) },
         )
+    }
+}
+
+@Composable
+private fun HardwareAccelerationCard(
+    selected: HardwareAcceleration,
+    onSelect: (HardwareAcceleration) -> Unit,
+) {
+    AstraCard(
+        title = "Hardware acceleration",
+        subtitle = "LiteRT-LM models (.litertlm). GPU and NPU are not validated on a phone yet: " +
+            "if they cannot start, ASTRA falls back to CPU and says so under the answer.",
+        status = selected.label,
+    ) {
+        Spacer(Modifier.height(AstraSpacing.M))
+        SelectableOptionRow {
+            HardwareAcceleration.entries.forEach { acceleration ->
+                SelectableOption(
+                    label = acceleration.label,
+                    selected = acceleration == selected,
+                    enabled = true,
+                    status = if (acceleration == HardwareAcceleration.Cpu) "DEFAULT" else "TO TEST",
+                    onClick = { onSelect(acceleration) },
+                )
+            }
+        }
     }
 }
 
