@@ -93,6 +93,7 @@ val astraRootModule = module {
     single<com.kevin.astra.domain.documents.DocumentIndexer> { get<SmartTextChunker>() }
     single { com.kevin.astra.domain.documents.IndexEmailFileUseCase(emailExtractor = get(), indexer = get()) }
     single { com.kevin.astra.domain.documents.FetchGmailUseCase(gmailSource = get(), indexer = get()) }
+    single { com.kevin.astra.data.documents.DocumentIndexStore(com.kevin.astra.data.documents.createDocumentIndexFile()) }
     single<DocumentContextRetriever> { HybridContextRetriever(embeddingEngine = get()) }
     single<com.kevin.astra.domain.gmail.GmailMessageSource> {
         com.kevin.astra.domain.gmail.GmailRepository(
@@ -183,6 +184,7 @@ val astraRootModule = module {
             backendCatalog = get(),
             promptPipeline = get(),
             notificationService = get(),
+            documentIndexStore = get(),
         )
     }
     single {

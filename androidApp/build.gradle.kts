@@ -62,6 +62,19 @@ android {
     buildFeatures {
         buildConfig = true
     }
+    // The debug APK carried the native inference libraries (LiteRT, LiteRT-LM, MediaPipe) of every
+    // ABI: 239 MB. Debug builds now produce one APK per ABI (Android Studio and `adb install`
+    // pick the one matching the phone). Release is left untouched: it ships as an App Bundle,
+    // which Play already splits per ABI, and `assembleRelease` keeps its single universal APK
+    // with one versionCode.
+    splits {
+        abi {
+            isEnable = gradle.startParameter.taskNames.any { it.contains("Debug", ignoreCase = true) }
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = false
+        }
+    }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"

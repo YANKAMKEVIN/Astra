@@ -2,6 +2,7 @@ package com.kevin.astra.data.settings
 
 import com.kevin.astra.core.ai.BackendCatalog
 import com.kevin.astra.core.ai.BackendStatus
+import com.kevin.astra.core.ai.HardwareAcceleration
 import com.kevin.astra.core.ai.ModelCatalog
 import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.domain.settings.AiConfiguration
@@ -41,6 +42,7 @@ class AiConfigurationLocalDataSource(
             demoModeEnabled = keyValueStore.getBoolean(DemoModeEnabledKey) ?: false,
             themeMode = loadThemeMode(),
             huggingFaceToken = keyValueStore.getString(HuggingFaceTokenKey)?.takeIf { it.isNotEmpty() },
+            hardwareAcceleration = HardwareAcceleration.fromName(keyValueStore.getString(HardwareAccelerationKey)),
         )
 
     fun saveConfiguration(configuration: AiConfiguration) {
@@ -55,6 +57,7 @@ class AiConfigurationLocalDataSource(
         keyValueStore.putBoolean(DemoModeEnabledKey, configuration.demoModeEnabled)
         keyValueStore.putString(ThemeModeKey, configuration.themeMode.name)
         keyValueStore.putString(HuggingFaceTokenKey, configuration.huggingFaceToken ?: "")
+        keyValueStore.putString(HardwareAccelerationKey, configuration.hardwareAcceleration.name)
     }
 
     /** Saved theme mode; before the System/Dark/Light choice existed only a light-theme flag was stored. */
@@ -95,3 +98,4 @@ private const val DemoModeEnabledKey = "ai.demo_mode_enabled"
 private const val LightThemeEnabledKey = "ai.light_theme_enabled"
 private const val ThemeModeKey = "ai.theme_mode"
 private const val HuggingFaceTokenKey = "ai.hugging_face_token"
+private const val HardwareAccelerationKey = "ai.hardware_acceleration"

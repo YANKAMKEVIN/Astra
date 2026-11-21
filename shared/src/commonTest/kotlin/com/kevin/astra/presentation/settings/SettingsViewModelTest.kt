@@ -1,5 +1,6 @@
 package com.kevin.astra.presentation.settings
 
+import com.kevin.astra.core.ai.HardwareAcceleration
 import com.kevin.astra.core.ai.PromptIndustry
 import com.kevin.astra.data.ai.DefaultBackendCatalog
 import com.kevin.astra.data.ai.DefaultModelCatalog
@@ -9,6 +10,8 @@ import com.kevin.astra.domain.modelmanager.ModelDownloadRequest
 import com.kevin.astra.domain.modelmanager.ModelDownloadState
 import com.kevin.astra.domain.modelmanager.ModelReadinessStatus
 import com.kevin.astra.domain.modelmanager.StaticModelReadinessProvider
+import com.kevin.astra.domain.settings.AiConfigurationRepository
+import com.kevin.astra.test.awaitCondition
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.CoroutineScope
@@ -148,11 +151,33 @@ class SettingsViewModelTest {
         }
     }
 
+    @Test
+    fun selectingAnAcceleratorIsShownAndSaved() = runBlocking {
+        val observationScope = CoroutineScope(coroutineContext + Job())
+        val repository = testAiConfigurationRepository()
+        val viewModel = testViewModel(observationScope, repository)
+        try {
+            awaitCondition { viewModel.state.value.hardwareAcceleration == HardwareAcceleration.Cpu }
+
+            viewModel.dispatch(SettingsIntent.SelectHardwareAcceleration(HardwareAcceleration.Gpu))
+
+            awaitCondition { repository.getConfigurationNow().hardwareAcceleration == HardwareAcceleration.Gpu }
+            // The state follows the saved configuration (observed), not only the optimistic update.
+            awaitCondition { viewModel.state.value.hardwareAcceleration == HardwareAcceleration.Gpu }
+            assertEquals(HardwareAcceleration.Gpu, viewModel.state.value.hardwareAcceleration)
+        } finally {
+            observationScope.cancel()
+        }
+    }
+
+    private fun AiConfigurationRepository.getConfigurationNow() = runBlocking { getConfiguration() }
+
     private fun testViewModel(
         observationScope: CoroutineScope = CoroutineScope(EmptyCoroutineContext),
+        repository: AiConfigurationRepository = testAiConfigurationRepository(),
     ): SettingsViewModel =
         SettingsViewModel(
-            aiConfigurationRepository = testAiConfigurationRepository(),
+            aiConfigurationRepository = repository,
             modelCatalog = DefaultModelCatalog(),
             backendCatalog = DefaultBackendCatalog(),
             modelReadinessProvider = StaticModelReadinessProvider(platformName = "Test"),

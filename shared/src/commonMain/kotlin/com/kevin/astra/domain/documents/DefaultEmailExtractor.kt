@@ -45,25 +45,7 @@ class DefaultEmailExtractor : EmailExtractor {
         val bodyLines = if (blankIndex >= 0 && blankIndex + 1 < lines.size)
             lines.subList(blankIndex + 1, lines.size) else emptyList()
 
-        // Unfold headers (continuation lines start with whitespace)
-        val headers = mutableListOf<String>()
-        val currentHeader = StringBuilder()
-        for (line in headerLines) {
-            if (line.isNotEmpty() && (line[0] == ' ' || line[0] == '\t')) {
-                currentHeader.append(' ').append(line.trim())
-            } else {
-                if (currentHeader.isNotBlank()) headers.add(currentHeader.toString())
-                currentHeader.clear()
-                currentHeader.append(line)
-            }
-        }
-        if (currentHeader.isNotBlank()) headers.add(currentHeader.toString())
-
-        val headerMap = headers.mapNotNull { line ->
-            val colon = line.indexOf(':')
-            if (colon > 0) line.substring(0, colon).trim().lowercase() to line.substring(colon + 1).trim()
-            else null
-        }.toMap()
+        val headerMap = parseHeaders(headerLines)
 
         val subject = decodeEncodedWords(headerMap["subject"] ?: "")
         val from = decodeEncodedWords(headerMap["from"] ?: "")
@@ -76,7 +58,7 @@ class DefaultEmailExtractor : EmailExtractor {
         val charset = charsetOf(contentType)
 
         val body = when {
-            boundary != null -> extractMultipartBody(bodyLines.joinToString("\n"), boundary)
+            boundary != null -> extractMultipartBody(bodyLines.joinToString("\n"), boundary, depth = 0).best()
             contentType.contains("base64", ignoreCase = true) ||
                 headerMap["content-transfer-encoding"]?.contains("base64", ignoreCase = true) == true ->
                 decodeBase64Body(bodyLines.joinToString("\n"), charset)
@@ -101,38 +83,84 @@ class DefaultEmailExtractor : EmailExtractor {
         }.trim()
     }
 
-    private fun extractMultipartBody(body: String, boundary: String): String {
-        val parts = body.split("--$boundary")
-        return parts.mapNotNull { part ->
-            val blankIdx = part.indexOf("\n\n").takeIf { it >= 0 }
-                ?: part.indexOf("\r\n\r\n").takeIf { it >= 0 }
-                ?: return@mapNotNull null
-            val partHeaders = part.substring(0, blankIdx).lowercase()
-            val partBody = part.substring(blankIdx).trim()
-            val partCharset = charsetOf(partHeaders)
-
-            when {
-                // Prefer text/plain parts
-                partHeaders.contains("text/plain") -> {
-                    val decoded = when {
-                        partHeaders.contains("base64") -> decodeBase64Body(partBody, partCharset)
-                        partHeaders.contains("quoted-printable") -> decodeQuotedPrintable(partBody, partCharset)
-                        else -> decodeBytes(latin1Encode(partBody), partCharset)
-                    }
-                    decoded.trim()
-                }
-                // Fall back to text/html if no plain part found
-                partHeaders.contains("text/html") -> {
-                    val decoded = when {
-                        partHeaders.contains("base64") -> decodeBase64Body(partBody, partCharset)
-                        partHeaders.contains("quoted-printable") -> decodeQuotedPrintable(partBody, partCharset)
-                        else -> decodeBytes(latin1Encode(partBody), partCharset)
-                    }
-                    stripHtml(decoded).trim()
-                }
-                else -> null
+    // Unfolds header lines (continuations start with whitespace) into a lowercase-keyed map.
+    private fun parseHeaders(headerLines: List<String>): Map<String, String> {
+        val headers = mutableListOf<String>()
+        val currentHeader = StringBuilder()
+        for (line in headerLines) {
+            if (line.isNotEmpty() && (line[0] == ' ' || line[0] == '\t')) {
+                currentHeader.append(' ').append(line.trim())
+            } else {
+                if (currentHeader.isNotBlank()) headers.add(currentHeader.toString())
+                currentHeader.clear()
+                currentHeader.append(line)
             }
-        }.firstOrNull { it.isNotBlank() } ?: ""
+        }
+        if (currentHeader.isNotBlank()) headers.add(currentHeader.toString())
+        return headers.mapNotNull { line ->
+            val colon = line.indexOf(':')
+            if (colon > 0) line.substring(0, colon).trim().lowercase() to line.substring(colon + 1).trim()
+            else null
+        }.toMap()
+    }
+
+    // The boundary keeps its original case: lowercasing it would no longer match the delimiters.
+    private fun boundaryOf(contentType: String): String? =
+        Regex("boundary=\"?([^\"\\s;]+)\"?", RegexOption.IGNORE_CASE)
+            .find(contentType)?.groupValues?.get(1)
+
+    /** Readable text found in a MIME tree: the first text/plain part and the first text/html part. */
+    private class BodyText(val plain: String?, val html: String?) {
+        // Plain text wins; HTML (already converted to text) is the fallback.
+        fun best(): String = plain?.takeIf { it.isNotBlank() } ?: html.orEmpty()
+    }
+
+    /**
+     * Walks a multipart body recursively: `multipart/mixed` (a mail with an attachment) usually
+     * wraps a `multipart/alternative` that holds the text/plain and text/html versions, sometimes
+     * itself inside a `multipart/related`. Attachments are skipped.
+     */
+    private fun extractMultipartBody(body: String, boundary: String, depth: Int): BodyText {
+        var plain: String? = null
+        var html: String? = null
+        val parts = body.split("--$boundary").drop(1) // drop the preamble
+        for (rawPart in parts) {
+            if (rawPart.startsWith("--")) break // closing delimiter: the rest is the epilogue
+            val part = rawPart.removePrefix("\r").removePrefix("\n")
+            val lines = part.lines()
+            val blank = lines.indexOfFirst { it.isBlank() }
+            val headers = if (blank >= 0) parseHeaders(lines.subList(0, blank)) else parseHeaders(lines)
+            val partBody = if (blank >= 0) lines.subList(blank + 1, lines.size).joinToString("\n") else ""
+            val found = extractPart(headers, partBody, depth + 1)
+            if (plain == null && !found.plain.isNullOrBlank()) plain = found.plain
+            if (html == null && !found.html.isNullOrBlank()) html = found.html
+        }
+        return BodyText(plain, html)
+    }
+
+    private fun extractPart(headers: Map<String, String>, body: String, depth: Int): BodyText {
+        // A part without Content-Type is text/plain (RFC 2046 §5.1).
+        val contentType = headers["content-type"] ?: "text/plain"
+        val type = contentType.substringBefore(';').trim().lowercase()
+        val disposition = headers["content-disposition"].orEmpty().lowercase()
+        if (disposition.startsWith("attachment")) return BodyText(null, null)
+        if (type.startsWith("multipart/")) {
+            val boundary = boundaryOf(contentType)
+            return if (boundary != null && depth < MAX_MIME_DEPTH) {
+                extractMultipartBody(body, boundary, depth)
+            } else {
+                BodyText(null, null)
+            }
+        }
+        if (type != "text/plain" && type != "text/html") return BodyText(null, null)
+        val charset = charsetOf(contentType)
+        val encoding = headers["content-transfer-encoding"].orEmpty().lowercase()
+        val decoded = when {
+            encoding.contains("base64") -> decodeBase64Body(body, charset)
+            encoding.contains("quoted-printable") -> decodeQuotedPrintable(body, charset)
+            else -> decodeBytes(latin1Encode(body), charset)
+        }.trim()
+        return if (type == "text/plain") BodyText(decoded, null) else BodyText(null, stripHtml(decoded).trim())
     }
 
     @OptIn(ExperimentalEncodingApi::class)
@@ -253,4 +281,9 @@ class DefaultEmailExtractor : EmailExtractor {
             .replace(Regex("&#39;"), "'")
             .replace(Regex("\n{3,}"), "\n\n")
             .trim()
+
+    private companion object {
+        // Real mails nest 2-3 levels; the cap only guards against malformed or hostile input.
+        const val MAX_MIME_DEPTH = 8
+    }
 }

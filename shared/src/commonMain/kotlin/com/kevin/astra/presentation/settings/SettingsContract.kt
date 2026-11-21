@@ -1,5 +1,6 @@
 package com.kevin.astra.presentation.settings
 
+import com.kevin.astra.core.ai.HardwareAcceleration
 import com.kevin.astra.core.ai.InferenceBackendInfo
 import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.core.ai.PromptIndustry
@@ -25,6 +26,7 @@ data class SettingsState(
     val demoModeEnabled: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.Dark,
     val huggingFaceToken: String = "",
+    val hardwareAcceleration: HardwareAcceleration = HardwareAcceleration.Cpu,
     val downloadState: ModelDownloadState = ModelDownloadState.Idle,
     val storageUsageMb: Float = 0f,
 ) : AstraState
@@ -43,6 +45,7 @@ sealed interface SettingsIntent : AstraIntent {
     data class ToggleDemoMode(val enabled: Boolean) : SettingsIntent
     data class SelectThemeMode(val mode: ThemeMode) : SettingsIntent
     data class UpdateHuggingFaceToken(val token: String) : SettingsIntent
+    data class SelectHardwareAcceleration(val acceleration: HardwareAcceleration) : SettingsIntent
     data class DownloadModel(val modelId: String) : SettingsIntent
     data class DeleteModel(val modelId: String) : SettingsIntent
     data class CancelDownload(val modelId: String) : SettingsIntent

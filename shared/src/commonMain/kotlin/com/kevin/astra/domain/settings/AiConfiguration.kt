@@ -1,5 +1,6 @@
 package com.kevin.astra.domain.settings
 
+import com.kevin.astra.core.ai.HardwareAcceleration
 import com.kevin.astra.core.ai.PromptIndustry
 
 data class AiConfiguration(
@@ -14,6 +15,8 @@ data class AiConfiguration(
     val demoModeEnabled: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.Dark,
     val huggingFaceToken: String? = null,
+    /** LiteRT-LM accelerator; GPU/NPU are opt-in until validated on device (fallback to CPU). */
+    val hardwareAcceleration: HardwareAcceleration = HardwareAcceleration.Cpu,
 )
 
 const val DefaultSelectedModelId: String = "mock-model"

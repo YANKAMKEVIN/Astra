@@ -56,6 +56,8 @@ import com.kevin.astra.core.design.AstraSpacing
 import com.kevin.astra.core.design.AstraTypography
 import com.kevin.astra.core.ai.LocalModel
 import com.kevin.astra.domain.documents.DocumentStatus
+import com.kevin.astra.domain.documents.FetchGmailUseCase
+import com.kevin.astra.domain.documents.IndexedSource
 import com.kevin.astra.domain.documents.RetrievedDocumentContext
 import androidx.compose.ui.Alignment
 
@@ -113,10 +115,20 @@ private fun DocumentsContent(
             chunksCount = state.indexedChunks.size,
             isLoading = state.isLoading,
             isIndexing = state.isIndexing,
+            librarySize = state.library.size,
             onPickPdf = pdfLauncher,
             onPickEmail = emailLauncher,
             onClear = { onIntent(DocumentsIntent.ClearDocument) },
         )
+
+        if (state.library.size > 1) {
+            LibraryCard(
+                library = state.library,
+                currentSourceId = state.currentSourceId,
+                enabled = !state.isLoading && !state.isIndexing && !state.isGenerating,
+                onRemove = { onIntent(DocumentsIntent.RemoveSource(it)) },
+            )
+        }
 
         if (state.gmailSupported) {
             GmailCard(
@@ -129,6 +141,8 @@ private fun DocumentsContent(
                 onQueryChange = { onIntent(DocumentsIntent.UpdateGmailQuery(it)) },
                 onFetchRecent = { onIntent(DocumentsIntent.FetchGmailRecent) },
                 onFetchSearch = { onIntent(DocumentsIntent.FetchGmailSearch) },
+                canFetchMore = state.gmailFetch?.hasMore == true,
+                onFetchMore = { onIntent(DocumentsIntent.FetchGmailMore) },
             )
         }
 
@@ -178,7 +192,7 @@ private fun DocumentsContent(
             }
         }
 
-        AnimatedVisibility(visible = state.documentStatus == DocumentStatus.Indexed) {
+        AnimatedVisibility(visible = state.hasIndexedContent) {
             QuestionCard(
                 question = state.question,
                 enabled = !state.isGenerating,
@@ -265,6 +279,7 @@ private fun DocumentCard(
     chunksCount: Int,
     isLoading: Boolean,
     isIndexing: Boolean,
+    librarySize: Int,
     onPickPdf: () -> Unit,
     onPickEmail: () -> Unit,
     onClear: () -> Unit,
@@ -338,18 +353,81 @@ private fun DocumentCard(
                 )
             }
         } else {
+            // Another file is added to the library: questions then search every loaded source.
             Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
                 AstraButton(
-                    text = if (isLoading || isIndexing) "Processing…" else if (isEmail) "New email" else "New PDF",
-                    onClick = if (isEmail) onPickEmail else onPickPdf,
+                    text = if (isLoading || isIndexing) "Processing…" else "Add PDF",
+                    onClick = onPickPdf,
                     enabled = !isLoading && !isIndexing,
                     modifier = Modifier.weight(1f),
-                    leadingIcon = if (isEmail) AstraIcons.Mail else AstraIcons.Article,
+                    leadingIcon = AstraIcons.Article,
                 )
                 AstraButton(
-                    text = "Clear",
-                    onClick = onClear,
+                    text = "Add email",
+                    onClick = onPickEmail,
                     enabled = !isLoading && !isIndexing,
+                    modifier = Modifier.weight(1f),
+                    style = AstraButtonStyle.Secondary,
+                    leadingIcon = AstraIcons.Mail,
+                )
+            }
+            Spacer(Modifier.height(AstraSpacing.S))
+            AstraButton(
+                text = if (librarySize > 1) "Clear all ($librarySize)" else "Clear",
+                onClick = onClear,
+                enabled = !isLoading && !isIndexing,
+                style = AstraButtonStyle.Ghost,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+/** The sources questions are answered from, each removable on its own. */
+@Composable
+private fun LibraryCard(
+    library: List<IndexedSource>,
+    currentSourceId: String?,
+    enabled: Boolean,
+    onRemove: (String) -> Unit,
+) {
+    AstraCard(
+        title = "Library",
+        subtitle = "Questions are answered from all ${library.size} sources, saved on this device.",
+        status = "${library.size} SOURCES",
+    ) {
+        Spacer(Modifier.height(AstraSpacing.S))
+        // Newest first, like the document card that shows the last one added.
+        library.asReversed().forEach { source ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = AstraSpacing.XS),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S),
+            ) {
+                AstraIcon(
+                    icon = if (source.isEmail) AstraIcons.Mail else AstraIcons.Article,
+                    tint = if (source.id == currentSourceId) AstraColors.Secondary else AstraColors.TextSecondary,
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = source.name,
+                        style = AstraTypography.Body,
+                        color = AstraColors.TextPrimary,
+                        maxLines = 1,
+                    )
+                    Text(
+                        text = buildString {
+                            if (source.isEmail) append("${source.emailCount} email(s)") else append("${source.pageCount} page(s)")
+                            append(" · ${source.chunks.size} chunks")
+                        },
+                        style = AstraTypography.Caption,
+                        color = AstraColors.TextSecondary,
+                    )
+                }
+                AstraButton(
+                    text = "Remove",
+                    onClick = { onRemove(source.id) },
+                    enabled = enabled,
                     style = AstraButtonStyle.Ghost,
                 )
             }
@@ -368,6 +446,8 @@ private fun GmailCard(
     onQueryChange: (String) -> Unit,
     onFetchRecent: () -> Unit,
     onFetchSearch: () -> Unit,
+    canFetchMore: Boolean,
+    onFetchMore: () -> Unit,
 ) {
     AstraCard(
         title = "Gmail",
@@ -440,7 +520,7 @@ private fun GmailCard(
             Spacer(Modifier.height(AstraSpacing.M))
             Row(horizontalArrangement = Arrangement.spacedBy(AstraSpacing.S)) {
                 AstraButton(
-                    text = if (isFetching) "Fetching…" else "Latest 20",
+                    text = if (isFetching) "Fetching…" else "Latest ${FetchGmailUseCase.PAGE_SIZE}",
                     onClick = onFetchRecent,
                     enabled = enabled,
                     modifier = Modifier.weight(1f),
@@ -453,6 +533,17 @@ private fun GmailCard(
                     style = AstraButtonStyle.Secondary,
                     modifier = Modifier.weight(1f),
                     leadingIcon = AstraIcons.Search,
+                )
+            }
+            if (canFetchMore) {
+                Spacer(Modifier.height(AstraSpacing.S))
+                AstraButton(
+                    text = "Load ${FetchGmailUseCase.PAGE_SIZE} more",
+                    onClick = onFetchMore,
+                    enabled = enabled,
+                    style = AstraButtonStyle.Secondary,
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = AstraIcons.Download,
                 )
             }
             Spacer(Modifier.height(AstraSpacing.S))

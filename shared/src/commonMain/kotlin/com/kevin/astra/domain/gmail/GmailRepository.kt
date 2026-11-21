@@ -13,12 +13,16 @@ class GmailRepository(
     private val emailExtractor: EmailExtractor,
 ) : GmailMessageSource {
     /** Fetches up to [maxResults] messages (optionally filtered by [query]) as parsed documents. */
-    suspend fun fetchMessages(query: String? = null, maxResults: Int = 20): List<LoadedEmailDocument> {
-        val ids = apiClient.listMessageIds(query = query, maxResults = maxResults)
-        return ids.map { id ->
+    suspend fun fetchMessages(query: String? = null, maxResults: Int = 20): List<LoadedEmailDocument> =
+        fetchPage(query, maxResults).first
+
+    private suspend fun fetchPage(query: String?, maxResults: Int): Pair<List<LoadedEmailDocument>, Boolean> {
+        val page = apiClient.listMessages(query = query, maxResults = maxResults)
+        val docs = page.ids.map { id ->
             val bytes = apiClient.getRawMessage(id)
             emailExtractor.extractEml(bytes, fileName = "gmail_$id.eml")
         }
+        return docs to page.hasMore
     }
 
     /**
@@ -30,12 +34,13 @@ class GmailRepository(
         maxResults: Int,
         label: String,
     ): LoadedEmailDocument {
-        val messages = fetchMessages(query = query, maxResults = maxResults)
+        val (messages, hasMore) = fetchPage(query = query, maxResults = maxResults)
         val merged = messages.joinToString("\n\n---\n\n") { it.rawText }
         return LoadedEmailDocument(
             fileName = if (query.isNullOrBlank()) "$label (latest $maxResults)" else "$label · \"$query\"",
             emailCount = messages.size,
             rawText = merged,
+            hasMore = hasMore,
         )
     }
 }

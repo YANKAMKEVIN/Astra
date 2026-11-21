@@ -15,6 +15,7 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -125,5 +126,56 @@ class GmailRepositoryTest {
         val docs = repo.fetchMessages()
 
         assertTrue(docs.isEmpty())
+    }
+
+    // End to end through the mocked API: a mail with a PDF attachment keeps its body.
+    @Test
+    fun aGmailMessageWithAnAttachmentKeepsItsBody() = runBlocking {
+        val rfc822 = listOf(
+            "Subject: Contrat",
+            "Content-Type: multipart/mixed; boundary=\"000mixed\"",
+            "",
+            "--000mixed",
+            "Content-Type: multipart/alternative; boundary=\"000alt\"",
+            "",
+            "--000alt",
+            "Content-Type: text/plain; charset=\"UTF-8\"",
+            "",
+            "Le contrat signé est en pièce jointe.",
+            "--000alt",
+            "Content-Type: text/html; charset=\"UTF-8\"",
+            "",
+            "<div>Le contrat signé est en pièce jointe.</div>",
+            "--000alt--",
+            "--000mixed",
+            "Content-Type: application/pdf; name=\"contrat.pdf\"",
+            "Content-Disposition: attachment; filename=\"contrat.pdf\"",
+            "Content-Transfer-Encoding: base64",
+            "",
+            "JVBERi0xLjQ=",
+            "--000mixed--",
+        ).joinToString("\r\n")
+        val repo = buildRepository(
+            listResponse = """{"messages":[{"id":"m1"}]}""",
+            rawByPath = mapOf("m1" to rawMessageJson("m1", rfc822)),
+        )
+
+        val doc = repo.fetchAsSingleDocument(query = null, maxResults = 20, label = "Gmail")
+
+        assertContains(doc.rawText, "Le contrat signé est en pièce jointe.")
+        assertFalse(doc.rawText.contains("JVBERi0"))
+        assertFalse(doc.hasMore)
+    }
+
+    @Test
+    fun reportsThatOlderMessagesRemain() = runBlocking {
+        val repo = buildRepository(
+            listResponse = """{"messages":[{"id":"m1"}],"nextPageToken":"older"}""",
+            rawByPath = mapOf("m1" to rawMessageJson("m1", "Subject: One\n\nFirst.")),
+        )
+
+        val doc = repo.fetchAsSingleDocument(query = null, maxResults = 1, label = "Gmail")
+
+        assertTrue(doc.hasMore)
     }
 }
