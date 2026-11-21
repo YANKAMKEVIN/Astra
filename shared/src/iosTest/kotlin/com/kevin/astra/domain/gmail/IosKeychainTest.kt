@@ -29,10 +29,10 @@ class IosKeychainTest {
 
     @Test
     fun writeReadUpdateDeleteRoundTrip() {
-        assertNull(keychain.read("token"))
+        assertNull(keychain.read("token"), "initial read status ${keychain.lastStatus}")
 
-        assertTrue(keychain.write("token", "first"))
-        assertEquals("first", keychain.read("token"))
+        assertTrue(keychain.write("token", "first"), "write status ${keychain.lastStatus}")
+        assertEquals("first", keychain.read("token"), "read status ${keychain.lastStatus}")
 
         assertTrue(keychain.write("token", "second é"))
         assertEquals("second é", keychain.read("token"))
@@ -50,7 +50,7 @@ class IosKeychainTest {
 
         val result = GmailTokenMigration.migrate(UserDefaultsLegacyGmailTokenSource(defaults), store)
 
-        assertEquals(GmailTokenMigration.Result.Migrated, result)
+        assertEquals(GmailTokenMigration.Result.Migrated, result, "keychain status ${keychain.lastStatus}")
         assertEquals("old-refresh", store.refreshToken)
         assertEquals("old-access", store.accessToken)
         assertEquals(1_234.5, store.accessTokenExpiry)

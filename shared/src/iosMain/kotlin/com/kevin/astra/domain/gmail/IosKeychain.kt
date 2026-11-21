@@ -56,6 +56,10 @@ const val GMAIL_KEYCHAIN_SERVICE = "com.kevin.astra.gmail"
  */
 class IosKeychain(private val service: String = GMAIL_KEYCHAIN_SERVICE) : SecureStringStore {
 
+    /** OSStatus of the last Keychain call (diagnostics and tests). */
+    var lastStatus: Int = 0
+        private set
+
     override fun read(key: String): String? = memScoped {
         val query = dictionary(
             kSecClass to kSecClassGenericPassword,
@@ -65,7 +69,8 @@ class IosKeychain(private val service: String = GMAIL_KEYCHAIN_SERVICE) : Secure
             kSecMatchLimit to kSecMatchLimitOne,
         )
         val result = alloc<CFTypeRefVar>()
-        if (SecItemCopyMatching(query, result.ptr) != errSecSuccess) return@memScoped null
+        lastStatus = SecItemCopyMatching(query, result.ptr)
+        if (lastStatus != errSecSuccess) return@memScoped null
         val data = CFBridgingRelease(result.value) as? NSData ?: return@memScoped null
         data.toByteArray().decodeToString()
     }
@@ -81,7 +86,8 @@ class IosKeychain(private val service: String = GMAIL_KEYCHAIN_SERVICE) : Secure
             kSecValueData to data,
             kSecAttrAccessible to kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
         )
-        when (SecItemUpdate(query, update)) {
+        lastStatus = SecItemUpdate(query, update)
+        when (lastStatus) {
             errSecSuccess -> true
             errSecItemNotFound -> {
                 val add = dictionary(
@@ -91,7 +97,8 @@ class IosKeychain(private val service: String = GMAIL_KEYCHAIN_SERVICE) : Secure
                     kSecValueData to data,
                     kSecAttrAccessible to kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
                 )
-                SecItemAdd(add, null) == errSecSuccess
+                lastStatus = SecItemAdd(add, null)
+                lastStatus == errSecSuccess
             }
             else -> false
         }
