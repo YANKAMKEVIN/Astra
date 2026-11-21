@@ -1,6 +1,6 @@
 # État du projet Astra
 
-_Dernière mise à jour : 31 octobre 2026, `main` au merge de la PR #28._
+_Dernière mise à jour : 21 novembre 2026, branche `claude/suite` (à relire avant fusion)._
 
 ## Ce qui est livré (mergé dans `main`)
 
@@ -19,20 +19,37 @@ _Dernière mise à jour : 31 octobre 2026, `main` au merge de la PR #28._
 - **Galaxy S24** : téléchargement de 2 Go terminé avec l'app en arrière-plan et le téléphone forcé en Doze profond.
 - **Simulateur iPhone 16 Pro** : téléchargement de 2 Go terminé avec l'app en arrière-plan.
 
-## Non vérifié
+## Branche `claude/suite` (21 novembre 2026, à relire)
 
-- Android : le bouton « Allow » de la boîte d'explication (PR #27) ouvre la demande système puis lance le téléchargement.
-- iPhone physique : téléchargement long écran verrouillé ; relance de l'app par iOS pendant un téléchargement.
-- iOS : génération de texte sur un vrai iPhone (jamais testée).
-- Section « Too large » avec un modèle réellement au-dessus de la RAM (il faut un téléphone de 6 Go ou moins).
+| Sujet | État |
+|---|---|
+| Gmail | Corps des mails multipart imbriqués (pièce jointe) lu en récursif : texte brut, sinon HTML converti. Pagination `nextPageToken` + bouton « Load 20 more » (100 messages max). 401/403 : « Reconnect your Gmail account » / « Gmail refused access », l'autorisation inutile est effacée. Testé sur réponses d'API simulées. |
+| RAG | Routage des questions (`DocumentQuestionRouter`) : les questions ordinaires en français ne partent plus vers le résumé. Bibliothèque de plusieurs sources (PDF, e-mail, Gmail ; 10 max), index sauvegardé dans `filesDir/rag/index.json` et restauré au lancement (Android ; iOS en mémoire). Chat : la pièce jointe reste pour les questions suivantes jusqu'au retrait ou à une nouvelle conversation. |
+| APK de debug | Un APK par ABI en debug : arm64-v8a 100 Mo, x86_64 111 Mo, armeabi-v7a 59 Mo (sans LiteRT-LM, qui n'a pas de bibliothèque 32 bits). Release inchangée. |
+| GPU/NPU LiteRT-LM | Option « Hardware acceleration » dans Settings (CPU par défaut, GPU et NPU « TO TEST ») avec repli automatique sur CPU, à l'initialisation comme à la première génération. |
+| Tests des adaptateurs Android | `AndroidModelAdaptersTest` : téléchargement sur serveur HTTP local, détection des modèles installés, chargeur du moteur, suppression. |
+
+Tests JVM : 195 → 248 (`:shared:testAndroidHostTest`).
+
+Valeurs par défaut choisies, à valider : Gmail par pages de 20, 100 messages au plus ; 10 sources au plus dans la bibliothèque RAG ; le contenu Gmail est sauvegardé dans l'index local (privé à l'app) et oublié à la déconnexion ; un 401/403 déconnecte le compte ; la pièce jointe du chat reste jusqu'au retrait ; avec plusieurs sources, une question de résumé passe par la recherche au lieu du résumé d'un seul document.
 
 ## Prochaines tâches possibles
 
-1. **Gmail** : corps perdu pour les mails multipart imbriqués (pièce jointe) ; pas de pagination (20 messages) ; erreurs 401/403 affichées comme « aucun message » ; jetons iOS en clair dans NSUserDefaults.
-2. **RAG** : questions générales en français court-circuitées vers le résumé ; index non sauvegardé ; un seul document à la fois ; pièce jointe du chat retirée après chaque réponse.
-3. **APK de debug** de 239 Mo : découper par architecture (ABI splits).
-4. **Accélération GPU/NPU** pour LiteRT-LM (CPU uniquement aujourd'hui).
-5. **Tests des adaptateurs natifs** (moteurs d'inférence, détection des modèles installés, côté iOS). Le modèle de test HTTP local de `ResumableDownloaderTest` est réutilisable.
+1. **Gmail iOS** : les jetons sont encore en clair dans `NSUserDefaults` (`IosGmailAuth.kt`). Plan, à faire sur Mac :
+   - petit wrapper `IosKeychain` (iosMain) sur `SecItemAdd` / `SecItemCopyMatching` / `SecItemUpdate` / `SecItemDelete`, classe `kSecClassGenericPassword`, service `com.kevin.astra.gmail`, accessibilité `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` ;
+   - y ranger le refresh token, le jeton d'accès et son expiration à la place des trois clés `astra_gmail_*` ;
+   - migration au premier lancement : lire les anciennes clés, les écrire dans le Keychain, puis les supprimer de `NSUserDefaults` ;
+   - `signOut()` supprime l'entrée Keychain ; test `iosTest` de l'aller-retour (le Keychain marche sur le simulateur) ; la CI macOS compile déjà `iosArm64`.
+2. **RAG iOS** : persister l'index (aujourd'hui `NoOpDocumentIndexFile`, comme l'historique des conversations).
+3. **Tests des adaptateurs iOS** (moteurs, détection des modèles installés) : à écrire sur Mac.
+
+## À vérifier sur appareil (Kevin)
+
+- iOS : génération de texte sur un vrai iPhone (jamais testée).
+- iPhone physique : téléchargement long écran verrouillé ; relance de l'app par iOS pendant un téléchargement.
+- Android : le bouton « Allow » de la boîte d'explication (PR #27) ouvre la demande système puis lance le téléchargement.
+- Section « Too large » avec un modèle réellement au-dessus de la RAM (téléphone de 6 Go ou moins).
+- Nouveau (`claude/suite`) : GPU puis NPU sur S24 et S21+ (vitesse, et repli sur CPU affiché sous la réponse si ça échoue) ; installation de l'APK arm64-v8a ; index RAG retrouvé après un redémarrage de l'app ; mail Gmail avec pièce jointe ; « Load 20 more » ; message 401 après révocation de l'accès dans le compte Google.
 
 ## Appareils de test
 
@@ -43,4 +60,4 @@ _Dernière mise à jour : 31 octobre 2026, `main` au merge de la PR #28._
 
 - Tests JVM : `./gradlew :shared:testAndroidHostTest`
 - Tests iOS : `./gradlew :shared:iosSimulatorArm64Test`
-- APK : `./gradlew :androidApp:assembleDebug`
+- APK : `./gradlew :androidApp:assembleDebug` (un APK par ABI dans `androidApp/build/outputs/apk/debug/`)
