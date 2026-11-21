@@ -33,15 +33,18 @@ Tests JVM : 195 → 248 (`:shared:testAndroidHostTest`).
 
 Valeurs par défaut choisies, à valider : Gmail par pages de 20, 100 messages au plus ; 10 sources au plus dans la bibliothèque RAG ; le contenu Gmail est sauvegardé dans l'index local (privé à l'app) et oublié à la déconnexion ; un 401/403 déconnecte le compte ; la pièce jointe du chat reste jusqu'au retrait ; avec plusieurs sources, une question de résumé passe par la recherche au lieu du résumé d'un seul document.
 
+## Branche `claude/ios-keychain` (PR vers `main`, à relire)
+
+| Sujet | État |
+|---|---|
+| Jetons Gmail iOS dans le Keychain | `IosKeychain` (iosMain, API Security : `SecItemAdd` / `SecItemUpdate` / `SecItemCopyMatching` / `SecItemDelete`, `kSecClassGenericPassword`, service `com.kevin.astra.gmail`, `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`) remplace `NSUserDefaults` dans `IosGmailAuth.kt`, via `GmailTokenStore` (commun). Migration au lancement (`GmailTokenMigration`) : les clés `astra_gmail_*` de `NSUserDefaults` sont copiées dans le Keychain, relues, puis effacées ; si l'écriture échoue elles restent et la migration est retentée au lancement suivant ; une connexion déjà présente dans le Keychain est gardée. `signOut()` supprime les entrées Keychain. Tests communs avec faux stockage (8) + `IosKeychainTest` sur la CI macOS : lecture/effacement des anciennes clés `NSUserDefaults` testés ; l'aller-retour Keychain et la migration complète sont sautés en CI, car iOS refuse un trousseau à l'exécutable de test lancé sans app (`errSecNotAvailable`, -25291), et tournent dès qu'un trousseau est disponible. Code compilé par la CI (simulateur et `iosArm64`). |
+
+Tests JVM : 248 → 256. À vérifier sur iPhone ou simulateur dans l'app (Kevin) : un compte Gmail connecté avec l'ancienne version reste connecté après la mise à jour ; connexion, puis relance de l'app, puis déconnexion.
+
 ## Prochaines tâches possibles
 
-1. **Gmail iOS** : les jetons sont encore en clair dans `NSUserDefaults` (`IosGmailAuth.kt`). Plan, à faire sur Mac :
-   - petit wrapper `IosKeychain` (iosMain) sur `SecItemAdd` / `SecItemCopyMatching` / `SecItemUpdate` / `SecItemDelete`, classe `kSecClassGenericPassword`, service `com.kevin.astra.gmail`, accessibilité `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` ;
-   - y ranger le refresh token, le jeton d'accès et son expiration à la place des trois clés `astra_gmail_*` ;
-   - migration au premier lancement : lire les anciennes clés, les écrire dans le Keychain, puis les supprimer de `NSUserDefaults` ;
-   - `signOut()` supprime l'entrée Keychain ; test `iosTest` de l'aller-retour (le Keychain marche sur le simulateur) ; la CI macOS compile déjà `iosArm64`.
-2. **RAG iOS** : persister l'index (aujourd'hui `NoOpDocumentIndexFile`, comme l'historique des conversations).
-3. **Tests des adaptateurs iOS** (moteurs, détection des modèles installés) : à écrire sur Mac.
+1. **RAG iOS** : persister l'index (aujourd'hui `NoOpDocumentIndexFile`, comme l'historique des conversations).
+2. **Tests des adaptateurs iOS** (moteurs, détection des modèles installés) : à écrire sur Mac.
 
 ## À vérifier sur appareil (Kevin)
 

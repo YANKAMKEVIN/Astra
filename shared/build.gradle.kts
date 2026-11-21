@@ -79,3 +79,10 @@ kotlin {
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
 }
+
+// Print assertion messages in the CI log (the test report artifact is not always at hand).
+tasks.withType<AbstractTestTask>().configureEach {
+    testLogging {
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
+}
