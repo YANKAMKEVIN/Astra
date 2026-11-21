@@ -27,8 +27,25 @@ class IosKeychainTest {
         defaults.removePersistentDomainForName(suiteName)
     }
 
+    /**
+     * The Kotlin/Native test executable is spawned on the simulator without an app bundle, so
+     * iOS may refuse it a keychain (errSecNotAvailable -25291, or -34018 for a missing
+     * entitlement). The round trip then cannot run; it runs whenever a keychain is available.
+     */
+    private fun keychainAvailable(): Boolean {
+        val ok = keychain.write("probe", "probe")
+        keychain.delete("probe")
+        if (!ok && keychain.lastStatus in setOf(-25291, -34018)) {
+            println("IosKeychainTest: no keychain for the test process (status ${keychain.lastStatus}), skipped.")
+            return false
+        }
+        assertTrue(ok, "probe write status ${keychain.lastStatus}")
+        return true
+    }
+
     @Test
     fun writeReadUpdateDeleteRoundTrip() {
+        if (!keychainAvailable()) return
         assertNull(keychain.read("token"), "initial read status ${keychain.lastStatus}")
 
         assertTrue(keychain.write("token", "first"), "write status ${keychain.lastStatus}")
@@ -43,6 +60,7 @@ class IosKeychainTest {
 
     @Test
     fun migratesUserDefaultsTokensIntoTheKeychain() {
+        if (!keychainAvailable()) return
         defaults.setObject("old-refresh", forKey = GmailTokenStore.KEY_REFRESH)
         defaults.setObject("old-access", forKey = GmailTokenStore.KEY_ACCESS)
         defaults.setDouble(1_234.5, forKey = GmailTokenStore.KEY_EXPIRY)
@@ -60,5 +78,22 @@ class IosKeychainTest {
 
         store.clear()
         assertNull(keychain.read(GmailTokenStore.KEY_REFRESH))
+    }
+
+    @Test
+    fun readsAndErasesTheLegacyUserDefaultsTokens() {
+        defaults.setObject("old-refresh", forKey = GmailTokenStore.KEY_REFRESH)
+        defaults.setDouble(1_234.5, forKey = GmailTokenStore.KEY_EXPIRY)
+        val legacy = UserDefaultsLegacyGmailTokenSource(defaults)
+
+        assertEquals("old-refresh", legacy.readString(GmailTokenStore.KEY_REFRESH))
+        assertEquals(1_234.5, legacy.readDouble(GmailTokenStore.KEY_EXPIRY))
+        assertNull(legacy.readString(GmailTokenStore.KEY_ACCESS))
+        assertNull(legacy.readDouble(GmailTokenStore.KEY_ACCESS))
+
+        legacy.remove(GmailTokenStore.KEY_REFRESH)
+        legacy.remove(GmailTokenStore.KEY_EXPIRY)
+        assertNull(defaults.objectForKey(GmailTokenStore.KEY_REFRESH))
+        assertNull(defaults.objectForKey(GmailTokenStore.KEY_EXPIRY))
     }
 }
