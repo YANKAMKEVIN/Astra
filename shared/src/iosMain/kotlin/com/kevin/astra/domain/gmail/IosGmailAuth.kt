@@ -20,7 +20,6 @@ import platform.Foundation.NSDate
 import platform.Foundation.NSURL
 import platform.Foundation.NSURLComponents
 import platform.Foundation.NSURLQueryItem
-import platform.Foundation.NSUserDefaults
 import platform.Foundation.timeIntervalSince1970
 import platform.UIKit.UIApplication
 import platform.UIKit.UIWindow
@@ -31,10 +30,6 @@ import kotlin.coroutines.resumeWithException
 private const val GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
 private const val AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 private const val TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
-
-private const val KEY_REFRESH = "astra_gmail_refresh"
-private const val KEY_ACCESS = "astra_gmail_access"
-private const val KEY_EXPIRY = "astra_gmail_expiry"
 
 @Serializable
 private data class GoogleTokenResponse(
@@ -47,26 +42,22 @@ private data class GoogleTokenResponse(
  * iOS Gmail OAuth using the native [ASWebAuthenticationSession] (no third-party SDK) plus a Ktor
  * token exchange. Implements [GmailTokenProvider]; refreshes the access token as needed.
  *
- * NOTE: tokens are stored in NSUserDefaults for now. Production should move the refresh token to
- * the Keychain — flagged intentionally.
+ * Tokens live in the Keychain ([IosKeychain], via [GmailTokenStore]); tokens left in
+ * NSUserDefaults by older versions are moved there at startup by [GmailTokenMigration].
  */
 class IosGmailAuthenticator(
     private val clientId: String,
     private val httpClient: HttpClient,
+    private val tokens: GmailTokenStore = GmailTokenStore(IosKeychain()),
 ) : GmailTokenProvider {
 
-    private val defaults = NSUserDefaults.standardUserDefaults
     private val redirectScheme = "com.googleusercontent.apps." +
         clientId.removeSuffix(".apps.googleusercontent.com")
     private val redirectUri = "$redirectScheme:/oauth2redirect"
 
-    fun hasRefreshToken(): Boolean = defaults.stringForKey(KEY_REFRESH) != null
+    fun hasRefreshToken(): Boolean = tokens.hasRefreshToken()
 
-    fun signOut() {
-        defaults.removeObjectForKey(KEY_REFRESH)
-        defaults.removeObjectForKey(KEY_ACCESS)
-        defaults.removeObjectForKey(KEY_EXPIRY)
-    }
+    fun signOut() = tokens.clear()
 
     /** Launches the interactive consent screen and exchanges the code for tokens. */
     suspend fun authorize() {
@@ -103,12 +94,8 @@ class IosGmailAuthenticator(
 
     /** [GmailTokenProvider] — returns a valid access token, refreshing when expired. */
     override suspend fun accessToken(): String {
-        val cached = defaults.stringForKey(KEY_ACCESS)
-        val expiry = defaults.doubleForKey(KEY_EXPIRY)
-        if (cached != null && NSDate().timeIntervalSince1970 < expiry - 60.0) {
-            return cached
-        }
-        val refresh = defaults.stringForKey(KEY_REFRESH)
+        tokens.validAccessToken(NSDate().timeIntervalSince1970)?.let { return it }
+        val refresh = tokens.refreshToken
             ?: throw IllegalStateException("Gmail is not connected.")
         val response = exchangeToken(
             Parameters.build {
@@ -126,11 +113,13 @@ class IosGmailAuthenticator(
 
     private fun persist(response: GoogleTokenResponse) {
         if (response.access_token.isNotEmpty()) {
-            defaults.setObject(response.access_token, KEY_ACCESS)
-            defaults.setDouble(NSDate().timeIntervalSince1970 + response.expires_in.toDouble(), KEY_EXPIRY)
+            tokens.saveAccessToken(
+                response.access_token,
+                NSDate().timeIntervalSince1970 + response.expires_in.toDouble(),
+            )
         }
         // A refresh token is only returned on the first consent; keep the existing one otherwise.
-        response.refresh_token?.let { defaults.setObject(it, KEY_REFRESH) }
+        response.refresh_token?.let { tokens.saveRefreshToken(it) }
     }
 
     private suspend fun presentAuthSession(authUrl: NSURL): NSURL =
@@ -190,8 +179,11 @@ class IosGmailController(
  * read from the app's Info.plist (`GIDClientID`); when absent, Gmail simply stays hidden.
  */
 fun registerIosGmailController() {
+    val tokens = GmailTokenStore(IosKeychain())
+    // Older versions kept the tokens in clear in NSUserDefaults: move them to the Keychain once.
+    GmailTokenMigration.migrate(UserDefaultsLegacyGmailTokenSource(), tokens)
     val clientId = NSBundle.mainBundle.objectForInfoDictionaryKey("GIDClientID") as? String ?: return
     if (clientId.isBlank()) return
-    val authenticator = IosGmailAuthenticator(clientId, defaultGmailHttpClient())
+    val authenticator = IosGmailAuthenticator(clientId, defaultGmailHttpClient(), tokens)
     GmailIntegration.controller = IosGmailController(clientId, authenticator)
 }
