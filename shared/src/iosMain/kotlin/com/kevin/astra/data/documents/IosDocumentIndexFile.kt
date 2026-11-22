@@ -1,4 +1,6 @@
 package com.kevin.astra.data.documents
 
-// Not persisted on iOS yet (like the conversation history): the library stays in memory.
-actual fun createDocumentIndexFile(): DocumentIndexFile = NoOpDocumentIndexFile
+import com.kevin.astra.data.storage.IosTextFileDirectory
+
+// Same layout as Android: rag/index.json in the app's private storage.
+actual fun createDocumentIndexFile(): DocumentIndexFile = DirectoryDocumentIndexFile(IosTextFileDirectory("rag"))
