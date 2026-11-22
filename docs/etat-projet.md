@@ -1,6 +1,6 @@
 # État du projet Astra
 
-_Dernière mise à jour : 21 novembre 2026, branche `claude/suite` (à relire avant fusion)._
+_Dernière mise à jour : 22 novembre 2026, branche `claude/suite-3` (à relire avant fusion)._
 
 ## Ce qui est livré (mergé dans `main`)
 
@@ -12,6 +12,8 @@ _Dernière mise à jour : 21 novembre 2026, branche `claude/suite` (à relire av
 | #26 | Android : téléchargement en service de premier plan + reprise (HTTP `Range`) ; tailles du catalogue corrigées |
 | #27 | Permission de notification demandée au premier téléchargement, plus au lancement |
 | #28 | iOS : téléchargement par session réseau d'arrière-plan (`NSURLSession` background) |
+| #30 | Branche `claude/suite` : Gmail (multipart, pagination, 401/403), RAG (routage FR, index sauvegardé, plusieurs sources), APK de debug par ABI, option GPU/NPU, tests des adaptateurs Android |
+| #31 | Jetons Gmail iOS dans le Keychain, avec migration depuis `NSUserDefaults` |
 
 ## Prouvé sur appareil réel
 
@@ -19,7 +21,7 @@ _Dernière mise à jour : 21 novembre 2026, branche `claude/suite` (à relire av
 - **Galaxy S24** : téléchargement de 2 Go terminé avec l'app en arrière-plan et le téléphone forcé en Doze profond.
 - **Simulateur iPhone 16 Pro** : téléchargement de 2 Go terminé avec l'app en arrière-plan.
 
-## Branche `claude/suite` (21 novembre 2026, à relire)
+## Branche `claude/suite` (21 novembre 2026, fusionnée : PR #30)
 
 | Sujet | État |
 |---|---|
@@ -33,7 +35,7 @@ Tests JVM : 195 → 248 (`:shared:testAndroidHostTest`).
 
 Valeurs par défaut choisies, à valider : Gmail par pages de 20, 100 messages au plus ; 10 sources au plus dans la bibliothèque RAG ; le contenu Gmail est sauvegardé dans l'index local (privé à l'app) et oublié à la déconnexion ; un 401/403 déconnecte le compte ; la pièce jointe du chat reste jusqu'au retrait ; avec plusieurs sources, une question de résumé passe par la recherche au lieu du résumé d'un seul document.
 
-## Branche `claude/ios-keychain` (PR vers `main`, à relire)
+## Branche `claude/ios-keychain` (fusionnée : PR #31)
 
 | Sujet | État |
 |---|---|
@@ -41,10 +43,21 @@ Valeurs par défaut choisies, à valider : Gmail par pages de 20, 100 messages a
 
 Tests JVM : 248 → 256. À vérifier sur iPhone ou simulateur dans l'app (Kevin) : un compte Gmail connecté avec l'ancienne version reste connecté après la mise à jour ; connexion, puis relance de l'app, puis déconnexion.
 
+## Branche `claude/suite-3` (22 novembre 2026, à relire)
+
+| Sujet | État |
+|---|---|
+| Index RAG iOS sauvegardé | `rag/index.json` dans `Library/Application Support` (privé, absent de l'app Fichiers), comme `filesDir/rag/index.json` sur Android. `TextFileDirectory` (commun : lecture, écriture atomique, liste, suppression), `DirectoryDocumentIndexFile` (commun), `IosTextFileDirectory` (iosMain : `NSFileManager`, `writeToFile(atomically = true)`). |
+| Historique des conversations iOS | Il n'était pas sauvegardé (store vide) : `conversations/<id>.json` comme sur Android, via `DirectoryConversationFileStore` (commun). Fichiers illisibles ignorés, écriture ratée sans plantage. Android garde son store. |
+| Tests iOS des adaptateurs | `IosModelReadinessProviderTest` (modèle téléchargé détecté, fichier partiel ou étranger ignoré, modèle sans URL, mock) et `IosTextFileDirectoryTest`. Le gestionnaire de téléchargement (session `NSURLSession` d'arrière-plan) n'est pas couvert. |
+| Correctif : arrêt de la voix iOS | `stop()` faisait `0L as AVSpeechBoundary` (un enum Kotlin) : `ClassCastException` à l'interruption d'une réponse lue et en quittant l'écran Voice. Remplacé par `AVSpeechBoundaryImmediate`, test iOS ajouté. |
+| Correctif : fin de la lecture vocale iOS | « Terminé » était annoncé dès le lancement de la lecture (l'écran Voice repassait aussitôt au repos) ; il vient maintenant de `AVSpeechSynthesizerDelegate` (`didFinish`), comme `onDone` sur Android. Non testable sans lecture réelle. |
+
+Tests JVM : 256 → 265. Le code iOS compile maintenant sous Linux (klibs `compileKotlinIosArm64`, `compileKotlinIosSimulatorArm64` et klibs de test) ; les tests iOS ajoutés n'ont pas été exécutés (pas de Mac) : la CI macOS les lancera sur la PR ou sur `main`.
+
 ## Prochaines tâches possibles
 
-1. **RAG iOS** : persister l'index (aujourd'hui `NoOpDocumentIndexFile`, comme l'historique des conversations).
-2. **Tests des adaptateurs iOS** (moteurs, détection des modèles installés) : à écrire sur Mac.
+1. **Tests du téléchargement iOS** (session d'arrière-plan) : à écrire et lancer sur Mac.
 
 ## À vérifier sur appareil (Kevin)
 
@@ -52,7 +65,8 @@ Tests JVM : 248 → 256. À vérifier sur iPhone ou simulateur dans l'app (Kevin
 - iPhone physique : téléchargement long écran verrouillé ; relance de l'app par iOS pendant un téléchargement.
 - Android : le bouton « Allow » de la boîte d'explication (PR #27) ouvre la demande système puis lance le téléchargement.
 - Section « Too large » avec un modèle réellement au-dessus de la RAM (téléphone de 6 Go ou moins).
-- Nouveau (`claude/suite`) : GPU puis NPU sur S24 et S21+ (vitesse, et repli sur CPU affiché sous la réponse si ça échoue) ; installation de l'APK arm64-v8a ; index RAG retrouvé après un redémarrage de l'app ; mail Gmail avec pièce jointe ; « Load 20 more » ; message 401 après révocation de l'accès dans le compte Google.
+- `claude/suite-3` : index RAG et conversations retrouvés après relance de l'app sur iPhone ; écran Voice : la phase « Speaking » dure jusqu'à la fin de la lecture, le bouton d'arrêt et la sortie de l'écran ne plantent pas.
+- `claude/suite` : GPU puis NPU sur S24 et S21+ (vitesse, et repli sur CPU affiché sous la réponse si ça échoue) ; installation de l'APK arm64-v8a ; index RAG retrouvé après un redémarrage de l'app ; mail Gmail avec pièce jointe ; « Load 20 more » ; message 401 après révocation de l'accès dans le compte Google.
 
 ## Appareils de test
 
@@ -62,5 +76,6 @@ Tests JVM : 248 → 256. À vérifier sur iPhone ou simulateur dans l'app (Kevin
 ## Commandes utiles
 
 - Tests JVM : `./gradlew :shared:testAndroidHostTest`
-- Tests iOS : `./gradlew :shared:iosSimulatorArm64Test`
+- Tests iOS : `./gradlew :shared:iosSimulatorArm64Test` (Mac)
+- Compilation iOS sans Mac (klibs, sans édition de liens ni exécution) : `./gradlew :shared:compileKotlinIosArm64 :shared:compileTestKotlinIosSimulatorArm64`
 - APK : `./gradlew :androidApp:assembleDebug` (un APK par ABI dans `androidApp/build/outputs/apk/debug/`)

@@ -8,13 +8,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import platform.AVFAudio.AVAudioEngine
 import platform.AVFAudio.AVAudioSession
+import platform.AVFAudio.AVSpeechBoundary
 import platform.AVFAudio.AVAudioSessionCategoryRecord
 import platform.AVFAudio.AVAudioSessionModeMeasurement
 import platform.AVFAudio.setActive
 import platform.AVFAudio.AVSpeechSynthesizer
+import platform.AVFAudio.AVSpeechSynthesizerDelegateProtocol
 import platform.AVFAudio.AVSpeechUtterance
 import platform.AVFAudio.AVSpeechUtteranceMinimumSpeechRate
 import platform.Foundation.NSLocale
+import platform.darwin.NSObject
 import platform.Foundation.currentLocale
 import platform.Speech.SFSpeechAudioBufferRecognitionRequest
 import platform.Speech.SFSpeechRecognizer
@@ -128,20 +131,31 @@ private class IosTextToSpeechService : TextToSpeechService {
 
     private val synthesizer = AVSpeechSynthesizer()
 
+    // Done when the utterance has really been spoken, like Android's UtteranceProgressListener.onDone
+    // (it used to be emitted right after speakUtterance, while the answer was still being read).
+    // Kept in a property: AVSpeechSynthesizer only holds its delegate weakly. A stop() cancels the
+    // utterance, which does not call didFinish, so the state stays Idle.
+    private val delegate = object : NSObject(), AVSpeechSynthesizerDelegateProtocol {
+        override fun speechSynthesizer(synthesizer: AVSpeechSynthesizer, didFinishSpeechUtterance: AVSpeechUtterance) {
+            _state.value = TtsState.Done
+        }
+    }
+
+    init {
+        synthesizer.delegate = delegate
+    }
+
     override fun speak(text: String) {
         if (text.isBlank()) return
         val utterance = AVSpeechUtterance.speechUtteranceWithString(text)
         utterance.rate = AVSpeechUtteranceMinimumSpeechRate * 2.5f
         _state.value = TtsState.Speaking
         synthesizer.speakUtterance(utterance)
-        // Emit Done immediately so the VM returns to Idle phase
-        _state.value = TtsState.Done
     }
 
     override fun stop() {
-        // 0L = AVSpeechBoundaryImmediate
-        @Suppress("UNCHECKED_CAST")
-        synthesizer.stopSpeakingAtBoundary(0L as platform.AVFAudio.AVSpeechBoundary)
+        // AVSpeechBoundary is a Kotlin enum: casting 0L to it threw a ClassCastException.
+        synthesizer.stopSpeakingAtBoundary(AVSpeechBoundary.AVSpeechBoundaryImmediate)
         _state.value = TtsState.Idle
     }
 
