@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import platform.AVFAudio.AVAudioEngine
 import platform.AVFAudio.AVAudioSession
+import platform.AVFAudio.AVSpeechBoundary
 import platform.AVFAudio.AVAudioSessionCategoryRecord
 import platform.AVFAudio.AVAudioSessionModeMeasurement
 import platform.AVFAudio.setActive
@@ -139,9 +140,8 @@ private class IosTextToSpeechService : TextToSpeechService {
     }
 
     override fun stop() {
-        // 0L = AVSpeechBoundaryImmediate
-        @Suppress("UNCHECKED_CAST")
-        synthesizer.stopSpeakingAtBoundary(0L as platform.AVFAudio.AVSpeechBoundary)
+        // AVSpeechBoundary is a Kotlin enum: casting 0L to it threw a ClassCastException.
+        synthesizer.stopSpeakingAtBoundary(AVSpeechBoundary.AVSpeechBoundaryImmediate)
         _state.value = TtsState.Idle
     }
 
